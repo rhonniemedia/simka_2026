@@ -1,8 +1,8 @@
 @extends('layouts.main.admin')
 
-@section('title', 'Data Pegawai')
-@section('page_title', 'Data Pegawai')
-@section('page_subtitle', 'Kelola basis data staf dan pegawai secara menyeluruh')
+@section('title', 'Pendidikan Pegawai')
+@section('page_title', 'Pendidikan Pegawai')
+@section('page_subtitle', 'Kelola basis data riwayat pendidikan staf dan pegawai secara menyeluruh')
 
 @section('content')
 <div class="p-8"
@@ -23,8 +23,8 @@
     {{-- 1. PAGE HEADER --}}
     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
         <div>
-            <h1 class="text-2xl md:text-3xl font-bold text-foreground mb-1">Data Pegawai</h1>
-            <p class="text-sm text-secondary">Kelola basis data staf dan pegawai secara menyeluruh.</p>
+            <h1 class="text-2xl md:text-3xl font-bold text-foreground mb-1">Pendidikan Pegawai</h1>
+            <p class="text-sm text-secondary">Kelola basis data riwayat pendidikan staf dan pegawai secara menyeluruh.</p>
         </div>
 
         <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-3">

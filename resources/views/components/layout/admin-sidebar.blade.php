@@ -139,7 +139,7 @@
                 </div>
             </a>
 
-            <a href="#" class="group cursor-pointer">
+            <a href="{{ route('admin.staff.education.index') }}" class="group cursor-pointer">
                 <div class="flex items-center justify-between rounded-xl p-3 transition-all duration-300 hover:bg-muted">
                     <div class="flex items-center gap-3">
                         <i data-lucide="graduation-cap" class="size-5 text-secondary group-hover:text-foreground transition-all duration-300"></i>

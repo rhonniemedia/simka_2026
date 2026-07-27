@@ -12,18 +12,17 @@ class DataController extends Controller
     public function index(Request $request)
     {
         // 1. Ambil parameter dari request
-        $search = $request->input('search');
+        $filterEmploymentStatus = $request->input('filter_employment_status');
         $filterPersonnel = $request->input('filter_personnel');
         $filterPosition = $request->input('filter_position');
         $filterGender = $request->input('filter_gender');
-        $filterStatus = $request->input('filter_status');
+        $search = $request->input('search');
 
         // 2. Inisiasi Query beserta relasinya
-        $query = Data::with(['vault', 'personnelType', 'grade']);
+        $query = Data::with(['vault', 'personnelType', 'grade', 'employmentStatus']);
 
         // 3. Logika Pencarian (Nama & Hash NIK/NIP/NUPTK)
         if (!empty($search)) {
-            // Karena NIK, NIP, NUPTK disimpan dengan hash('sha256', trim($value)) di DataVault
             $searchHash = hash('sha256', trim($search));
 
             $query->where(function ($q) use ($search, $searchHash) {
@@ -37,6 +36,10 @@ class DataController extends Controller
         }
 
         // 4. Logika Filter
+        if (!empty($filterEmploymentStatus)) {
+            $query->where('employment_id', $filterEmploymentStatus);
+        }
+
         if (!empty($filterPersonnel)) {
             $query->where('personnel_id', $filterPersonnel);
         }
@@ -49,52 +52,71 @@ class DataController extends Controller
             $query->where('gender', $filterGender);
         }
 
-        if (!empty($filterStatus)) {
-            $query->where('status', $filterStatus);
-        }
+        // 5. Eksekusi Paginasi (Berdasarkan abjad)
+        $staff = $query->orderBy('name', 'asc')->paginate(10)->withQueryString();
 
-        // 5. Eksekusi Paginasi
-        $staff = $query->latest()->paginate(10)->withQueryString();
-
-        // 6. Siapkan Data Opsi untuk Select Filter (Silakan sesuaikan modelnya jika berbeda)
-        // Opsi ini bisa diambil dari tabel referensi master jabatan dan jenis pegawai
+        // 6. Siapkan Data Opsi untuk Select Filter
+        $employmentOptions = DB::table('staff_employment_statuses')->pluck('name', 'id');
         $personnelOptions = DB::table('staff_personnel_types')->pluck('name', 'id');
         $positionOptions = DB::table('staff_positions')->pluck('name', 'id');
 
-        // 7. Render view parsial jika request datang dari HTMX (pencarian/filter/paginasi tanpa reload)
+        // 6b. Statistik kartu
+        $stats = $this->getStats();
+
+        // 7. Render view parsial jika request datang dari HTMX
         if ($request->header('HX-Request')) {
-            return view('pages.admin.staff.data.partials._table-container', compact(
-                'staff'
-            ));
+            return view('pages.admin.staff.data.partials._table', compact('staff'));
         }
 
         // 8. Render halaman utama penuh
-        return view('pages.admin.staff.data.index', compact(
-            'staff',
-            'search',
-            'filterPersonnel',
-            'filterPosition',
-            'filterGender',
-            'filterStatus',
-            'personnelOptions',
-            'positionOptions'
+        return view('pages.admin.staff.data.index', array_merge(
+            compact(
+                'staff',
+                'search',
+                'filterEmploymentStatus',
+                'filterPersonnel',
+                'filterPosition',
+                'filterGender',
+                'employmentOptions',
+                'personnelOptions',
+                'positionOptions'
+            ),
+            $stats
         ));
+    }
+
+    private function getStats(): array
+    {
+        $counts = Data::select('status', DB::raw('count(*) as total'))
+            ->groupBy('status')
+            ->pluck('total', 'status');
+
+        return [
+            'totalStats'    => $counts->sum(),
+            'activeStats'   => $counts->get('active', 0),
+            'inactiveStats' => $counts->get('inactive', 0),
+            'retiredStats'  => $counts->get('retired', 0),
+            'resignedStats' => $counts->get('resigned', 0),
+        ];
     }
 
     public function destroy(Request $request, $id)
     {
         $staff = Data::findOrFail($id);
-
-        // Proses hapus. Karena constrained cascade di migration, vault otomatis terhapus
         $staff->delete();
 
-        // Mengembalikan view tabel terbaru via HTMX setelah penghapusan
+        if ($request->header('HX-Request')) {
+            $table = $this->index($request)->render();
+            $statsOob = view('pages.admin.staff.data.partials._stats-cards', array_merge(
+                $this->getStats(),
+                ['isOob' => true]
+            ))->render();
+
+            return $table . $statsOob;
+        }
+
         return $this->index($request);
     }
-
-    // =========================================================================
-    // Fungsi Placeholder untuk merender modal via HTMX
-    // =========================================================================
 
     public function detailPersonal($id)
     {

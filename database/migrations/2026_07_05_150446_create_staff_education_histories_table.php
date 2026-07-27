@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('staff_education_histories', function (Blueprint $table) {
             $table->uuid('id')->primary();
 
+            // Foreign Keys
             $table->foreignUuid('staff_id')
                 ->constrained('staff_data')
                 ->cascadeOnDelete();
@@ -21,20 +22,30 @@ return new class extends Migration
             $table->foreignUuid('education_level_id')
                 ->constrained('staff_education_levels');
 
-            $table->string('institution_name');      // Nama institusi
-            $table->string('major')->nullable();     // Jurusan
-            $table->string('certificate_number');
-            $table->date('certificate_date');
-            $table->string('degree_title')->nullable(); // Gelar
-            $table->boolean('is_linear')->nullable();   // Linier
-
+            // Data Pendidikan
+            $table->string('institution_name');                  // sat_pendidikan / Nama institusi
+            $table->string('province')->nullable();              // provinsi
+            $table->string('major')->nullable();                 // jurusan
+            $table->date('graduation_date')->nullable();         // tgl_lulus
+            $table->string('certificate_number');                // nomor_ijazah
+            $table->date('certificate_date');                    // tgl_ijazah
+            $table->string('degree_name')->nullable();           // gelar (nama gelar)
+            $table->string('degree_abbreviation')->nullable();   // gelar (singkatan)
+            $table->enum('degree_position', ['depan', 'belakang'])->nullable(); // depan_belakang / posisi gelar
+            $table->boolean('is_linear')->nullable();            // linier
             // Audit
-            $table->foreignUuid('created_by')->nullable()->constrained('users')->nullOnDelete();
-            $table->foreignUuid('updated_by')->nullable()->constrained('users')->nullOnDelete();
+            $table->foreignUuid('created_by')->nullable()
+                ->constrained('users')
+                ->nullOnDelete();
 
-            $table->enum('verification_status', ['draft', 'verified', 'rejected'])->default('draft');
+            $table->foreignUuid('updated_by')->nullable()
+                ->constrained('users')
+                ->nullOnDelete();
 
-            $table->timestamps();
+            $table->enum('verification_status', ['draft', 'verified', 'rejected'])
+                ->default('draft');                             // status
+
+            $table->timestamps();                               // created_at, updated_at
         });
     }
 

@@ -1,12 +1,12 @@
 <?php
 
-use App\Http\Controllers\Admin\DataController;
 use App\Http\Controllers\Auth\LoginController;
-use App\Http\Controllers\DocumentController;
-use App\Http\Controllers\EducationHistoryController;
-use App\Http\Controllers\FamilyController;
-use App\Http\Controllers\GradeHistoryController;
-use App\Http\Controllers\PeriodicSalaryHistoryController;
+use App\Http\Controllers\Admin\DataController;
+use App\Http\Controllers\Admin\DocumentController;
+use App\Http\Controllers\Admin\EducationHistoryController;
+use App\Http\Controllers\Admin\FamilyController;
+use App\Http\Controllers\Admin\GradeHistoryController;
+use App\Http\Controllers\Admin\PeriodicSalaryHistoryController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -54,6 +54,12 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('/{id}/edit', [DataController::class, 'edit'])->name('edit');
             Route::put('/{id}', [DataController::class, 'update'])->name('update');
             Route::delete('/{id}', [DataController::class, 'destroy'])->name('destroy');
+
+            // Rute modal (dipanggil via HTMX dari menu Aksi di tabel).
+            // Method-nya sudah ada di DataController tapi belum pernah didaftarkan sebagai rute.
+            Route::get('/{id}/detail-personal', [DataController::class, 'detailPersonal'])->name('detail-personal');
+            Route::get('/{id}/detail-employment', [DataController::class, 'detailEmployment'])->name('detail-employment');
+            Route::get('/{id}/edit-personal', [DataController::class, 'editPersonal'])->name('edit-personal');
         });
 
         // 2. Dokumen Pegawai
