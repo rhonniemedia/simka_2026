@@ -1,10 +1,16 @@
 <?php
 
+use App\Http\Controllers\Admin\DataController;
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\DocumentController;
+use App\Http\Controllers\EducationHistoryController;
+use App\Http\Controllers\FamilyController;
+use App\Http\Controllers\GradeHistoryController;
+use App\Http\Controllers\PeriodicSalaryHistoryController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-    return view('welcome');
+    return view('pages.home.index');
 });
 
 Route::middleware('guest')->group(function () {
@@ -34,3 +40,51 @@ Route::get('/dashboard', function () {
         </div>
     ";
 })->middleware(['auth', 'app.access'])->name('dashboard');
+
+Route::prefix('admin')->name('admin.')->group(function () {
+
+    // Grup Utama: Pegawai (Kepegawaian)
+    Route::prefix('staff')->name('staff.')->group(function () {
+
+        // 1. Data Pegawai
+        Route::prefix('data')->name('data.')->group(function () {
+            Route::get('/', [DataController::class, 'index'])->name('index');
+            Route::get('/create', [DataController::class, 'create'])->name('create');
+            Route::post('/', [DataController::class, 'store'])->name('store');
+            Route::get('/{id}/edit', [DataController::class, 'edit'])->name('edit');
+            Route::put('/{id}', [DataController::class, 'update'])->name('update');
+            Route::delete('/{id}', [DataController::class, 'destroy'])->name('destroy');
+        });
+
+        // 2. Dokumen Pegawai
+        Route::prefix('documents')->name('documents.')->group(function () {
+            Route::get('/', [DocumentController::class, 'index'])->name('index');
+            // Tambahkan rute CRUD dokumen di sini nantinya
+        });
+
+        // 3. Kepangkatan
+        Route::prefix('promotions')->name('promotions.')->group(function () {
+            Route::get('/', [GradeHistoryController::class, 'index'])->name('index');
+        });
+
+        // 4. Pendidikan
+        Route::prefix('education')->name('education.')->group(function () {
+            Route::get('/', [EducationHistoryController::class, 'index'])->name('index');
+        });
+
+        // 5. Keluarga
+        Route::prefix('family')->name('family.')->group(function () {
+            Route::get('/', [FamilyController::class, 'index'])->name('index');
+        });
+
+        // 6. Berkala (Kenaikan Gaji Berkala)
+        Route::prefix('periodic-salary')->name('periodic.')->group(function () {
+            Route::get('/', [PeriodicSalaryHistoryController::class, 'index'])->name('index');
+        });
+
+        // 7. Pensiun
+        Route::prefix('retirement')->name('retirement.')->group(function () {
+            Route::get('/')->name('index');
+        });
+    });
+});
