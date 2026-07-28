@@ -13,12 +13,8 @@
                     </th>
 
                     <th class="w-[30%] px-4 py-3 text-sm font-bold text-secondary tracking-wider">
-                        Kepegawaian
-                        <div class="text-[11px] font-normal normal-case">
-                            Status |
-                            <span class="inline sm:hidden">NIP</span>
-                            <span class="hidden sm:inline">Nomor Induk Pegawai</span>
-                        </div>
+                        Pendidikan
+                        <div class="text-[11px] font-normal normal-case">Pendidikan | Jurusan</div>
                     </th>
                     <th class="w-[30%] px-4 py-3 text-sm font-bold text-secondary tracking-wider">
                         Kontak
@@ -46,27 +42,43 @@
                 <tr id="row-staff-{{ $r->id }}" class="border-b border-border hover:bg-muted/50 transition-colors">
                     {{-- Kolom 1: Profil & NIK --}}
                     <td class="px-5 py-4 min-w-[240px]">
-                        <div class="flex items-center gap-3">
-                            {{-- Komponen avatar bawaan dari UI Anda --}}
-                            <x-ui.avatar :name="$r->name" :gender="$r->gender" :index="$loop->index" />
+                        {{-- Bungkus menggunakan tag <a> dengan route show --}}
+                        <a href="{{ route('admin.staff.education.show', $r->id) }}" class="flex items-center gap-3 group transition-all">
+
+                            {{-- Mempertahankan komponen avatar bawaan aplikasi --}}
+                            <div class="shrink-0">
+                                <x-ui.avatar :name="$r->name" :gender="$r->gender" :index="$loop->index" />
+                            </div>
+
                             <div>
-                                <div class="font-semibold text-foreground text-sm uppercase whitespace-nowrap">{{ $r->name }}</div>
-                                <div class="flex items-center gap-1.5 text-xs text-secondary mt-0.5">
+                                {{-- Teks merespon hover dari tag <a> utama menggunakan 'group-hover:text-primary' --}}
+                                <div class="font-semibold text-foreground text-sm uppercase group-hover:text-primary transition-colors whitespace-nowrap">
+                                    {{ $r->name }}
+                                </div>
+
+                                <div class="flex items-center gap-1.5 text-xs text-secondary mt-0.5 whitespace-nowrap">
+                                    {{-- Menggunakan indikator emerald dan menampilkan NIK --}}
+                                    <span class="inline-block size-1.5 rounded-full bg-emerald-500 shrink-0"></span>
                                     {{ $nik }}
                                 </div>
                             </div>
-                        </div>
+
+                        </a>
                     </td>
 
-                    {{-- Kolom 2: NIP & NUPTK --}}
+                    @php
+                    // Langsung memanggil relasi tunggal (mengembalikan 1 objek model, bukan koleksi)
+                    $pendidikan = $r->highestEducation;
+
+                    // Ambil nama dari relasi level, atau tampilkan default jika belum ada data
+                    $namaPendidikan = $pendidikan ? $pendidikan->level->alias : 'Belum ada data';
+                    $jurusan = $pendidikan ? $pendidikan->major : '-';
+                    @endphp
+
                     <td class="px-5 py-4 min-w-[160px]">
-                        <div class="text-sm font-semibold text-foreground whitespace-nowrap">{{ $status }}</div>
+                        <div class="text-sm font-semibold text-foreground whitespace-nowrap">{{ $namaPendidikan }}</div>
                         <div class="text-xs text-secondary whitespace-nowrap">
-                            @if(empty($nip) || strcasecmp($nip, 'tidak ada') === 0)
-                            -
-                            @else
-                            <span class="font-semibold">NIP </span>{{ $nip }}
-                            @endif
+                            {{ $jurusan }}
                         </div>
                     </td>
 

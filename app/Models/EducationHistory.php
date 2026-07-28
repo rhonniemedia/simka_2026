@@ -16,4 +16,14 @@ class EducationHistory extends Model
     protected $keyType = 'string';
 
     protected $guarded = ['id'];
+
+    /**
+     * Relasi ke referensi tingkat pendidikan (staff_education_levels)
+     */
+    public function level()
+    {
+        // Sesuaikan EducationLevel::class dengan nama model referensi pendidikan Anda.
+        // Kolom 'education_level_id' merujuk pada struktur tabel staff_education_histories.
+        return $this->belongsTo(EducationLevel::class, 'education_level_id');
+    }
 }

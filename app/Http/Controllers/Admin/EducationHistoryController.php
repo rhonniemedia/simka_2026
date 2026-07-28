@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Data;
+use App\Models\EmploymentStatus;
+use App\Models\PersonnelType;
+use App\Models\Position;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class EducationHistoryController extends Controller
 {
@@ -19,7 +21,13 @@ class EducationHistoryController extends Controller
         $search = $request->input('search');
 
         // 2. Inisiasi Query beserta relasinya
-        $query = Data::with(['vault', 'personnelType', 'grade', 'employmentStatus']);
+        $query = Data::with([
+            'vault',
+            'personnelType',
+            'grade',
+            'employmentStatus',
+            'highestEducation.level' // <-- Gunakan relasi yang baru
+        ]);
 
         // 3. Logika Pencarian (Nama & Hash NIK/NIP/NUPTK)
         if (!empty($search)) {
@@ -55,12 +63,13 @@ class EducationHistoryController extends Controller
         // 5. Eksekusi Paginasi (Berdasarkan abjad)
         $staff = $query->orderBy('name', 'asc')->paginate(10)->withQueryString();
 
-        // 6. Siapkan Data Opsi untuk Select Filter
-        $employmentOptions = DB::table('staff_employment_statuses')->pluck('name', 'id');
-        $personnelOptions = DB::table('staff_personnel_types')->pluck('name', 'id');
-        $positionOptions = DB::table('staff_positions')->pluck('name', 'id');
+        // 6. Siapkan Data Opsi untuk Select Filter menggunakan Model
+        // Mengubah DB::table menjadi panggilan Model jika memungkinkan, atau pertahankan standar Laravel
+        $employmentOptions = EmploymentStatus::pluck('name', 'id') ?? collect();
+        $personnelOptions = PersonnelType::pluck('name', 'id') ?? collect();
+        $positionOptions = Position::pluck('name', 'id') ?? collect();
 
-        // 6b. Statistik kartu
+        // 6b. Statistik kartu pendidikan
         $stats = $this->getStats();
 
         // 7. Render view parsial jika request datang dari HTMX
@@ -87,22 +96,29 @@ class EducationHistoryController extends Controller
 
     private function getStats(): array
     {
-        $counts = Data::select('status', DB::raw('count(*) as total'))
-            ->groupBy('status')
-            ->pluck('total', 'status');
+        // Menghitung statistik pendidikan menggunakan query Eloquent
+        // Menggunakan distinct agar jika ada 1 pegawai memiliki 2 riwayat S1, tetap dihitung 1
+        $educationStats = Data::join('staff_education_histories', 'staff_data.id', '=', 'staff_education_histories.staff_id')
+            ->join('staff_education_levels', 'staff_education_histories.education_level_id', '=', 'staff_education_levels.id')
+            ->where('staff_education_histories.verification_status', 'verified')
+            ->selectRaw('staff_education_levels.alias, count(distinct staff_data.id) as total')
+            ->groupBy('staff_education_levels.id', 'staff_education_levels.alias')
+            ->pluck('total', 'alias');
 
+        // Sesuaikan parameter get() dengan isi kolom 'alias' atau 'level' pada tabel staff_education_levels Anda
         return [
-            'totalStats'    => $counts->sum(),
-            'activeStats'   => $counts->get('active', 0),
-            'inactiveStats' => $counts->get('inactive', 0),
-            'retiredStats'  => $counts->get('retired', 0),
-            'resignedStats' => $counts->get('resigned', 0),
+            'totalVerified'  => $educationStats->sum(),
+            'pascaStats'     => $educationStats->get('s2', 0) + $educationStats->get('s3', 0),
+            'sarjanaStats'   => $educationStats->get('s1', 0) + $educationStats->get('d4', 0),
+            'menengahStats'  => $educationStats->get('sma', 0) + $educationStats->get('smk', 0) + $educationStats->get('d3', 0),
         ];
     }
 
     public function destroy(Request $request, $id)
     {
         $staff = Data::findOrFail($id);
+
+        // Asumsi relasi di model Data memiliki cascade delete atau ditangani event
         $staff->delete();
 
         if ($request->header('HX-Request')) {
@@ -120,7 +136,8 @@ class EducationHistoryController extends Controller
 
     public function detailPersonal($id)
     {
-        $staff = Data::with(['vault'])->findOrFail($id);
+        // Mengubah cakupan detail untuk memuat riwayat pendidikan
+        $staff = Data::with(['vault', 'educationHistories.level'])->findOrFail($id);
         return view('pages.admin.staff.education.modals._detail-personal', compact('staff'));
     }
 
@@ -132,7 +149,23 @@ class EducationHistoryController extends Controller
 
     public function editPersonal($id)
     {
-        $staff = Data::with(['vault'])->findOrFail($id);
+        $staff = Data::with(['vault', 'educationHistories'])->findOrFail($id);
         return view('pages.admin.staff.education.modals._edit-personal', compact('staff'));
+    }
+
+    public function show($id)
+    {
+        // Mengambil data pegawai beserta brankas dan SEMUA riwayat pendidikan
+        $staff = Data::with([
+            'vault',
+            'employmentStatus',
+            'educations' => function ($query) {
+                // Mengurutkan dari tahun lulus terbaru ke paling lama
+                // Ubah menjadi 'asc' jika ingin diurutkan dari jenjang paling awal
+                $query->orderBy('graduation_date', 'desc')->with('level');
+            }
+        ])->findOrFail($id);
+
+        return view('pages.admin.staff.education.show.index', compact('staff'));
     }
 }

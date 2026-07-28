@@ -76,7 +76,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
         // 4. Pendidikan
         Route::prefix('education')->name('education.')->group(function () {
             Route::get('/', [EducationHistoryController::class, 'index'])->name('index');
+            Route::get('/{id}', [EducationHistoryController::class, 'show'])->name('show');
         });
+
 
         // 5. Keluarga
         Route::prefix('family')->name('family.')->group(function () {

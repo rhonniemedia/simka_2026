@@ -87,16 +87,23 @@ class DataController extends Controller
 
     private function getStats(): array
     {
-        $counts = Data::select('status', DB::raw('count(*) as total'))
-            ->groupBy('status')
-            ->pluck('total', 'status');
+        // Ubah referensi 'data' menjadi 'staff_data' sesuai dengan nama tabel di database
+        $statuses = Data::leftJoin('staff_employment_statuses', 'staff_data.employment_id', '=', 'staff_employment_statuses.id')
+            ->selectRaw('staff_employment_statuses.slug, count(staff_data.id) as total')
+            ->groupBy('staff_employment_statuses.id', 'staff_employment_statuses.slug')
+            ->pluck('total', 'slug');
+
+        // Mengambil data berdasarkan slug 'pppk' dan 'pppk-pw'
+        $pppk = $statuses->get('pppk', 0);
+        $pppkPw = $statuses->get('pppk-pw', 0);
 
         return [
-            'totalStats'    => $counts->sum(),
-            'activeStats'   => $counts->get('active', 0),
-            'inactiveStats' => $counts->get('inactive', 0),
-            'retiredStats'  => $counts->get('retired', 0),
-            'resignedStats' => $counts->get('resigned', 0),
+            'totalStats'   => Data::count(),
+            'pnsStats'     => $statuses->get('pns', 0),
+            'pppkTotal'    => $pppk + $pppkPw,
+            'pppkPenuh'    => $pppk,
+            'pppkParuh'    => $pppkPw,
+            'honorerStats' => $statuses->get('honorer', 0),
         ];
     }
 

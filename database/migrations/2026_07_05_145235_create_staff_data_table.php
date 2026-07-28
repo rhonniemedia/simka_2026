@@ -14,6 +14,8 @@ return new class extends Migration
         Schema::create('staff_data', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->string('name');
+            $table->string('front_title')->nullable()->after('name');
+            $table->string('back_title')->nullable()->after('front_title');
             $table->string('slug')->unique();
 
             $table->foreignUuid('employment_id')->constrained('staff_employment_statuses'); // jp_id

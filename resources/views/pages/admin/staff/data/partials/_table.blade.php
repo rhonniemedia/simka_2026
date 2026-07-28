@@ -50,7 +50,8 @@
                             {{-- Komponen avatar bawaan dari UI Anda --}}
                             <x-ui.avatar :name="$r->name" :gender="$r->gender" :index="$loop->index" />
                             <div>
-                                <div class="font-semibold text-foreground text-sm uppercase whitespace-nowrap">{{ $r->name }}</div>
+                                {{-- HAPUS KELAS uppercase DAN UBAH VARIABELNYA --}}
+                                <div class="font-semibold text-foreground text-sm whitespace-nowrap">{{ $r->name_with_title }}</div>
                                 <div class="flex items-center gap-1.5 text-xs text-secondary mt-0.5">
                                     {{ $nik }}
                                 </div>

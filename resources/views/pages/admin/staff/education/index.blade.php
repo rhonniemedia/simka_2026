@@ -60,7 +60,7 @@
     </div>
 
     {{-- Stats Cards --}}
-    @include('pages.admin.staff.data.partials._stats-cards', [
+    @include('pages.admin.staff.education.partials._stats-cards', [
     'totalStats' => $totalStats ?? 0,
     'activeStats' => $activeStats ?? 0,
     'inactiveStats' => $inactiveStats ?? 0,
@@ -122,11 +122,11 @@
             </div>
         </div>
 
-        @include('pages.admin.staff.data.partials._table', compact('staff'))
+        @include('pages.admin.staff.education.partials._table', compact('staff'))
 
     </div>
 
-    @include('pages.admin.staff.data.partials._filter-modal', [
+    @include('pages.admin.staff.education.partials._filter-modal', [
     'filterEmploymentStatus' => $filterEmploymentStatus ?? '',
     'filterPersonnel' => $filterPersonnel ?? '',
     'filterPosition' => $filterPosition ?? '',

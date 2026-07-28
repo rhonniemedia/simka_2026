@@ -17,6 +17,18 @@ class Data extends Model
     protected $keyType = 'string';
     protected $guarded = ['id'];
 
+    /**
+     * Accessor untuk mendapatkan nama lengkap beserta gelar.
+     * Contoh output: "Dr. Ir. Roni Saputra, S.Kom., M.T."
+     */
+    public function getNameWithTitleAttribute()
+    {
+        $front = $this->front_title ? $this->front_title . ' ' : '';
+        $back = $this->back_title ? ', ' . $this->back_title : '';
+
+        return $front . $this->name . $back;
+    }
+
     // Relasi ke tabel Vault (1-to-1)
     public function vault()
     {
@@ -66,6 +78,13 @@ class Data extends Model
     public function educations()
     {
         return $this->hasMany(EducationHistory::class, 'staff_id');
+    }
+
+    // Tambahkan Relasi Baru Khusus 1 Pendidikan Tertinggi / Terakhir
+    public function highestEducation()
+    {
+        // Mengambil 1 riwayat pendidikan berdasarkan tanggal lulus (graduation_date) paling baru
+        return $this->hasOne(EducationHistory::class, 'staff_id')->latestOfMany('graduation_date');
     }
 
     // Relasi ke Data Keluarga (1-to-many)

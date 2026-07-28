@@ -9,21 +9,22 @@
 
         <x-ui.stat-card
             theme="success"
-            icon="user-check"
-            title="Pegawai Aktif"
-            :value="$activeStats ?? 0" />
+            icon="award"
+            title="Total PNS"
+            :value="$pnsStats ?? 0" />
 
         <x-ui.stat-card
             theme="purple"
-            icon="award"
-            title="Pensiun"
-            :value="$retiredStats ?? 0" />
+            icon="briefcase"
+            title="Total PPPK"
+            :value="$pppkTotal ?? 0"
+            description="{{ $pppkPenuh ?? 0 }} Penuh Waktu | {{ $pppkParuh ?? 0 }} Paruh Waktu" />
 
         <x-ui.stat-card
             theme="orange"
-            icon="user-minus"
-            title="Non-Aktif"
-            :value="$inactiveStats ?? 0" />
+            icon="user"
+            title="Honorer"
+            :value="$honorerStats ?? 0" />
 
     </div>
 </div>
