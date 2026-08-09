@@ -12,9 +12,6 @@ class User extends Authenticatable
 {
     use HasFactory, Notifiable, HasUuids;
 
-    public $incrementing = false;
-    protected $keyType = 'string';
-
     protected $fillable = ['username', 'password', 'staff_id', 'status'];
 
     protected $hidden = ['password', 'remember_token'];
@@ -37,7 +34,7 @@ class User extends Authenticatable
     public function roles()
     {
         return $this->belongsToMany(UserRole::class, 'user_app_roles', 'user_id', 'role_id')
-            ->withPivot('app_id')
+            ->withPivot('id', 'app_id') // Tambahkan 'id' karena tabel pivot Anda memiliki primary key UUID
             ->withTimestamps();
     }
 
