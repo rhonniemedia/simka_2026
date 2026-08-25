@@ -78,7 +78,7 @@
 
         <button type="button"
             id="btn-apply-filter"
-            hx-get="{{ route('admin.staff.data.index') }}"
+            hx-get="{{ route('admin.personnel.data.index') }}"
             hx-include="#staff-filter-form, [name='search']"
             hx-target="#staff-container" hx-select="#staff-container" hx-swap="outerHTML" hx-push-url="true"
             @click="filterModalOpen = false"

@@ -29,7 +29,11 @@ class LoginController extends Controller
         // 1. Identifikasi Jenis Input (Email, NIP, atau Username)
         if (filter_var($loginId, FILTER_VALIDATE_EMAIL)) {
             $emailHash = hash('sha256', strtolower($loginId));
-            $user = User::where('email_hash', $emailHash)->first();
+
+            // PERBAIKAN: Gunakan relasi staff.vault seperti pada konsep database Anda
+            $user = User::whereHas('staff.vault', function ($query) use ($emailHash) {
+                $query->where('email_hash', $emailHash);
+            })->first();
         } elseif (preg_match('/^[0-9]{10,20}$/', $loginId)) {
             $nipHash = hash('sha256', $loginId);
             $user = User::whereHas('staff.vault', function ($query) use ($nipHash) {
@@ -49,7 +53,7 @@ class LoginController extends Controller
             if (!$punyaAkses) {
                 return back()->withErrors([
                     'login_id' => 'Akun Anda valid, tetapi tidak memiliki otoritas untuk mengakses aplikasi ini.',
-                ]);
+                ])->withInput($request->only('login_id', 'remember')); // Tambahan withInput agar ketikan user tidak hilang
             }
 
             // 4. Eksekusi Login
@@ -61,7 +65,7 @@ class LoginController extends Controller
 
         return back()->withErrors([
             'login_id' => 'Kredensial yang diberikan tidak cocok dengan data kami.',
-        ]);
+        ])->withInput($request->only('login_id', 'remember')); // Tambahan withInput
     }
 
     public function logout(Request $request)

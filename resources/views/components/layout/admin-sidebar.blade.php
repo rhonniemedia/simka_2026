@@ -49,7 +49,7 @@
                 </div>
             </a>
 
-            <a href="{{ route('admin.staff.data.index') }}" class="group cursor-pointer">
+            <a href="{{ route('admin.personnel.data.index') }}" class="group cursor-pointer">
                 <div class="flex items-center justify-between rounded-xl p-3 transition-all duration-300 hover:bg-muted">
                     <div class="flex items-center gap-3">
                         <i data-lucide="file-text" class="size-5 text-secondary group-hover:text-foreground transition-all duration-300"></i>
@@ -117,7 +117,7 @@
         <div class="flex flex-col gap-1 mt-4">
             <h3 class="font-bold text-sm text-foreground px-3 mb-2">Kepegawaian</h3>
 
-            <a href="#" class="group cursor-pointer">
+            <a href="{{ route('admin.personnel.periodic.index') }}" class="group cursor-pointer">
                 <div class="flex items-center justify-between rounded-xl p-3 transition-all duration-300 hover:bg-muted">
                     <div class="flex items-center gap-3">
                         <i data-lucide="layers" class="size-5 text-secondary group-hover:text-foreground transition-all duration-300"></i>
@@ -139,7 +139,7 @@
                 </div>
             </a>
 
-            <a href="{{ route('admin.staff.education.index') }}" class="group cursor-pointer">
+            <a href="{{ route('admin.personnel.education.index') }}" class="group cursor-pointer">
                 <div class="flex items-center justify-between rounded-xl p-3 transition-all duration-300 hover:bg-muted">
                     <div class="flex items-center gap-3">
                         <i data-lucide="graduation-cap" class="size-5 text-secondary group-hover:text-foreground transition-all duration-300"></i>

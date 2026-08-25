@@ -1,12 +1,12 @@
 <?php
 
 use App\Http\Controllers\Auth\LoginController;
-use App\Http\Controllers\Admin\DataController;
-use App\Http\Controllers\Admin\DocumentController;
-use App\Http\Controllers\Admin\EducationHistoryController;
-use App\Http\Controllers\Admin\FamilyController;
-use App\Http\Controllers\Admin\GradeHistoryController;
-use App\Http\Controllers\Admin\PeriodicSalaryHistoryController;
+use App\Http\Controllers\Admin\Personnel\DataController;
+use App\Http\Controllers\Admin\Personnel\DocumentController;
+use App\Http\Controllers\Admin\Personnel\EducationHistoryController;
+use App\Http\Controllers\Admin\Personnel\FamilyController;
+use App\Http\Controllers\Admin\Personnel\GradeHistoryController;
+use App\Http\Controllers\Admin\Payroll\PeriodicSalaryHistoryController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -44,7 +44,7 @@ Route::get('/dashboard', function () {
 Route::prefix('admin')->name('admin.')->group(function () {
 
     // Grup Utama: Pegawai (Kepegawaian)
-    Route::prefix('staff')->name('staff.')->group(function () {
+    Route::prefix('personnel')->name('personnel.')->group(function () {
 
         // 1. Data Pegawai
         Route::prefix('data')->name('data.')->group(function () {

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Admin;
+namespace App\Http\Controllers\Admin\Personnel;
 
 use App\Http\Controllers\Controller;
 use App\Models\Data;
@@ -65,11 +65,11 @@ class DataController extends Controller
 
         // 7. Render view parsial jika request datang dari HTMX
         if ($request->header('HX-Request')) {
-            return view('pages.admin.staff.data.partials._table', compact('staff'));
+            return view('pages.admin.personnel.data.partials._table', compact('staff'));
         }
 
         // 8. Render halaman utama penuh
-        return view('pages.admin.staff.data.index', array_merge(
+        return view('pages.admin.personnel.data.index', array_merge(
             compact(
                 'staff',
                 'search',
@@ -114,7 +114,7 @@ class DataController extends Controller
 
         if ($request->header('HX-Request')) {
             $table = $this->index($request)->render();
-            $statsOob = view('pages.admin.staff.data.partials._stats-cards', array_merge(
+            $statsOob = view('pages.admin.personnel.data.partials._stats-cards', array_merge(
                 $this->getStats(),
                 ['isOob' => true]
             ))->render();
@@ -128,18 +128,18 @@ class DataController extends Controller
     public function detailPersonal($id)
     {
         $staff = Data::with(['vault'])->findOrFail($id);
-        return view('pages.admin.staff.data.modals._detail-personal', compact('staff'));
+        return view('pages.admin.personnel.data.modals._detail-personal', compact('staff'));
     }
 
     public function detailEmployment($id)
     {
         $staff = Data::with(['personnelType', 'position'])->findOrFail($id);
-        return view('pages.admin.staff.data.modals._detail-employment', compact('staff'));
+        return view('pages.admin.personnel.data.modals._detail-employment', compact('staff'));
     }
 
     public function editPersonal($id)
     {
         $staff = Data::with(['vault'])->findOrFail($id);
-        return view('pages.admin.staff.data.modals._edit-personal', compact('staff'));
+        return view('pages.admin.personnel.data.modals._edit-personal', compact('staff'));
     }
 }

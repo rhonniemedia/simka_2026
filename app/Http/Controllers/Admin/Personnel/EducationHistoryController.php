@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Admin;
+namespace App\Http\Controllers\Admin\Personnel;
 
 use App\Http\Controllers\Controller;
 use App\Models\Data;
@@ -74,11 +74,11 @@ class EducationHistoryController extends Controller
 
         // 7. Render view parsial jika request datang dari HTMX
         if ($request->header('HX-Request')) {
-            return view('pages.admin.staff.education.partials._table', compact('staff'));
+            return view('pages.admin.personnel.education.partials._table', compact('staff'));
         }
 
         // 8. Render halaman utama penuh
-        return view('pages.admin.staff.education.index', array_merge(
+        return view('pages.admin.personnel.education.index', array_merge(
             compact(
                 'staff',
                 'search',
@@ -123,7 +123,7 @@ class EducationHistoryController extends Controller
 
         if ($request->header('HX-Request')) {
             $table = $this->index($request)->render();
-            $statsOob = view('pages.admin.staff.education.partials._stats-cards', array_merge(
+            $statsOob = view('pages.admin.personnel.education.partials._stats-cards', array_merge(
                 $this->getStats(),
                 ['isOob' => true]
             ))->render();
@@ -138,34 +138,33 @@ class EducationHistoryController extends Controller
     {
         // Mengubah cakupan detail untuk memuat riwayat pendidikan
         $staff = Data::with(['vault', 'educationHistories.level'])->findOrFail($id);
-        return view('pages.admin.staff.education.modals._detail-personal', compact('staff'));
+        return view('pages.admin.personnel.education.modals._detail-personal', compact('staff'));
     }
 
     public function detailEmployment($id)
     {
         $staff = Data::with(['personnelType', 'position'])->findOrFail($id);
-        return view('pages.admin.staff.education.modals._detail-employment', compact('staff'));
+        return view('pages.admin.personnel.education.modals._detail-employment', compact('staff'));
     }
 
     public function editPersonal($id)
     {
         $staff = Data::with(['vault', 'educationHistories'])->findOrFail($id);
-        return view('pages.admin.staff.education.modals._edit-personal', compact('staff'));
+        return view('pages.admin.personnel.education.modals._edit-personal', compact('staff'));
     }
 
     public function show($id)
     {
-        // Mengambil data pegawai beserta brankas dan SEMUA riwayat pendidikan
-        $staff = Data::with([
-            'vault',
-            'employmentStatus',
-            'educations' => function ($query) {
-                // Mengurutkan dari tahun lulus terbaru ke paling lama
-                // Ubah menjadi 'asc' jika ingin diurutkan dari jenjang paling awal
-                $query->orderBy('graduation_date', 'desc')->with('level');
-            }
-        ])->findOrFail($id);
+        // Ambil data pegawai beserta relasi dasar
+        $staff = Data::with(['vault', 'employmentStatus'])->findOrFail($id);
 
-        return view('pages.admin.staff.education.show.index', compact('staff'));
+        // Paginasi riwayat pendidikan (bukan eager loading collection lagi)
+        $educations = $staff->educations()
+            ->with('level')
+            ->orderBy('graduation_date', 'desc')
+            ->paginate(10)
+            ->withQueryString();
+
+        return view('pages.admin.personnel.education.show.index', compact('staff', 'educations'));
     }
 }

@@ -16,4 +16,10 @@ class PeriodicSalaryHistory extends Model
     protected $keyType = 'string';
 
     protected $guarded = ['id'];
+
+    // Tambahkan relasi ke data pegawai
+    public function staff()
+    {
+        return $this->belongsTo(Data::class, 'staff_id');
+    }
 }
