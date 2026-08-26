@@ -6,8 +6,9 @@
 
     {{-- ============ 1. DESKTOP TABLE (lg ke atas) ============ --}}
     <div class="hidden lg:block overflow-x-auto">
-        <table class="w-full text-left">
+        <table class="w-full text-left border-collapse">
             <thead>
+                {{-- Header menggunakan gaya dari file contoh --}}
                 <tr class="border-b border-border">
                     <th class="w-[30%] px-4 py-3 text-sm font-bold text-secondary tracking-wider">
                         Pendidikan
@@ -27,58 +28,64 @@
                     </th>
                 </tr>
             </thead>
-            <tbody>
+            {{-- Menambahkan border-b agar batas bawah tabel desktop muncul --}}
+            <tbody class="divide-y divide-border border-b border-border">
                 @forelse ($educations as $edu)
                 @php
                 // Palet warna pastel lembut per jenjang pendidikan
                 $alias = $edu->level->alias ?? 'S1';
                 $colorMap = [
-                'S3' => ['from' => 'from-violet-300', 'to' => 'to-purple-400', 'ring' => 'ring-violet-300/40'],
-                'S2' => ['from' => 'from-sky-300', 'to' => 'to-blue-400', 'ring' => 'ring-sky-300/40'],
-                'S1' => ['from' => 'from-teal-300', 'to' => 'to-emerald-400', 'ring' => 'ring-teal-300/40'],
-                'D4' => ['from' => 'from-cyan-300', 'to' => 'to-sky-400', 'ring' => 'ring-cyan-300/40'],
-                'D3' => ['from' => 'from-amber-300', 'to' => 'to-orange-400', 'ring' => 'ring-amber-300/40'],
-                'SMA' => ['from' => 'from-pink-300', 'to' => 'to-rose-400', 'ring' => 'ring-pink-300/40'],
-                'SMK' => ['from' => 'from-pink-300', 'to' => 'to-rose-400', 'ring' => 'ring-pink-300/40'],
+                'S3' => ['from' => 'from-violet-300', 'to' => 'to-purple-400', 'ring' => 'ring-violet-300/40', 'dot' => 'bg-purple-400'],
+                'S2' => ['from' => 'from-sky-300', 'to' => 'to-blue-400', 'ring' => 'ring-sky-300/40', 'dot' => 'bg-blue-400'],
+                'S1' => ['from' => 'from-teal-300', 'to' => 'to-emerald-400', 'ring' => 'ring-teal-300/40', 'dot' => 'bg-emerald-400'],
+                'D4' => ['from' => 'from-cyan-300', 'to' => 'to-sky-400', 'ring' => 'ring-cyan-300/40', 'dot' => 'bg-sky-400'],
+                'D3' => ['from' => 'from-amber-300', 'to' => 'to-orange-400', 'ring' => 'ring-amber-300/40', 'dot' => 'bg-orange-400'],
+                'SMA' => ['from' => 'from-pink-300', 'to' => 'to-rose-400', 'ring' => 'ring-pink-300/40', 'dot' => 'bg-rose-400'],
+                'SMK' => ['from' => 'from-pink-300', 'to' => 'to-rose-400', 'ring' => 'ring-pink-300/40', 'dot' => 'bg-rose-400'],
                 ];
-                $color = $colorMap[$alias] ?? ['from' => 'from-slate-300', 'to' => 'to-slate-400', 'ring' => 'ring-slate-300/40'];
+                $color = $colorMap[$alias] ?? ['from' => 'from-slate-300', 'to' => 'to-slate-400', 'ring' => 'ring-slate-300/40', 'dot' => 'bg-slate-400'];
                 @endphp
-                <tr id="row-edu-{{ $edu->id }}" class="border-b border-border hover:bg-muted/50 transition-colors">
+                <tr id="row-edu-{{ $edu->id }}" class="group transition-colors hover:bg-muted/40">
                     <td class="px-5 py-4 min-w-[240px]">
                         <div class="flex items-center gap-3">
                             <div class="shrink-0">
-                                {{-- Avatar BULAT dengan gradient pastel --}}
-                                <div class="size-10 rounded-full bg-gradient-to-br {{ $color['from'] }} {{ $color['to'] }} text-white font-bold text-xs flex items-center justify-center border border-white/60 ring-1 {{ $color['ring'] }} uppercase shadow-sm">
+                                {{-- Avatar squircle dengan gradient pastel (Original) --}}
+                                <div class="size-11 rounded-2xl bg-gradient-to-br {{ $color['from'] }} {{ $color['to'] }} text-white font-bold text-xs flex items-center justify-center ring-2 ring-white shadow-sm shadow-black/10 uppercase transition-transform duration-200 group-hover:scale-[1.04]">
                                     {{ $alias }}
                                 </div>
                             </div>
                             <div>
                                 <div class="font-semibold text-foreground text-sm whitespace-nowrap">
-                                    {{ $edu->level->alias ?? 'Tidak Diketahui' }} <span class="font-normal text-secondary px-0.5">|</span> {{ $edu->major ?? '-' }}
+                                    {{ $edu->level->alias ?? 'Tidak Diketahui' }} <span class="font-normal text-secondary/50 px-0.5">·</span> {{ $edu->major ?? '-' }}
                                 </div>
-                                <div class="flex items-center gap-1.5 text-xs text-secondary mt-0.5 whitespace-nowrap">
-                                    <span class="inline-block size-1.5 rounded-full bg-emerald-500 shrink-0"></span>
+                                <div class="flex items-center gap-1.5 text-xs text-secondary mt-1 whitespace-nowrap">
+                                    <span class="inline-block size-1.5 rounded-full {{ $color['dot'] }} shrink-0"></span>
                                     {{ $edu->degree_name ?? '-' }} ({{ $edu->degree_abbreviation ?? '-' }})
                                 </div>
                             </div>
                         </div>
                     </td>
-                    {{-- Kolom Ijazah: Tahun (Atas) & Nomor (Bawah) --}}
+                    {{-- Kolom Ijazah: Tahun (Atas) & Nomor (Bawah) (Original) --}}
                     <td class="px-5 py-4 min-w-[160px]">
-                        <div class="text-sm font-medium text-foreground whitespace-nowrap">
+                        <div class="flex items-center gap-1.5 text-sm font-medium text-foreground whitespace-nowrap">
+                            <i data-lucide="calendar-check-2" class="size-3.5 text-secondary/50"></i>
                             {{ $edu->graduation_date ? \Carbon\Carbon::parse($edu->graduation_date)->translatedFormat('Y (d F Y)') : '-' }}
                         </div>
-                        <div class="text-xs text-secondary whitespace-nowrap mt-1">
-                            Nomor: {{ $edu->certificate_number ?? '-' }}
+                        <div class="text-xs text-secondary whitespace-nowrap mt-1 pl-5">
+                            No. {{ $edu->certificate_number ?? '-' }}
                         </div>
                     </td>
                     <td class="px-5 py-4 min-w-[160px]">
-                        <div class="text-sm font-medium text-foreground whitespace-nowrap">{{ $edu->institution_name }}</div>
-                        <div class="text-xs text-secondary whitespace-nowrap mt-1">
+                        <div class="flex items-center gap-1.5 text-sm font-medium text-foreground whitespace-nowrap">
+                            <i data-lucide="building-2" class="size-3.5 text-secondary/50"></i>
+                            {{ $edu->institution_name }}
+                        </div>
+                        <div class="text-xs text-secondary whitespace-nowrap mt-1 pl-5">
                             {{ $edu->province ?? '-' }}
                         </div>
                     </td>
                     <td class="px-5 py-4 min-w-[120px]">
+                        {{-- Tombol Aksi Desktop menggunakan gaya dari file contoh --}}
                         <div x-data="{
                                 open: false, menuX: 0, menuY: 0,
                                 toggle() {
@@ -129,8 +136,10 @@
                 <tr>
                     <td colspan="4" class="px-4 py-16 text-center text-secondary">
                         <div class="flex flex-col items-center gap-3">
-                            <i data-lucide="graduation-cap" class="size-10 text-border"></i>
-                            <p class="font-medium">Belum ada riwayat pendidikan untuk pegawai ini.</p>
+                            <div class="flex items-center justify-center size-16 rounded-full bg-muted">
+                                <i data-lucide="graduation-cap" class="size-7 text-secondary/50"></i>
+                            </div>
+                            <p class="font-medium text-sm">Belum ada riwayat pendidikan untuk pegawai ini.</p>
                         </div>
                     </td>
                 </tr>
@@ -140,73 +149,70 @@
     </div>
 
     {{-- ============ 2. MOBILE CARDS (di bawah lg) ============ --}}
-    <div class="lg:hidden divide-y divide-border border-y border-border bg-white -mx-5 mb-5 mt-2">
+    <div class="lg:hidden divide-y divide-border border-y border-border -mx-5 mt-2 mb-4">
         @forelse ($educations as $edu)
         @php
         $alias = $edu->level->alias ?? 'S1';
         $colorMap = [
-        'S3' => ['from' => 'from-violet-300', 'to' => 'to-purple-400', 'ring' => 'ring-violet-300/40'],
-        'S2' => ['from' => 'from-sky-300', 'to' => 'to-blue-400', 'ring' => 'ring-sky-300/40'],
-        'S1' => ['from' => 'from-teal-300', 'to' => 'to-emerald-400', 'ring' => 'ring-teal-300/40'],
-        'D4' => ['from' => 'from-cyan-300', 'to' => 'to-sky-400', 'ring' => 'ring-cyan-300/40'],
-        'D3' => ['from' => 'from-amber-300', 'to' => 'to-orange-400', 'ring' => 'ring-amber-300/40'],
-        'SMA' => ['from' => 'from-pink-300', 'to' => 'to-rose-400', 'ring' => 'ring-pink-300/40'],
-        'SMK' => ['from' => 'from-pink-300', 'to' => 'to-rose-400', 'ring' => 'ring-pink-300/40'],
+        'S3' => ['from' => 'from-violet-300', 'to' => 'to-purple-400', 'ring' => 'ring-violet-300/40', 'dot' => 'bg-purple-400'],
+        'S2' => ['from' => 'from-sky-300', 'to' => 'to-blue-400', 'ring' => 'ring-sky-300/40', 'dot' => 'bg-blue-400'],
+        'S1' => ['from' => 'from-teal-300', 'to' => 'to-emerald-400', 'ring' => 'ring-teal-300/40', 'dot' => 'bg-emerald-400'],
+        'D4' => ['from' => 'from-cyan-300', 'to' => 'to-sky-400', 'ring' => 'ring-cyan-300/40', 'dot' => 'bg-sky-400'],
+        'D3' => ['from' => 'from-amber-300', 'to' => 'to-orange-400', 'ring' => 'ring-amber-300/40', 'dot' => 'bg-orange-400'],
+        'SMA' => ['from' => 'from-pink-300', 'to' => 'to-rose-400', 'ring' => 'ring-pink-300/40', 'dot' => 'bg-rose-400'],
+        'SMK' => ['from' => 'from-pink-300', 'to' => 'to-rose-400', 'ring' => 'ring-pink-300/40', 'dot' => 'bg-rose-400'],
         ];
-        $color = $colorMap[$alias] ?? ['from' => 'from-slate-300', 'to' => 'to-slate-400', 'ring' => 'ring-slate-300/40'];
+        $color = $colorMap[$alias] ?? ['from' => 'from-slate-300', 'to' => 'to-slate-400', 'ring' => 'ring-slate-300/40', 'dot' => 'bg-slate-400'];
         @endphp
-        <div id="card-edu-{{ $edu->id }}" class="px-5 py-4 hover:bg-muted/40 active:bg-muted/60 transition-colors">
+        <div id="card-edu-{{ $edu->id }}" class="px-5 py-4 active:bg-muted/40 transition-colors">
             <div class="flex items-start gap-3">
                 <div class="shrink-0">
-                    {{-- Avatar BULAT dengan gradient pastel --}}
-                    <div class="size-10 rounded-full bg-gradient-to-br {{ $color['from'] }} {{ $color['to'] }} text-white font-bold text-xs flex items-center justify-center border border-white/60 ring-1 {{ $color['ring'] }} uppercase shadow-sm mt-0.5">
+                    {{-- Avatar squircle dengan gradient pastel (Original) --}}
+                    <div class="size-11 rounded-2xl bg-gradient-to-br {{ $color['from'] }} {{ $color['to'] }} text-white font-bold text-xs flex items-center justify-center ring-2 ring-white shadow-sm shadow-black/10 uppercase">
                         {{ $alias }}
                     </div>
                 </div>
                 <div class="min-w-0 flex-1">
-                    <div class="flex items-start justify-between gap-2">
-                        <div class="min-w-0">
-                            <div class="font-semibold text-foreground text-sm truncate block">
-                                {{ $edu->level->alias ?? 'Tidak Diketahui' }} <span class="font-normal text-secondary px-0.5">|</span> {{ $edu->major ?? '-' }}
-                            </div>
-                            <p class="text-xs text-secondary mt-0.5 truncate flex items-center gap-1.5">
-                                <span class="inline-block size-1.5 rounded-full bg-emerald-500 shrink-0"></span>
-                                {{ $edu->degree_name ?? '-' }} ({{ $edu->degree_abbreviation ?? '-' }})
-                            </p>
-                        </div>
+                    <div class="font-semibold text-foreground text-sm truncate">
+                        {{ $edu->level->alias ?? 'Tidak Diketahui' }} <span class="font-normal text-secondary/50 px-0.5">·</span> {{ $edu->major ?? '-' }}
                     </div>
-                    <div class="mt-3 border-t border-b border-border divide-y divide-border text-xs">
-                        {{-- Baris Ijazah: Tahun (Atas) & Nomor (Bawah) --}}
-                        <div class="flex items-center justify-between gap-3 py-2.5">
-                            <p class="text-secondary flex items-center gap-1.5 shrink-0">
-                                <i data-lucide="file-text" class="size-3 text-slate-400"></i>
-                                Ijazah
-                            </p>
-                            <div class="text-right min-w-0 flex-1">
-                                <p class="font-medium text-foreground truncate">
-                                    {{ $edu->graduation_date ? \Carbon\Carbon::parse($edu->graduation_date)->translatedFormat('Y (d F Y)') : '-' }}
-                                </p>
-                                <p class="text-secondary truncate mt-0.5">
-                                    {{ $edu->certificate_number ?? '-' }}
-                                </p>
-                            </div>
-                        </div>
-                        {{-- Baris Institusi --}}
-                        <div class="flex items-center justify-between gap-3 py-2.5">
-                            <p class="text-secondary flex items-center gap-1.5 shrink-0">
-                                <i data-lucide="building" class="size-3 text-slate-400"></i>
-                                Institusi
-                            </p>
-                            <div class="text-right min-w-0 flex-1">
-                                <p class="font-medium text-foreground truncate">{{ $edu->institution_name }}</p>
-                                <p class="text-secondary truncate mt-0.5">{{ $edu->province ?? '-' }}</p>
-                            </div>
-                        </div>
+                    <p class="text-xs text-secondary mt-1 truncate flex items-center gap-1.5">
+                        <span class="inline-block size-1.5 rounded-full {{ $color['dot'] }} shrink-0"></span>
+                        {{ $edu->degree_name ?? '-' }} ({{ $edu->degree_abbreviation ?? '-' }})
+                    </p>
+                </div>
+            </div>
+            <div class="mt-3 border-t border-border divide-y divide-border text-xs">
+                {{-- Baris Ijazah: Tahun (Atas) & Nomor (Bawah) (Original) --}}
+                <div class="flex items-center justify-between gap-3 py-2.5">
+                    <p class="text-secondary flex items-center gap-1.5 shrink-0">
+                        <i data-lucide="calendar-check-2" class="size-3.5 text-secondary/50"></i>
+                        Ijazah
+                    </p>
+                    <div class="text-right min-w-0 flex-1">
+                        <p class="font-medium text-foreground truncate">
+                            {{ $edu->graduation_date ? \Carbon\Carbon::parse($edu->graduation_date)->translatedFormat('Y (d F Y)') : '-' }}
+                        </p>
+                        <p class="text-secondary truncate mt-0.5">
+                            No. {{ $edu->certificate_number ?? '-' }}
+                        </p>
+                    </div>
+                </div>
+                {{-- Baris Institusi (Original) --}}
+                <div class="flex items-center justify-between gap-3 py-2.5">
+                    <p class="text-secondary flex items-center gap-1.5 shrink-0">
+                        <i data-lucide="building-2" class="size-3.5 text-secondary/50"></i>
+                        Institusi
+                    </p>
+                    <div class="text-right min-w-0 flex-1">
+                        <p class="font-medium text-foreground truncate">{{ $edu->institution_name }}</p>
+                        <p class="text-secondary truncate mt-0.5">{{ $edu->province ?? '-' }}</p>
                     </div>
                 </div>
             </div>
-            {{-- Action Buttons Mobile --}}
-            <div class="mt-3 flex items-center justify-end gap-2">
+
+            {{-- Tombol Aksi Mobile menggunakan gaya dari file contoh --}}
+            <div class="mt-3 flex items-center justify-end gap-2 border-t border-border pt-3">
                 <button type="button"
                     hx-get="#"
                     hx-target="#modal-container"
@@ -230,7 +236,9 @@
         @empty
         <div class="px-4 py-16 text-center text-secondary">
             <div class="flex flex-col items-center gap-3">
-                <i data-lucide="graduation-cap" class="size-10 text-border"></i>
+                <div class="flex items-center justify-center size-16 rounded-full bg-muted">
+                    <i data-lucide="graduation-cap" class="size-7 text-secondary/50"></i>
+                </div>
                 <p class="font-medium text-sm">Belum ada riwayat pendidikan untuk pegawai ini.</p>
             </div>
         </div>
@@ -253,7 +261,7 @@
                 behavior: 'smooth',
                 block: 'center'
             });
-            const highlightClasses = row ? ['bg-primary/10'] : ['ring-2', 'ring-primary', 'rounded-xl', 'bg-primary/5'];
+            const highlightClasses = row ? ['bg-primary/10'] : ['ring-2', 'ring-primary', 'rounded-2xl', 'bg-primary/5'];
             target.classList.add(...highlightClasses, 'transition-colors', 'duration-700');
             setTimeout(() => {
                 target.classList.remove(...highlightClasses);
