@@ -5,7 +5,8 @@
 @section('page_subtitle', 'Kelola riwayat kenaikan gaji berkala (KGB) staf dan pegawai')
 
 @section('content')
-<div class="px-4 py-6 md:p-8"
+{{-- PERBAIKAN: Mengubah px-4 menjadi px-5, dan md:p-8 menjadi md:px-8 md:py-8, ditambah w-full agar 100% presisi sejajar dengan Topbar --}}
+<div class="w-full px-5 py-6 md:px-8 md:py-8"
     x-data="{ 
         filterModalOpen: false,
         isFilterActive: {{ (!empty($filterStatus) || !empty($filterYear)) ? 'true' : 'false' }},
@@ -25,7 +26,7 @@
             <p class="text-sm text-secondary leading-relaxed">Kelola riwayat kenaikan gaji berkala (KGB) staf dan pegawai secara menyeluruh.</p>
         </div>
 
-        {{-- Grup Tombol Aksi (Sesuai dengan UI Data Pegawai) --}}
+        {{-- Grup Tombol Aksi --}}
         <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-3">
             <button type="button"
                 title="Tambah Data KGB"
@@ -48,7 +49,7 @@
                 <span>Laporan</span>
             </button>
 
-            <a href="{{ route('admin.personnel.periodic.index') }}"
+            <a href="{{ route('admin.personnel.periodic-salary.index') }}"
                 title="Segarkan halaman"
                 onclick="document.getElementById('refresh-icon').classList.add('animate-spin');"
                 class="flex items-center justify-center gap-2 px-3 py-2.5 sm:px-4 ring-1 ring-border hover:ring-primary rounded-full text-foreground font-semibold text-sm transition-all bg-white cursor-pointer whitespace-nowrap">
@@ -61,7 +62,7 @@
     {{-- Tabel Data --}}
     <div class="bg-white rounded-2xl border border-border p-5">
 
-        {{-- Header Tabel (Dipertahankan rapi untuk mobile dengan ikon) --}}
+        {{-- Header Tabel --}}
         <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-5">
 
             {{-- Bagian Kiri: Ikon & Teks --}}
@@ -90,9 +91,8 @@
                         x-model="searchQuery"
                         placeholder="Cari pegawai / No. SK..."
                         autocomplete="off"
-                        hx-get="{{ route('admin.personnel.periodic.index') }}"
+                        hx-get="{{ route('admin.personnel.periodic-salary.index') }}"
                         hx-trigger="keyup changed delay:400ms, search"
-                        {{-- Perbaikan 1: Sesuaikan target dan select dengan ID di _table.blade.php --}}
                         hx-target="#periodic-salary-container"
                         hx-select="#periodic-salary-container"
                         hx-swap="outerHTML"
@@ -129,12 +129,10 @@
             </div>
         </div>
 
-        {{-- Perbaikan 2: Sesuaikan path folder dan ganti compact('salaries') menjadi compact('histories') --}}
         @include('pages.admin.personnel.periodic-salary.partials._table', compact('histories'))
 
     </div>
 
-    {{-- Sesuaikan path filter-modal jika folder Anda menggunakan nama periodic-salary --}}
     @include('pages.admin.personnel.periodic-salary.partials._filter-modal', [
     'filterVerificationStatus' => $filterVerificationStatus ?? '',
     'filterYear' => $filterYear ?? '',

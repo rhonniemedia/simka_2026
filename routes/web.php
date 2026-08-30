@@ -71,6 +71,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         // 3. Kepangkatan
         Route::prefix('promotions')->name('promotions.')->group(function () {
             Route::get('/', [GradeHistoryController::class, 'index'])->name('index');
+            Route::get('/{id}', [GradeHistoryController::class, 'show'])->name('show'); // Tambahkan baris ini
         });
 
         // 4. Pendidikan
@@ -83,11 +84,13 @@ Route::prefix('admin')->name('admin.')->group(function () {
         // 5. Keluarga
         Route::prefix('family')->name('family.')->group(function () {
             Route::get('/', [FamilyController::class, 'index'])->name('index');
+            Route::get('/{id}', [FamilyController::class, 'show'])->name('show'); // Tambahkan rute ini
         });
 
         // 6. Berkala (Kenaikan Gaji Berkala)
-        Route::prefix('periodic-salary')->name('periodic.')->group(function () {
+        Route::prefix('periodic-salary')->name('periodic-salary.')->group(function () {
             Route::get('/', [PeriodicSalaryHistoryController::class, 'index'])->name('index');
+            Route::get('/{id}', [PeriodicSalaryHistoryController::class, 'show'])->name('show');
         });
 
         // 7. Pensiun

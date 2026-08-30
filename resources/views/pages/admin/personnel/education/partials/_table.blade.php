@@ -9,7 +9,7 @@
         <table class="w-full text-left">
             <thead>
                 <tr class="border-b border-border">
-                    <th class="w-[32%] px-4 py-3 text-sm font-bold text-secondary tracking-wider">
+                    <th class="w-[30%] px-4 py-3 text-sm font-bold text-secondary tracking-wider">
                         Data Pegawai
                         <div class="text-[11px] font-normal normal-case">Nama | NIK</div>
                     </th>
@@ -18,12 +18,12 @@
                         <div class="text-[11px] font-normal normal-case">Pendidikan | Jurusan</div>
                     </th>
                     <th class="w-[30%] px-4 py-3 text-sm font-bold text-secondary tracking-wider">
-                        Kontak
-                        <div class="text-[11px] font-normal normal-case">Telepon | Email</div>
+                        Informasi Kelulusan
+                        <div class="text-[11px] font-normal normal-case">Tahun | Satuan Pendidikan</div>
                     </th>
-                    <th class="w-[8%] px-4 py-3 text-sm font-bold text-secondary tracking-wider">
-                        Aksi
-                        <div class="text-[11px] font-normal normal-case">Detail | Edit</div>
+                    <th class="w-[10%] px-4 py-3 text-sm font-bold text-secondary tracking-wider">
+                        Dokumen
+                        <div class="text-[11px] font-normal normal-case">File Ijazah</div>
                     </th>
                 </tr>
             </thead>
@@ -31,12 +31,17 @@
                 @forelse ($staff as $r)
                 @php
                 $nik = $r->vault?->nik ?? '-';
-                $telepon = $r->vault?->phone_number ?? '-';
-                $email = $r->vault?->email ?? '-';
 
                 $pendidikan = $r->highestEducation;
                 $namaPendidikan = $pendidikan ? $pendidikan->level->alias : 'Belum ada data';
                 $jurusan = $pendidikan ? $pendidikan->major : '-';
+
+                // Mengambil tahun lulus dan institusi dari relasi highestEducation
+                $tahunLulus = ($pendidikan && $pendidikan->graduation_date) ? \Carbon\Carbon::parse($pendidikan->graduation_date)->format('Y') : '-';
+                $institusi = $pendidikan->institution_name ?? '-';
+
+                // Cek ketersediaan file dokumen (sesuaikan nama propertinya dengan database Anda)
+                $hasDocument = $pendidikan && $pendidikan->certificate_file_id;
                 @endphp
 
                 <tr id="row-staff-{{ $r->id }}" class="border-b border-border hover:bg-muted/50 transition-colors">
@@ -59,69 +64,34 @@
 
                     <td class="px-5 py-4 min-w-[160px]">
                         <div class="text-sm font-medium text-foreground whitespace-nowrap">{{ $namaPendidikan }}</div>
-                        <div class="text-xs text-secondary whitespace-nowrap">
+                        <div class="text-xs text-secondary whitespace-nowrap mt-1">
                             {{ $jurusan }}
                         </div>
                     </td>
 
                     <td class="px-5 py-4 min-w-[160px]">
-                        <div class="text-sm font-medium text-foreground whitespace-nowrap">{{ $telepon }}</div>
-                        <div class="flex items-center gap-1 text-xs text-secondary whitespace-nowrap mt-1">
-                            <i data-lucide="mail" class="size-3 shrink-0"></i>
-                            <span class="leading-none mt-[1px]">{{ $email }}</span>
+                        <div class="flex items-center gap-1.5 text-sm font-medium text-foreground whitespace-nowrap">
+                            <i data-lucide="calendar-check" class="size-3.5 text-secondary/50"></i>
+                            {{ $tahunLulus }}
+                        </div>
+                        <div class="text-xs text-secondary whitespace-nowrap mt-1 pl-5">
+                            {{ $institusi }}
                         </div>
                     </td>
 
-                    <td class="px-5 py-4 min-w-[120px]">
-                        <div x-data="{
-                                open: false, menuX: 0, menuY: 0,
-                                toggle() {
-                                    if (this.open) { this.open = false; return; }
-                                    this.open = true;
-                                    this.$nextTick(() => {
-                                        const btn = this.$refs.button.getBoundingClientRect();
-                                        const menu = this.$refs.menu.getBoundingClientRect();
-                                        const spaceBelow = window.innerHeight - btn.bottom;
-                                        const spaceAbove = btn.top;
-                                        const dropUp = spaceBelow < menu.height && spaceAbove > menu.height;
-                                        this.menuX = btn.right - menu.width;
-                                        this.menuY = dropUp ? (btn.top - menu.height - 4) : (btn.bottom + 4);
-                                    });
-                                }
-                            }"
-                            @click.outside="open = false" @scroll.window="open = false" @resize.window="open = false"
-                            class="relative inline-block text-left">
-
-                            <button x-ref="button" type="button" @click="toggle()" title="Aksi"
-                                class="inline-flex items-center gap-2 h-9 px-3.5 rounded-lg border border-border bg-white text-secondary hover:bg-muted hover:text-foreground transition-all focus:outline-none cursor-pointer whitespace-nowrap">
-                                <span class="text-sm font-medium">Aksi</span>
-                                <i data-lucide="chevron-down" class="size-4 transition-transform duration-200" :class="{ 'rotate-180': open }"></i>
+                    <td class="px-5 py-4 min-w-[100px]">
+                        <div class="flex items-center">
+                            @if ($hasDocument)
+                            <button type="button" class="shrink-0 hover:opacity-80 transition-opacity" title="Lihat Dokumen Ijazah">
+                                <div class="size-8 rounded-lg bg-red-50 flex items-center justify-center border border-red-200">
+                                    <i data-lucide="file-text" class="size-4 text-red-600"></i>
+                                </div>
                             </button>
-
-                            <div x-ref="menu" x-show="open" x-cloak
-                                x-transition:enter="transition ease-out duration-100" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
-                                x-transition:leave="transition ease-in duration-75" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
-                                :style="`top: ${menuY}px; left: ${menuX}px;`"
-                                class="fixed z-[9999] w-56 rounded-xl border border-border bg-white shadow-lg py-3 flex flex-col text-left origin-top-right">
-
-                                <p class="px-4 pt-1 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-secondary">Detail</p>
-                                <button type="button" @click="open = false" hx-get="{{ route('admin.personnel.data.detail-personal', $r->id) }}" hx-target="#modal-container" hx-swap="outerHTML" class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors cursor-pointer text-left">
-                                    <i data-lucide="user" class="size-4 text-secondary pointer-events-none"></i> Data Pegawai
-                                </button>
-                                <button type="button" @click="open = false" hx-get="{{ route('admin.personnel.data.detail-employment', $r->id) }}" hx-target="#modal-container" hx-swap="outerHTML" class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors cursor-pointer text-left">
-                                    <i data-lucide="briefcase" class="size-4 text-secondary pointer-events-none"></i> Detail Kepegawaian
-                                </button>
-
-                                <div class="my-2 border-t border-border"></div>
-
-                                <p class="px-4 pt-1 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-secondary">Edit & Delete</p>
-                                <button type="button" @click="open = false" hx-get="{{ route('admin.personnel.data.edit-personal', $r->id) }}" hx-target="#modal-container" hx-swap="outerHTML" class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors cursor-pointer text-left">
-                                    <i data-lucide="file-pen-line" class="size-4 text-secondary pointer-events-none"></i> Edit Data
-                                </button>
-                                <button type="button" hx-delete="{{ route('admin.personnel.data.destroy', $r->id) }}" hx-target="#staff-container" hx-select="#staff-container" hx-swap="outerHTML" hx-confirm="Yakin ingin menghapus data {{ $r->name }}? Tindakan ini tidak dapat dibatalkan." class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-error hover:bg-error/10 transition-colors cursor-pointer text-left">
-                                    <i data-lucide="trash-2" class="size-4 pointer-events-none"></i> Hapus Data
-                                </button>
+                            @else
+                            <div class="size-8 rounded-lg bg-muted flex items-center justify-center border border-border" title="Dokumen Tidak Tersedia">
+                                <i data-lucide="file-x-2" class="size-4 text-secondary/50"></i>
                             </div>
+                            @endif
                         </div>
                     </td>
                 </tr>
@@ -144,12 +114,15 @@
         @forelse ($staff as $r)
         @php
         $nik = $r->vault?->nik ?? '-';
-        $telepon = $r->vault?->phone_number ?? '-';
-        $email = $r->vault?->email ?? '-';
 
         $pendidikan = $r->highestEducation;
         $namaPendidikan = $pendidikan ? $pendidikan->level->alias : 'Belum ada data';
         $jurusan = $pendidikan ? $pendidikan->major : '-';
+
+        $tahunLulus = ($pendidikan && $pendidikan->graduation_date) ? \Carbon\Carbon::parse($pendidikan->graduation_date)->format('Y') : '-';
+        $institusi = $pendidikan->institution_name ?? '-';
+
+        $hasDocument = $pendidikan && $pendidikan->certificate_file_id;
         @endphp
 
         <div id="card-staff-{{ $r->id }}" class="px-5 py-4 border-border hover:bg-muted/40 active:bg-muted/60 transition-colors">
@@ -184,25 +157,15 @@
                             </div>
                         </div>
 
-                        {{-- Baris Telepon --}}
+                        {{-- Baris Kelulusan --}}
                         <div class="flex items-center justify-between gap-3 py-2.5">
                             <p class="text-secondary flex items-center gap-1.5 shrink-0">
-                                <i data-lucide="phone" class="size-3 text-slate-400"></i>
-                                Telepon
-                            </p>
-                            <div class="text-right min-w-0">
-                                <p class="text-foreground truncate">{{ $telepon }}</p>
-                            </div>
-                        </div>
-
-                        {{-- Baris Email --}}
-                        <div class="flex items-center justify-between gap-3 py-2.5">
-                            <p class="text-secondary flex items-center gap-1.5 shrink-0">
-                                <i data-lucide="mail" class="size-3 text-slate-400"></i>
-                                Email
+                                <i data-lucide="building-2" class="size-3 text-slate-400"></i>
+                                Kelulusan
                             </p>
                             <div class="text-right min-w-0 flex-1">
-                                <p class="text-foreground truncate" title="{{ $email }}">{{ $email }}</p>
+                                <p class="font-semibold text-foreground truncate">Tahun {{ $tahunLulus }}</p>
+                                <p class="text-secondary truncate mt-0.5">{{ $institusi }}</p>
                             </div>
                         </div>
                     </div>
@@ -210,56 +173,15 @@
             </div>
 
             <div class="mt-3 flex justify-end">
-                <div x-data="{
-                        open: false, menuX: 0, menuY: 0,
-                        toggle() {
-                            if (this.open) { this.open = false; return; }
-                            this.open = true;
-                            this.$nextTick(() => {
-                                const btn = this.$refs.button.getBoundingClientRect();
-                                const menu = this.$refs.menu.getBoundingClientRect();
-                                const spaceBelow = window.innerHeight - btn.bottom;
-                                const spaceAbove = btn.top;
-                                const dropUp = spaceBelow < menu.height && spaceAbove > menu.height;
-                                this.menuX = btn.right - menu.width;
-                                this.menuY = dropUp ? (btn.top - menu.height - 4) : (btn.bottom + 4);
-                            });
-                        }
-                    }"
-                    @click.outside="open = false" @scroll.window="open = false" @resize.window="open = false"
-                    class="relative inline-block text-left">
-
-                    <button x-ref="button" type="button" @click="toggle()" title="Aksi"
-                        class="inline-flex items-center gap-2 h-8 px-3 rounded-lg border border-border bg-white text-secondary hover:bg-muted hover:text-foreground transition-all focus:outline-none cursor-pointer whitespace-nowrap">
-                        <span class="text-xs font-medium">Aksi</span>
-                        <i data-lucide="chevron-down" class="size-3 transition-transform duration-200" :class="{ 'rotate-180': open }"></i>
-                    </button>
-
-                    <div x-ref="menu" x-show="open" x-cloak
-                        x-transition:enter="transition ease-out duration-100" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
-                        x-transition:leave="transition ease-in duration-75" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
-                        :style="`top: ${menuY}px; left: ${menuX}px;`"
-                        class="fixed z-[9999] w-56 rounded-xl border border-border bg-white shadow-lg py-3 flex flex-col text-left origin-top-right">
-
-                        <p class="px-4 pt-1 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-secondary">Detail</p>
-                        <button type="button" @click="open = false" hx-get="{{ route('admin.personnel.data.detail-personal', $r->id) }}" hx-target="#modal-container" hx-swap="outerHTML" class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors cursor-pointer text-left">
-                            <i data-lucide="user" class="size-4 text-secondary pointer-events-none"></i> Data Pegawai
-                        </button>
-                        <button type="button" @click="open = false" hx-get="{{ route('admin.personnel.data.detail-employment', $r->id) }}" hx-target="#modal-container" hx-swap="outerHTML" class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors cursor-pointer text-left">
-                            <i data-lucide="briefcase" class="size-4 text-secondary pointer-events-none"></i> Detail Kepegawaian
-                        </button>
-
-                        <div class="my-2 border-t border-border"></div>
-
-                        <p class="px-4 pt-1 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-secondary">Edit & Delete</p>
-                        <button type="button" @click="open = false" hx-get="{{ route('admin.personnel.data.edit-personal', $r->id) }}" hx-target="#modal-container" hx-swap="outerHTML" class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors cursor-pointer text-left">
-                            <i data-lucide="file-pen-line" class="size-4 text-secondary pointer-events-none"></i> Edit Data
-                        </button>
-                        <button type="button" hx-delete="{{ route('admin.personnel.data.destroy', $r->id) }}" hx-target="#staff-container" hx-select="#staff-container" hx-swap="outerHTML" hx-confirm="Yakin ingin menghapus data {{ $r->name }}? Tindakan ini tidak dapat dibatalkan." class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-error hover:bg-error/10 transition-colors cursor-pointer text-left">
-                            <i data-lucide="trash-2" class="size-4 pointer-events-none"></i> Hapus Data
-                        </button>
-                    </div>
+                @if ($hasDocument)
+                <button type="button" title="Lihat Dokumen Ijazah" class="inline-flex items-center justify-center size-8 rounded-lg border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 transition-colors cursor-pointer">
+                    <i data-lucide="file-text" class="size-4"></i>
+                </button>
+                @else
+                <div class="inline-flex items-center justify-center size-8 rounded-lg border border-border bg-muted" title="Dokumen Tidak Tersedia">
+                    <i data-lucide="file-x-2" class="size-4 text-secondary/50"></i>
                 </div>
+                @endif
             </div>
         </div>
         @empty

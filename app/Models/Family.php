@@ -34,6 +34,7 @@ class Family extends Model
         'birth_place_encrypted'   => 'encrypted',
         'birth_date_encrypted'    => 'encrypted',
         'marriage_date_encrypted' => 'encrypted',
+        'telephone_encrypted'     => 'encrypted', // Tambahan untuk telepon
     ];
 
     /**
@@ -47,6 +48,8 @@ class Family extends Model
         'birth_date_encrypted',
         'marriage_date_encrypted',
         'birth_date_hash',
+        'telephone_encrypted', // Tambahan untuk telepon
+        'telephone_hash',      // Tambahan untuk telepon
     ];
 
     /*
@@ -153,6 +156,34 @@ class Family extends Model
 
     /*
     |--------------------------------------------------------------------
+    | Accessors & Mutators (virtual "telephone")
+    |--------------------------------------------------------------------
+    */
+
+    /**
+     * Set Telepon: otomatis mengisi telephone_encrypted sekaligus telephone_hash.
+     */
+    public function setTelephoneAttribute(?string $value): void
+    {
+        $this->attributes['telephone_encrypted'] = $value
+            ? encrypt($value)
+            : null;
+
+        $this->attributes['telephone_hash'] = $value
+            ? hash('sha256', $value)
+            : null;
+    }
+
+    /**
+     * Get Telepon dari nilai terdekripsi.
+     */
+    public function getTelephoneAttribute(): ?string
+    {
+        return $this->telephone_encrypted;
+    }
+
+    /*
+    |--------------------------------------------------------------------
     | Scopes
     |--------------------------------------------------------------------
     */
@@ -173,6 +204,14 @@ class Family extends Model
     public function scopeWhereBirthDate($query, string $date)
     {
         return $query->where('birth_date_hash', hash('sha256', $date));
+    }
+
+    /**
+     * Cari berdasarkan nomor telepon menggunakan hash (tanpa dekripsi).
+     */
+    public function scopeWhereTelephone($query, string $telephone)
+    {
+        return $query->where('telephone_hash', hash('sha256', $telephone));
     }
 
     public function scopeVerified($query)

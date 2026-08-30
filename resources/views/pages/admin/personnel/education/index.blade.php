@@ -5,7 +5,8 @@
 @section('page_subtitle', 'Kelola basis data riwayat pendidikan staf dan pegawai secara menyeluruh')
 
 @section('content')
-<div class="px-4 py-6 md:p-8"
+{{-- PERBAIKAN: Mengubah px-4 menjadi px-5, dan mendefinisikan md:px-8 md:py-8 beserta w-full agar sejajar dengan Topbar --}}
+<div class="w-full px-5 py-6 md:px-8 md:py-8"
     x-data="{ 
         filterModalOpen: false,
         isFilterActive: {{ (!empty($filterEmploymentStatus) || !empty($filterPersonnel) || !empty($filterPosition) || !empty($filterGender)) ? 'true' : 'false' }},

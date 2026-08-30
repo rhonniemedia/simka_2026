@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin\Payroll;
 
 use Carbon\Carbon;
 use App\Http\Controllers\Controller;
+use App\Models\Data;
 use App\Models\PeriodicSalaryHistory;
 use Illuminate\Http\Request;
 
@@ -67,9 +68,53 @@ class PeriodicSalaryHistoryController extends Controller
         // Validasi dan simpan data baru
     }
 
-    public function show($id)
+    public function show(Request $request, $id)
     {
-        // Tampilkan detail riwayat berkala spesifik
+        // 1. Ambil data pegawai beserta relasinya
+        $staff = Data::with(['vault', 'employmentStatus'])->findOrFail($id);
+
+        // 2. Ambil data riwayat gaji berkala khusus untuk pegawai ini
+        $histories = PeriodicSalaryHistory::where('staff_id', $id)
+            ->latest('effective_date')
+            ->paginate(10); // Gunakan paginate agar komponen x-ui.pagination di view tetap berfungsi
+
+        // 3. Transformasi data untuk kalkulasi (Sama seperti di index)
+        $histories->getCollection()->transform(function ($history) use ($staff) {
+            $tanggalMulaiTugas = $staff->prior_service_period_effective_date ?? null;
+
+            if ($history->effective_date && $tanggalMulaiTugas) {
+                $tmt = Carbon::parse($history->effective_date);
+                $tanggalAwal = Carbon::parse($tanggalMulaiTugas);
+
+                $masaKerjaBulan = $tanggalAwal->diffInMonths($tmt);
+                $masaKerjaTahun = floor($masaKerjaBulan / 12);
+                $months = $masaKerjaBulan % 12;
+
+                $history->masa_kerja = sprintf("%02d Tahun %02d Bulan", $masaKerjaTahun, $months);
+
+                if ($masaKerjaTahun <= 31) {
+                    $history->tmt_berikut = $tmt->copy()->addYears(2)->format('Y-m-d');
+                    $history->tahun_ke = $masaKerjaTahun + 2;
+                } else {
+                    $history->tmt_berikut = null;
+                    $history->tahun_ke = null;
+                }
+            } else {
+                $history->masa_kerja = '-';
+                $history->tmt_berikut = null;
+                $history->tahun_ke = '-';
+            }
+
+            return $history;
+        });
+
+        // 4. Jika request dari HTMX (misal saat pindah halaman pagination), kembalikan partial tabel show-nya
+        if ($request->header('HX-Request')) {
+            return view('pages.admin.personnel.periodic-salary.show.partials._table', compact('staff', 'histories'));
+        }
+
+        // 5. Kembalikan view utama show
+        return view('pages.admin.personnel.periodic-salary.show.index', compact('staff', 'histories'));
     }
 
     public function edit($id)
