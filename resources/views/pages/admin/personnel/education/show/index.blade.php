@@ -14,6 +14,9 @@
         <div class="flex items-center gap-2 sm:gap-3 w-full md:w-auto mt-2 md:mt-0">
             {{-- Tombol Tambah --}}
             <button type="button"
+                hx-get="{{ route('admin.personnel.education.create', $staff->id) }}"
+                hx-target="#modal-container"
+                hx-swap="innerHTML"
                 title="Tambah Pendidikan"
                 class="flex flex-1 md:flex-none items-center justify-center gap-2 px-3 py-2.5 sm:px-5 bg-amber-600 hover:bg-amber-700 text-white rounded-full font-semibold text-sm transition-all duration-300 cursor-pointer shadow-sm shadow-amber-600/30 whitespace-nowrap h-[42px]">
                 <i data-lucide="plus" class="size-4 shrink-0"></i>
@@ -59,11 +62,11 @@
     </div>
 
     {{-- 3. TABEL RIWAYAT PENDIDIKAN --}}
-    <div class="bg-white rounded-2xl border border-border p-5">
+    <div id="education-container" class="bg-white rounded-2xl border border-border p-5">
         <div class="mb-5">
             <h2 class="text-lg font-bold text-foreground">Daftar Riwayat Pendidikan</h2>
         </div>
-        @include('pages.admin.personnel.education.show.partials._table', compact('staff'))
+        @include('pages.admin.personnel.education.show.partials._table', compact('staff', 'educations'))
     </div>
 </div>
 @endsection

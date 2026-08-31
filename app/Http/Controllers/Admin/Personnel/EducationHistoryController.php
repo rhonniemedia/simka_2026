@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin\Personnel;
 
 use App\Http\Controllers\Controller;
 use App\Models\Data;
+use App\Models\EducationLevel;
 use App\Models\EmploymentStatus;
 use App\Models\PersonnelType;
 use App\Models\Position;
@@ -128,7 +129,14 @@ class EducationHistoryController extends Controller
                 ['isOob' => true]
             ))->render();
 
-            return $table . $statsOob;
+            return response($table . $statsOob)
+                ->header('HX-Trigger', json_encode([
+                    'showAlert' => [
+                        'icon'  => 'success',
+                        'title' => 'Dihapus!',
+                        'text'  => 'Data pegawai berhasil dihapus.',
+                    ],
+                ]));
         }
 
         return $this->index($request);
@@ -153,7 +161,7 @@ class EducationHistoryController extends Controller
         return view('pages.admin.personnel.education.modals._edit-personal', compact('staff'));
     }
 
-    public function show($id)
+    public function show(Request $request, $id)
     {
         // Ambil data pegawai beserta relasi dasar
         $staff = Data::with(['vault', 'employmentStatus'])->findOrFail($id);
@@ -165,6 +173,133 @@ class EducationHistoryController extends Controller
             ->paginate(10)
             ->withQueryString();
 
+        // Jika request datang dari HTMX (refresh tabel, pagination, atau
+        // dipanggil ulang setelah store/update), cukup kembalikan partial
+        // tabelnya saja -- JANGAN kembalikan halaman penuh, karena akan
+        // di-swap ke dalam <div id="education-container"> di client.
+        if ($request->header('HX-Request')) {
+            return view('pages.admin.personnel.education.show.partials._table', compact('staff', 'educations'));
+        }
+
         return view('pages.admin.personnel.education.show.index', compact('staff', 'educations'));
+    }
+
+    public function create($id)
+    {
+        $staff = Data::findOrFail($id);
+        $levels = EducationLevel::orderByRaw('CAST(level AS UNSIGNED) ASC')->get();
+
+        return view('pages.admin.personnel.education.show.partials._modal-form', compact('staff', 'levels'));
+    }
+
+    public function store(Request $request, $id)
+    {
+        $staff = Data::findOrFail($id);
+
+        // Validasi simpel (Sesuaikan dengan FormRequest jika ada)
+        $validated = $request->validate([
+            'education_level_id' => 'required',
+            'institution_name' => 'required|string|max:255',
+            'major' => 'nullable|string|max:255',
+            'province' => 'nullable|string|max:255',
+            'certificate_number' => 'required|string|max:255',
+            'graduation_date' => 'nullable|date',
+            'certificate_date' => 'required|date',
+            'degree_name' => 'nullable|string|max:255',
+            'degree_abbreviation' => 'nullable|string|max:255',
+            'degree_position' => 'nullable|in:depan,belakang',
+            'is_linear' => 'nullable|boolean',
+        ]);
+
+        $staff->educations()->create($validated);
+
+        // Jika HTMX request, kembalikan tabel ter-update
+        if ($request->header('HX-Request')) {
+            // Gunakan flash event untuk menutup modal, highlight data baru,
+            // dan tampilkan notifikasi SweetAlert (samakan dengan pola Student)
+            return response($this->show($request, $id)->render())
+                ->header('HX-Trigger', json_encode([
+                    'close-modal' => true,
+                    'showAlert' => [
+                        'icon'  => 'success',
+                        'title' => 'Berhasil!',
+                        'text'  => 'Riwayat pendidikan berhasil ditambahkan.',
+                    ],
+                ]));
+        }
+
+        return redirect()->route('admin.personnel.education.show', $id);
+    }
+
+    public function edit($staff_id, $edu_id)
+    {
+        $staff = Data::findOrFail($staff_id);
+        $education = $staff->educations()->findOrFail($edu_id);
+        $levels = EducationLevel::orderByRaw('CAST(level AS UNSIGNED) ASC')->get();
+
+        return view('pages.admin.personnel.education.show.partials._modal-form', compact('staff', 'education', 'levels'));
+    }
+
+    public function update(Request $request, $staff_id, $edu_id)
+    {
+        $staff = Data::findOrFail($staff_id);
+        $education = $staff->educations()->findOrFail($edu_id);
+
+        $validated = $request->validate([
+            // rules yang sama dengan store
+            'education_level_id' => 'required',
+            'institution_name' => 'required|string|max:255',
+            'major' => 'nullable|string|max:255',
+            'province' => 'nullable|string|max:255',
+            'certificate_number' => 'required|string|max:255',
+            'graduation_date' => 'nullable|date',
+            'certificate_date' => 'required|date',
+            'degree_name' => 'nullable|string|max:255',
+            'degree_abbreviation' => 'nullable|string|max:255',
+            'degree_position' => 'nullable|in:depan,belakang',
+            'is_linear' => 'nullable|boolean',
+        ]);
+
+        $education->update($validated);
+
+        if ($request->header('HX-Request')) {
+            return response($this->show($request, $staff_id)->render())
+                ->header('HX-Trigger', json_encode([
+                    'close-modal' => true,
+                    'showAlert' => [
+                        'icon'  => 'success',
+                        'title' => 'Berhasil!',
+                        'text'  => 'Riwayat pendidikan berhasil diperbarui.',
+                    ],
+                ]));
+        }
+
+        return redirect()->route('admin.personnel.education.show', $staff_id);
+    }
+
+    /**
+     * Hapus satu baris riwayat pendidikan milik seorang pegawai.
+     * Perlu didaftarkan di routes, misal:
+     * Route::delete('personnel/education/{staff_id}/{edu_id}', [EducationHistoryController::class, 'destroyEducation'])
+     *     ->name('admin.personnel.education.destroy');
+     */
+    public function destroyEducation(Request $request, $staff_id, $edu_id)
+    {
+        $staff = Data::findOrFail($staff_id);
+        $education = $staff->educations()->findOrFail($edu_id);
+        $education->delete();
+
+        if ($request->header('HX-Request')) {
+            return response($this->show($request, $staff_id)->render())
+                ->header('HX-Trigger', json_encode([
+                    'showAlert' => [
+                        'icon'  => 'success',
+                        'title' => 'Dihapus!',
+                        'text'  => 'Riwayat pendidikan berhasil dihapus.',
+                    ],
+                ]));
+        }
+
+        return redirect()->route('admin.personnel.education.show', $staff_id);
     }
 }

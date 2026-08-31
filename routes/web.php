@@ -78,6 +78,11 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::prefix('education')->name('education.')->group(function () {
             Route::get('/', [EducationHistoryController::class, 'index'])->name('index');
             Route::get('/{id}', [EducationHistoryController::class, 'show'])->name('show');
+            // Tambahan untuk modal Tambah & Edit Pendidikan
+            Route::get('/{id}/create', [EducationHistoryController::class, 'create'])->name('create');
+            Route::post('/{id}/store', [EducationHistoryController::class, 'store'])->name('store');
+            Route::get('/{staff_id}/edit/{edu_id}', [EducationHistoryController::class, 'edit'])->name('edit');
+            Route::put('/{staff_id}/update/{edu_id}', [EducationHistoryController::class, 'update'])->name('update');
         });
 
 

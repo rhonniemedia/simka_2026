@@ -116,8 +116,8 @@
                                 class="fixed z-[9999] w-48 rounded-xl border border-border bg-white shadow-lg py-2 flex flex-col text-left origin-top-right">
                                 <p class="px-4 pt-1 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-secondary">Aksi Pendidikan</p>
                                 <button type="button" @click="open = false"
-                                    hx-get="#"
-                                    hx-target="#modal-container" hx-swap="outerHTML"
+                                    hx-get="{{ route('admin.personnel.education.edit', [$staff->id, $edu->id]) }}"
+                                    hx-target="#modal-container" hx-swap="innerHTML"
                                     class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors cursor-pointer text-left">
                                     <i data-lucide="file-pen-line" class="size-4 text-secondary pointer-events-none"></i> Edit Data
                                 </button>
@@ -214,9 +214,9 @@
             {{-- Tombol Aksi Mobile menggunakan gaya dari file contoh --}}
             <div class="mt-3 flex items-center justify-end gap-2 border-t border-border pt-3">
                 <button type="button"
-                    hx-get="#"
+                    hx-get="{{ route('admin.personnel.education.edit', [$staff->id, $edu->id]) }}"
                     hx-target="#modal-container"
-                    hx-swap="outerHTML"
+                    hx-swap="innerHTML"
                     class="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-border bg-white text-xs font-medium text-secondary hover:bg-muted transition-colors cursor-pointer">
                     <i data-lucide="file-pen-line" class="size-3.5"></i>
                     Edit
