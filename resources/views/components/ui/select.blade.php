@@ -24,7 +24,9 @@ $hasError = $errors->has($name);
             this.close();
             
             this.$nextTick(() => { 
-                this.$refs.hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
+                if (this.$refs.hiddenInput) {
+                    this.$refs.hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
+                }
             });
         },
         init() {
@@ -35,11 +37,10 @@ $hasError = $errors->has($name);
                 }
             }
 
-            // PERBAIKAN: Menambahkan pengecekan elemen target scroll
             window.addEventListener('scroll', (e) => {
                 if(!this.openDropdown) return;
                 
-                // Jika yang di-scroll adalah bagian dalam dropdown, abaikan perintah tutup
+                // Abaikan jika yang discroll adalah isi dropdown itu sendiri
                 if (this.$refs.dropdownList && this.$refs.dropdownList.contains(e.target)) {
                     return;
                 }
@@ -64,7 +65,8 @@ $hasError = $errors->has($name);
         }
     }"
     class="relative w-full"
-    @click.outside="openDropdown = false"
+    {{-- PERBAIKAN 1: Ganti @click.outside karena elemen dropdown sekarang dilempar ke body --}}
+    @click.window="if (openDropdown && !$el.contains($event.target) && $refs.dropdownList && !$refs.dropdownList.contains($event.target)) close()"
     @reset-filters.window="selectedId = ''; selectedLabel = ''"
     @update-options.window="if ($event.detail.name === '{{ $name }}') { options = $event.detail.options; selectedId = ''; selectedLabel = ''; }">
 
@@ -85,22 +87,24 @@ $hasError = $errors->has($name);
         <i data-lucide="chevron-down" class="size-4 text-secondary shrink-0 transition-transform duration-200" :class="openDropdown ? 'rotate-180' : ''"></i>
     </button>
 
-    <!-- Dropdown List (Tambahkan x-ref="dropdownList") -->
-    <div x-show="openDropdown"
-        x-ref="dropdownList"
-        x-transition.opacity.duration.200ms
-        style="display: none;"
-        :style="dropdownStyle"
-        class="fixed z-[9999] bg-white border shadow-lg border-border rounded-xl overflow-hidden">
+    {{-- PERBAIKAN 2: Bungkus dropdown list dengan x-teleport="body" --}}
+    <template x-teleport="body">
+        <div x-show="openDropdown"
+            x-ref="dropdownList"
+            x-transition.opacity.duration.200ms
+            style="display: none;"
+            :style="dropdownStyle"
+            class="fixed z-[9999] bg-white border shadow-lg border-border rounded-xl overflow-hidden">
 
-        <div class="max-h-52 overflow-y-auto">
-            <template x-for="option in options" :key="option.value">
-                <div @click="selectOption(option)"
-                    class="px-3 py-1.5 text-sm transition-colors cursor-pointer hover:bg-muted border-b border-border/50 last:border-0"
-                    :class="{'bg-primary/5 text-primary font-semibold': String(selectedId) === String(option.value)}">
-                    <span x-text="option.label"></span>
-                </div>
-            </template>
+            <div class="max-h-52 overflow-y-auto">
+                <template x-for="option in options" :key="option.value">
+                    <div @click="selectOption(option)"
+                        class="px-3 py-1.5 text-sm transition-colors cursor-pointer hover:bg-muted border-b border-border/50 last:border-0"
+                        :class="{'bg-primary/5 text-primary font-semibold': String(selectedId) === String(option.value)}">
+                        <span x-text="option.label"></span>
+                    </div>
+                </template>
+            </div>
         </div>
-    </div>
+    </template>
 </div>

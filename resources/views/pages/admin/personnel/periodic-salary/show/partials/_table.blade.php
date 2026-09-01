@@ -128,23 +128,37 @@
                                 {{-- Tombol Lihat SK (hanya tampil jika ada file) --}}
                                 @if ($history->decree_file_id)
                                 <button type="button" @click="open = false"
-                                    class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer text-left">
+                                    class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer text-left w-[calc(100%-1rem)]">
                                     <i data-lucide="file-text" class="size-4 pointer-events-none"></i> Lihat SK
                                 </button>
                                 @endif
 
                                 <button type="button" @click="open = false"
-                                    hx-get="#"
-                                    hx-target="#modal-container" hx-swap="outerHTML"
-                                    class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors cursor-pointer text-left">
+                                    hx-get="{{ route('admin.personnel.periodic-salary.edit', ['staff_id' => $staff->id, 'history_id' => $history->id]) }}"
+                                    hx-target="#modal-container" hx-swap="innerHTML"
+                                    class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors cursor-pointer text-left w-[calc(100%-1rem)]">
                                     <i data-lucide="file-pen-line" class="size-4 text-secondary pointer-events-none"></i> Edit Data
                                 </button>
 
                                 <button type="button"
-                                    hx-delete="#"
-                                    hx-target="#periodic-salary-container" hx-select="#periodic-salary-container" hx-swap="outerHTML"
-                                    hx-confirm="Yakin ingin menghapus riwayat gaji berkala ini? Tindakan ini tidak dapat dibatalkan."
-                                    class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-red-600 hover:bg-red-50 transition-colors cursor-pointer text-left">
+                                    @click="
+                                        open = false;
+                                        ShowConfirm({
+                                            title: 'Hapus Gaji Berkala?',
+                                            message: 'Yakin ingin menghapus riwayat gaji berkala ini? Tindakan ini tidak dapat dibatalkan.',
+                                            confirmText: 'Ya, Hapus',
+                                            cancelText: 'Batal',
+                                        }, () => {
+                                            htmx.ajax('DELETE', '{{ route('admin.personnel.periodic-salary.destroy', ['staff_id' => $staff->id, 'history_id' => $history->id]) }}', { 
+                                                target: '#periodic-salary-container', 
+                                                swap: 'outerHTML',
+                                                headers: {
+                                                    'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content ?? '{{ csrf_token() }}'
+                                                }
+                                            });
+                                        })
+                                    "
+                                    class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-red-600 hover:bg-red-50 transition-colors cursor-pointer text-left w-[calc(100%-1rem)] mt-1">
                                     <i data-lucide="trash-2" class="size-4 pointer-events-none"></i> Hapus Data
                                 </button>
                             </div>
@@ -234,27 +248,38 @@
             <div class="mt-3 flex items-center justify-end gap-2 border-t border-border pt-3">
                 @if ($history->decree_file_id)
                 <button type="button"
-                    class="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-blue-200 bg-blue-50 text-xs font-medium text-blue-600 hover:bg-blue-100 transition-colors cursor-pointer" title="Lihat Dokumen">
+                    class="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-blue-200 bg-blue-50 text-xs font-medium text-blue-600 hover:bg-blue-100 transition-colors cursor-pointer shadow-sm" title="Lihat Dokumen">
                     <i data-lucide="file-text" class="size-3.5"></i>
                     Lihat
                 </button>
                 @endif
 
                 <button type="button"
-                    hx-get="#"
+                    hx-get="{{ route('admin.personnel.periodic-salary.edit', ['staff_id' => $staff->id, 'history_id' => $history->id]) }}"
                     hx-target="#modal-container"
-                    hx-swap="outerHTML"
-                    class="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-border bg-white text-xs font-medium text-secondary hover:bg-muted transition-colors cursor-pointer">
+                    hx-swap="innerHTML"
+                    class="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-border bg-white text-xs font-medium text-secondary hover:bg-muted hover:text-foreground transition-colors cursor-pointer shadow-sm">
                     <i data-lucide="file-pen-line" class="size-3.5"></i>
                     Edit
                 </button>
                 <button type="button"
-                    hx-delete="#"
-                    hx-target="#periodic-salary-container"
-                    hx-select="#periodic-salary-container"
-                    hx-swap="outerHTML"
-                    hx-confirm="Yakin ingin menghapus riwayat gaji berkala ini? Tindakan ini tidak dapat dibatalkan."
-                    class="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-red-200 bg-red-50 text-xs font-medium text-red-600 hover:bg-red-100 transition-colors cursor-pointer">
+                    @click="
+                        ShowConfirm({
+                            title: 'Hapus Gaji Berkala?',
+                            message: 'Yakin ingin menghapus riwayat gaji berkala ini? Tindakan ini tidak dapat dibatalkan.',
+                            confirmText: 'Ya, Hapus',
+                            cancelText: 'Batal',
+                        }, () => {
+                            htmx.ajax('DELETE', '{{ route('admin.personnel.periodic-salary.destroy', ['staff_id' => $staff->id, 'history_id' => $history->id]) }}', { 
+                                target: '#periodic-salary-container', 
+                                swap: 'outerHTML',
+                                headers: {
+                                    'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content ?? '{{ csrf_token() }}'
+                                }
+                            });
+                        })
+                    "
+                    class="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-red-200 bg-red-50 text-xs font-medium text-red-600 hover:bg-red-100 hover:border-red-300 transition-colors cursor-pointer shadow-sm">
                     <i data-lucide="trash-2" class="size-3.5"></i>
                     Hapus
                 </button>
@@ -300,6 +325,41 @@
 
         if (typeof lucide !== 'undefined') {
             lucide.createIcons();
+        }
+
+        // Guard supaya listener tidak dobel setiap kali partial ini di-swap ulang oleh htmx
+        if (!window.__periodicSalaryErrorHandlerAttached) {
+            window.__periodicSalaryErrorHandlerAttached = true;
+
+            document.body.addEventListener('htmx:responseError', function(evt) {
+                const path = evt.detail?.requestConfig?.path || '';
+                if (!path.includes('periodic-salary')) return;
+
+                const status = evt.detail?.xhr?.status;
+                let text = 'Terjadi kesalahan saat memproses permintaan.';
+                if (status === 419) {
+                    text = 'Sesi Anda kedaluwarsa (token CSRF tidak valid). Silakan muat ulang halaman lalu coba lagi.';
+                } else if (status === 404) {
+                    text = 'Data yang ingin dihapus tidak ditemukan. Coba muat ulang halaman.';
+                } else if (status === 500) {
+                    text = 'Terjadi kesalahan pada server saat menghapus data.';
+                }
+
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire('Gagal!', text, 'error');
+                } else {
+                    alert(text);
+                }
+            });
+
+            document.body.addEventListener('htmx:sendError', function() {
+                const text = 'Tidak dapat terhubung ke server. Periksa koneksi internet Anda.';
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire('Gagal!', text, 'error');
+                } else {
+                    alert(text);
+                }
+            });
         }
     </script>
 </div>

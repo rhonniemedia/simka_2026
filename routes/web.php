@@ -96,6 +96,13 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::prefix('periodic-salary')->name('periodic-salary.')->group(function () {
             Route::get('/', [PeriodicSalaryHistoryController::class, 'index'])->name('index');
             Route::get('/{id}', [PeriodicSalaryHistoryController::class, 'show'])->name('show');
+
+            // Rute Manajemen Data (Modal HTMX)
+            Route::get('/{id}/create', [PeriodicSalaryHistoryController::class, 'create'])->name('create');
+            Route::post('/{id}/store', [PeriodicSalaryHistoryController::class, 'store'])->name('store');
+            Route::get('/{staff_id}/edit/{history_id}', [PeriodicSalaryHistoryController::class, 'edit'])->name('edit');
+            Route::put('/{staff_id}/update/{history_id}', [PeriodicSalaryHistoryController::class, 'update'])->name('update');
+            Route::delete('/{staff_id}/destroy/{history_id}', [PeriodicSalaryHistoryController::class, 'destroy'])->name('destroy');
         });
 
         // 7. Pensiun

@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers\Admin\Payroll;
 
-use Carbon\Carbon;
 use App\Http\Controllers\Controller;
 use App\Models\Data;
 use App\Models\PeriodicSalaryHistory;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class PeriodicSalaryHistoryController extends Controller
 {
@@ -35,13 +37,11 @@ class PeriodicSalaryHistoryController extends Controller
                     $history->tmt_berikut = $tmt->copy()->addYears(2)->format('Y-m-d');
                     $history->tahun_ke = $masaKerjaTahun + 2;
                 } else {
-                    // Gunakan null, jangan '-' untuk data tanggal
                     $history->tmt_berikut = null;
                     $history->tahun_ke = null;
                 }
             } else {
                 $history->masa_kerja = '-';
-                // Gunakan null, jangan '-' untuk data tanggal
                 $history->tmt_berikut = null;
                 $history->tahun_ke = '-';
             }
@@ -49,36 +49,21 @@ class PeriodicSalaryHistoryController extends Controller
             return $history;
         });
 
-        // Jika request dari HTMX, kembalikan partial table saja
         if ($request->header('HX-Request')) {
             return view('pages.admin.personnel.periodic-salary.partials._table', compact('histories'));
         }
 
-        // Jika full page load
         return view('pages.admin.personnel.periodic-salary.index', compact('histories'));
-    }
-
-    public function create()
-    {
-        // Tampilkan form tambah (atau kembalikan ke modal)
-    }
-
-    public function store(Request $request)
-    {
-        // Validasi dan simpan data baru
     }
 
     public function show(Request $request, $id)
     {
-        // 1. Ambil data pegawai beserta relasinya
         $staff = Data::with(['vault', 'employmentStatus'])->findOrFail($id);
 
-        // 2. Ambil data riwayat gaji berkala khusus untuk pegawai ini
         $histories = PeriodicSalaryHistory::where('staff_id', $id)
             ->latest('effective_date')
-            ->paginate(10); // Gunakan paginate agar komponen x-ui.pagination di view tetap berfungsi
+            ->paginate(10);
 
-        // 3. Transformasi data untuk kalkulasi (Sama seperti di index)
         $histories->getCollection()->transform(function ($history) use ($staff) {
             $tanggalMulaiTugas = $staff->prior_service_period_effective_date ?? null;
 
@@ -108,32 +93,166 @@ class PeriodicSalaryHistoryController extends Controller
             return $history;
         });
 
-        // 4. Jika request dari HTMX (misal saat pindah halaman pagination), kembalikan partial tabel show-nya
         if ($request->header('HX-Request')) {
             return view('pages.admin.personnel.periodic-salary.show.partials._table', compact('staff', 'histories'));
         }
 
-        // 5. Kembalikan view utama show
         return view('pages.admin.personnel.periodic-salary.show.index', compact('staff', 'histories'));
     }
 
-    public function edit($id)
+    public function create($id)
     {
-        // Ambil data untuk form edit
+        $staff = Data::findOrFail($id);
+
+        // FIX: sebelumnya menunjuk ke 'modals._modal-form' (path yang tidak ada / salah),
+        // padahal file aslinya ada di 'show/partials/_modal-form.blade.php'.
+        return view('pages.admin.personnel.periodic-salary.show.partials._modal-form', compact('staff'));
     }
 
-    public function update(Request $request, $id)
+    public function store(Request $request, $id)
     {
-        // Validasi dan perbarui data yang berubah
+        $staff = Data::findOrFail($id);
+
+        try {
+            $validated = $request->validate([
+                'effective_date' => [
+                    'required',
+                    'date',
+                    Rule::unique('staff_periodic_salary_histories')->where(function ($query) use ($staff) {
+                        return $query->where('staff_id', $staff->id);
+                    })
+                ],
+                'decree_number' => 'nullable|string|max:255',
+                'decree_date'   => 'nullable|date',
+                'base_salary'   => 'nullable|numeric',
+            ], [
+                'effective_date.unique' => 'Riwayat gaji berkala pada TMT (Tanggal) tersebut sudah ada untuk pegawai ini.'
+            ]);
+        } catch (ValidationException $e) {
+            return $this->respondWithModalErrors($request, $e, $staff, null);
+        }
+
+        // Model akan otomatis mendeteksi array key 'base_salary',
+        // mengenkripsinya, dan mengubahnya menjadi 'base_salary_encrypted'.
+        $staff->periodicSalaries()->create($validated);
+
+        if ($request->header('HX-Request')) {
+            return response($this->show($request, $id)->render())
+                ->header('HX-Trigger', 'close-modal');
+        }
+
+        return redirect()->route('admin.personnel.periodic-salary.show', $id);
     }
 
-    public function destroy($id)
+    public function edit($staff_id, $history_id)
     {
-        // Hapus data riwayat berkala
+        $staff = Data::findOrFail($staff_id);
+        $history = PeriodicSalaryHistory::where('staff_id', $staff_id)->findOrFail($history_id);
+
+        // FIX: sama seperti create(), path view diperbaiki.
+        return view('pages.admin.personnel.periodic-salary.show.partials._modal-form', compact('staff', 'history'));
+    }
+
+    public function update(Request $request, $staff_id, $history_id)
+    {
+        $staff = Data::findOrFail($staff_id);
+        $history = PeriodicSalaryHistory::where('staff_id', $staff_id)->findOrFail($history_id);
+
+        try {
+            $validated = $request->validate([
+                'effective_date' => [
+                    'required',
+                    'date',
+                    Rule::unique('staff_periodic_salary_histories')->where(function ($query) use ($staff) {
+                        return $query->where('staff_id', $staff->id);
+                    })->ignore($history_id)
+                ],
+                'decree_number' => 'nullable|string|max:255',
+                'decree_date'   => 'nullable|date',
+                'base_salary'   => 'nullable|numeric',
+            ], [
+                'effective_date.unique' => 'Riwayat gaji berkala pada TMT (Tanggal) tersebut sudah ada untuk pegawai ini.'
+            ]);
+        } catch (ValidationException $e) {
+            return $this->respondWithModalErrors($request, $e, $staff, $history);
+        }
+
+        $history->update($validated);
+
+        if ($request->header('HX-Request')) {
+            return response($this->show($request, $staff_id)->render())
+                ->header('HX-Trigger', 'close-modal');
+        }
+
+        return redirect()->route('admin.personnel.periodic-salary.show', $staff_id);
+    }
+
+    public function destroy(Request $request, $staff_id, $history_id)
+    {
+        try {
+            $history = PeriodicSalaryHistory::where('staff_id', $staff_id)->findOrFail($history_id);
+            $history->delete();
+        } catch (\Throwable $e) {
+            report($e);
+
+            if ($request->header('HX-Request')) {
+                // Tetap balas 200 (bukan 500) supaya HX-Trigger diproses htmx dan
+                // muncul alert error, bukan silent fail di sisi user.
+                return response('', 200)->header('HX-Trigger', json_encode([
+                    'showAlert' => [
+                        'icon' => 'error',
+                        'title' => 'Gagal!',
+                        'text' => 'Riwayat gaji berkala gagal dihapus. Silakan coba lagi.'
+                    ]
+                ]));
+            }
+
+            return redirect()->route('admin.personnel.periodic-salary.show.partials._table', $staff_id)
+                ->with('error', 'Riwayat gaji berkala gagal dihapus.');
+        }
+
+        if ($request->header('HX-Request')) {
+            // Mengirim respons kosong dengan header trigger SweetAlert dan refresh tabel
+            return response('', 200)->header('HX-Trigger', json_encode([
+                'refreshPeriodicSalaryData' => true,
+                'showAlert' => [
+                    'icon' => 'success',
+                    'title' => 'Berhasil!',
+                    'text' => 'Riwayat gaji berkala berhasil dihapus.'
+                ]
+            ]));
+        }
+
+        return redirect()->route('admin.personnel.periodic-salary.show', $staff_id);
     }
 
     public function generatePdf(Request $request)
     {
         // Logika cetak PDF laporan KGB
+    }
+
+    /**
+     * Render ulang modal form beserta pesan error validasi, lalu
+     * paksa htmx untuk swap ke #modal-container (bukan target asli form)
+     * memakai header HX-Retarget/HX-Reswap. Ini mencegah error redirect
+     * bawaan Laravel "menghancurkan" tampilan saat request datang dari htmx.
+     */
+    protected function respondWithModalErrors(Request $request, ValidationException $e, Data $staff, ?PeriodicSalaryHistory $history)
+    {
+        if ($request->header('HX-Request')) {
+            // Supaya old() bisa dipakai di blade untuk mempertahankan input user
+            $request->flash();
+
+            return response()
+                ->view('pages.admin.personnel.periodic-salary.show.partials._modal-form', [
+                    'staff'   => $staff,
+                    'history' => $history,
+                    'errors'  => $e->validator->errors(),
+                ], 200)
+                ->header('HX-Retarget', '#modal-container')
+                ->header('HX-Reswap', 'innerHTML');
+        }
+
+        throw $e;
     }
 }
