@@ -1,4 +1,3 @@
-{{-- File: resources/views/pages/admin/personnel/family/show/partials/_table.blade.php --}}
 <div id="family-detail-container"
     hx-get="{{ request()->fullUrl() }}"
     hx-trigger="refreshFamilyDetail from:body"
@@ -32,7 +31,11 @@
                 @php
                 $hubungan = $member->relationship ?? '-';
                 $gender = $member->gender ?? '-';
-                $usia = $member->birth_date ? \Carbon\Carbon::parse($member->birth_date)->age . ' Tahun' : '-';
+                $rawBirthDate = $member->birth_date;
+                if (is_string($rawBirthDate) && str_starts_with($rawBirthDate, 's:')) {
+                $rawBirthDate = @unserialize($rawBirthDate) ?: $rawBirthDate;
+                }
+                $usia = $rawBirthDate ? \Carbon\Carbon::parse($rawBirthDate)->age . ' Tahun' : '-';
 
                 $hubLabel = match($hubungan) {
                 'husband' => 'Suami',
@@ -57,7 +60,6 @@
                 @endphp
 
                 <tr id="row-family-{{ $member->id }}" class="group transition-colors hover:bg-muted/40">
-
                     {{-- Kolom 1: Anggota Keluarga --}}
                     <td class="px-5 py-4 min-w-[240px]">
                         <div class="flex items-center gap-3">
@@ -94,7 +96,7 @@
                     <td class="px-5 py-4 min-w-[160px]">
                         <div class="flex items-center gap-1.5 text-sm font-medium text-foreground whitespace-nowrap">
                             <i data-lucide="graduation-cap" class="size-3.5 text-secondary/50"></i>
-                            {{ $member->education ?? '-' }}
+                            {{ $member->educationLevel?->alias ?? '-' }}
                         </div>
                         <div class="text-xs text-secondary whitespace-nowrap mt-1 pl-5">
                             {{ $member->occupation ?? '-' }}
@@ -144,17 +146,31 @@
                                 @endif
 
                                 <button type="button" @click="open = false"
-                                    hx-get="#"
-                                    hx-target="#modal-container" hx-swap="outerHTML"
+                                    hx-get="{{ route('admin.personnel.family.edit', [$staff->id, $member->id]) }}"
+                                    hx-target="#modal-container" hx-swap="innerHTML"
                                     class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors cursor-pointer text-left">
                                     <i data-lucide="file-pen-line" class="size-4 text-secondary pointer-events-none"></i> Edit Data
                                 </button>
 
                                 <button type="button"
-                                    hx-delete="#"
-                                    hx-target="#family-detail-container" hx-select="#family-detail-container" hx-swap="outerHTML"
-                                    hx-confirm="Yakin ingin menghapus anggota keluarga ini?"
-                                    class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-red-600 hover:bg-red-50 transition-colors cursor-pointer text-left">
+                                    @click="
+                                        open = false;
+                                        ShowConfirm({
+                                            title: 'Hapus Anggota Keluarga?',
+                                            message: 'Yakin ingin menghapus anggota keluarga ini? Tindakan ini tidak dapat dibatalkan.',
+                                            confirmText: 'Ya, Hapus',
+                                            cancelText: 'Batal',
+                                        }, () => {
+                                            htmx.ajax('DELETE', '{{ route('admin.personnel.family.destroy', ['staff_id' => $staff->id, 'family_id' => $member->id]) }}', {
+                                                target: '#family-detail-container',
+                                                swap: 'outerHTML',
+                                                headers: {
+                                                    'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content ?? '{{ csrf_token() }}'
+                                                }
+                                            });
+                                        })
+                                    "
+                                    class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-error hover:bg-error/10 transition-colors cursor-pointer text-left">
                                     <i data-lucide="trash-2" class="size-4 pointer-events-none"></i> Hapus Data
                                 </button>
                             </div>
@@ -183,7 +199,11 @@
         @php
         $hubungan = $member->relationship ?? '-';
         $gender = $member->gender ?? '-';
-        $usia = $member->birth_date ? \Carbon\Carbon::parse($member->birth_date)->age . ' Tahun' : '-';
+        $rawBirthDate = $member->birth_date;
+        if (is_string($rawBirthDate) && str_starts_with($rawBirthDate, 's:')) {
+        $rawBirthDate = @unserialize($rawBirthDate) ?: $rawBirthDate;
+        }
+        $usia = $rawBirthDate ? \Carbon\Carbon::parse($rawBirthDate)->age . ' Tahun' : '-';
 
         $hubLabel = match($hubungan) {
         'husband' => 'Suami',
@@ -226,7 +246,6 @@
                     </div>
                 </div>
 
-                {{-- Status Hubungan --}}
                 <div class="shrink-0">
                     <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border {{ $hubColor }} uppercase tracking-wider">
                         {{ $hubLabel }}
@@ -235,7 +254,6 @@
             </div>
 
             <div class="mt-3 border-y border-border divide-y divide-border text-xs">
-                {{-- Baris Usia & Demografi --}}
                 <div class="flex items-center justify-between gap-3 py-2.5">
                     <p class="text-secondary flex items-center gap-1.5 shrink-0">
                         <i data-lucide="calendar" class="size-3.5 text-secondary/50"></i>
@@ -246,7 +264,6 @@
                     </div>
                 </div>
 
-                {{-- Baris Pendidikan & Pekerjaan --}}
                 <div class="flex items-start justify-between gap-3 py-2.5">
                     <p class="text-secondary flex items-center gap-1.5 shrink-0 pt-0.5">
                         <i data-lucide="briefcase" class="size-3.5 text-secondary/50"></i>
@@ -254,7 +271,7 @@
                     </p>
                     <div class="text-right min-w-0 flex-1">
                         <p class="font-medium text-foreground truncate">{{ $member->occupation ?? '-' }}</p>
-                        <p class="text-secondary truncate mt-0.5">{{ $member->education ?? '-' }}</p>
+                        <p class="text-secondary truncate mt-0.5">{{ $member->educationLevel?->alias ?? '-' }}</p>
                     </div>
                 </div>
             </div>
@@ -270,20 +287,31 @@
                 @endif
 
                 <button type="button"
-                    hx-get="#"
+                    hx-get="{{ route('admin.personnel.family.edit', [$staff->id, $member->id]) }}"
                     hx-target="#modal-container"
-                    hx-swap="outerHTML"
+                    hx-swap="innerHTML"
                     class="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-border bg-white text-xs font-medium text-secondary hover:bg-muted transition-colors cursor-pointer">
                     <i data-lucide="file-pen-line" class="size-3.5"></i>
                     Edit
                 </button>
                 <button type="button"
-                    hx-delete="#"
-                    hx-target="#family-detail-container"
-                    hx-select="#family-detail-container"
-                    hx-swap="outerHTML"
-                    hx-confirm="Yakin ingin menghapus anggota keluarga ini?"
-                    class="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-red-200 bg-red-50 text-xs font-medium text-red-600 hover:bg-red-100 transition-colors cursor-pointer">
+                    @click="
+                        ShowConfirm({
+                            title: 'Hapus Anggota Keluarga?',
+                            message: 'Yakin ingin menghapus anggota keluarga ini? Tindakan ini tidak dapat dibatalkan.',
+                            confirmText: 'Ya, Hapus',
+                            cancelText: 'Batal',
+                        }, () => {
+                            htmx.ajax('DELETE', '{{ route('admin.personnel.family.destroy', ['staff_id' => $staff->id, 'family_id' => $member->id]) }}', {
+                                target: '#family-detail-container',
+                                swap: 'outerHTML',
+                                headers: {
+                                    'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content ?? '{{ csrf_token() }}'
+                                }
+                            });
+                        })
+                    "
+                    class="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-error/20 bg-error/5 text-xs font-medium text-error hover:bg-error/10 transition-colors cursor-pointer">
                     <i data-lucide="trash-2" class="size-3.5"></i>
                     Hapus
                 </button>
@@ -329,6 +357,44 @@
 
         if (typeof lucide !== 'undefined') {
             lucide.createIcons();
+        }
+
+        // Listener untuk menangani error saat request HTMX khusus keluarga
+        if (!window.__familyErrorHandlerAttached) {
+            window.__familyErrorHandlerAttached = true;
+
+            document.body.addEventListener('htmx:responseError', function(evt) {
+                const path = evt.detail?.requestConfig?.path || '';
+                if (!path.includes('family')) return;
+
+                const status = evt.detail?.xhr?.status;
+                let text = 'Terjadi kesalahan saat memproses permintaan.';
+                if (status === 419) {
+                    text = 'Sesi Anda kedaluwarsa (token CSRF tidak valid). Silakan muat ulang halaman lalu coba lagi.';
+                } else if (status === 404) {
+                    text = 'Data tidak ditemukan. Coba muat ulang halaman.';
+                } else if (status === 500) {
+                    text = 'Terjadi kesalahan pada server saat memproses data.';
+                }
+
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire('Gagal!', text, 'error');
+                } else {
+                    alert(text);
+                }
+            });
+
+            document.body.addEventListener('htmx:sendError', function(evt) {
+                const path = evt.detail?.requestConfig?.path || '';
+                if (!path.includes('family')) return;
+
+                const text = 'Tidak dapat terhubung ke server. Periksa koneksi internet Anda.';
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire('Gagal!', text, 'error');
+                } else {
+                    alert(text);
+                }
+            });
         }
     </script>
 </div>

@@ -131,16 +131,30 @@
                                 @endif
 
                                 <button type="button" @click="open = false"
-                                    hx-get="#"
-                                    hx-target="#modal-container" hx-swap="outerHTML"
+                                    hx-get="{{ route('admin.personnel.promotions.edit', ['staff_id' => $staff->id, 'history_id' => $history->id]) }}"
+                                    hx-target="#modal-container" hx-swap="innerHTML"
                                     class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors cursor-pointer text-left">
                                     <i data-lucide="file-pen-line" class="size-4 text-secondary pointer-events-none"></i> Edit Data
                                 </button>
 
                                 <button type="button"
-                                    hx-delete="#"
-                                    hx-target="#promotions-container" hx-select="#promotions-container" hx-swap="outerHTML"
-                                    hx-confirm="Yakin ingin menghapus riwayat kepangkatan ini? Tindakan ini tidak dapat dibatalkan."
+                                    @click="
+                                        open = false;
+                                        ShowConfirm({
+                                            title: 'Hapus Riwayat Kepangkatan?',
+                                            message: 'Yakin ingin menghapus riwayat kepangkatan ini? Tindakan ini tidak dapat dibatalkan.',
+                                            confirmText: 'Ya, Hapus',
+                                            cancelText: 'Batal',
+                                        }, () => {
+                                            htmx.ajax('DELETE', '{{ route('admin.personnel.promotions.destroy', ['staff_id' => $staff->id, 'history_id' => $history->id]) }}', {
+                                                target: '#promotions-container',
+                                                swap: 'outerHTML',
+                                                headers: {
+                                                    'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content ?? '{{ csrf_token() }}'
+                                                }
+                                            });
+                                        })
+                                    "
                                     class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-red-600 hover:bg-red-50 transition-colors cursor-pointer text-left">
                                     <i data-lucide="trash-2" class="size-4 pointer-events-none"></i> Hapus Data
                                 </button>
@@ -237,19 +251,30 @@
                 @endif
 
                 <button type="button"
-                    hx-get="#"
+                    hx-get="{{ route('admin.personnel.promotions.edit', ['staff_id' => $staff->id, 'history_id' => $history->id]) }}"
                     hx-target="#modal-container"
-                    hx-swap="outerHTML"
+                    hx-swap="innerHTML"
                     class="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-border bg-white text-xs font-medium text-secondary hover:bg-muted transition-colors cursor-pointer">
                     <i data-lucide="file-pen-line" class="size-3.5"></i>
                     Edit
                 </button>
                 <button type="button"
-                    hx-delete="#"
-                    hx-target="#promotions-container"
-                    hx-select="#promotions-container"
-                    hx-swap="outerHTML"
-                    hx-confirm="Yakin ingin menghapus riwayat kepangkatan ini? Tindakan ini tidak dapat dibatalkan."
+                    @click="
+                        ShowConfirm({
+                            title: 'Hapus Riwayat Kepangkatan?',
+                            message: 'Yakin ingin menghapus riwayat kepangkatan ini? Tindakan ini tidak dapat dibatalkan.',
+                            confirmText: 'Ya, Hapus',
+                            cancelText: 'Batal',
+                        }, () => {
+                            htmx.ajax('DELETE', '{{ route('admin.personnel.promotions.destroy', ['staff_id' => $staff->id, 'history_id' => $history->id]) }}', {
+                                target: '#promotions-container',
+                                swap: 'outerHTML',
+                                headers: {
+                                    'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content ?? '{{ csrf_token() }}'
+                                }
+                            });
+                        })
+                    "
                     class="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-red-200 bg-red-50 text-xs font-medium text-red-600 hover:bg-red-100 transition-colors cursor-pointer">
                     <i data-lucide="trash-2" class="size-3.5"></i>
                     Hapus
@@ -296,6 +321,41 @@
 
         if (typeof lucide !== 'undefined') {
             lucide.createIcons();
+        }
+
+        // Guard supaya listener tidak dobel setiap kali partial ini di-swap ulang oleh htmx
+        if (!window.__gradeHistoryErrorHandlerAttached) {
+            window.__gradeHistoryErrorHandlerAttached = true;
+
+            document.body.addEventListener('htmx:responseError', function(evt) {
+                const path = evt.detail?.requestConfig?.path || '';
+                if (!path.includes('promotions')) return;
+
+                const status = evt.detail?.xhr?.status;
+                let text = 'Terjadi kesalahan saat memproses permintaan.';
+                if (status === 419) {
+                    text = 'Sesi Anda kedaluwarsa (token CSRF tidak valid). Silakan muat ulang halaman lalu coba lagi.';
+                } else if (status === 404) {
+                    text = 'Data yang ingin dihapus tidak ditemukan. Coba muat ulang halaman.';
+                } else if (status === 500) {
+                    text = 'Terjadi kesalahan pada server saat memproses data.';
+                }
+
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire('Gagal!', text, 'error');
+                } else {
+                    alert(text);
+                }
+            });
+
+            document.body.addEventListener('htmx:sendError', function() {
+                const text = 'Tidak dapat terhubung ke server. Periksa koneksi internet Anda.';
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire('Gagal!', text, 'error');
+                } else {
+                    alert(text);
+                }
+            });
         }
     </script>
 </div>

@@ -285,9 +285,27 @@ class EducationHistoryController extends Controller
      */
     public function destroyEducation(Request $request, $staff_id, $edu_id)
     {
-        $staff = Data::findOrFail($staff_id);
-        $education = $staff->educations()->findOrFail($edu_id);
-        $education->delete();
+        try {
+            $staff = Data::findOrFail($staff_id);
+            $education = $staff->educations()->findOrFail($edu_id);
+            $education->delete();
+        } catch (\Throwable $e) {
+            report($e);
+
+            if ($request->header('HX-Request')) {
+                return response($this->show($request, $staff_id)->render())
+                    ->header('HX-Trigger', json_encode([
+                        'showAlert' => [
+                            'icon'  => 'error',
+                            'title' => 'Gagal!',
+                            'text'  => 'Riwayat pendidikan gagal dihapus. Silakan coba lagi.',
+                        ],
+                    ]));
+            }
+
+            return redirect()->route('admin.personnel.education.show', $staff_id)
+                ->with('error', 'Riwayat pendidikan gagal dihapus.');
+        }
 
         if ($request->header('HX-Request')) {
             return response($this->show($request, $staff_id)->render())

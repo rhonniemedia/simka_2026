@@ -71,7 +71,14 @@ Route::prefix('admin')->name('admin.')->group(function () {
         // 3. Kepangkatan
         Route::prefix('promotions')->name('promotions.')->group(function () {
             Route::get('/', [GradeHistoryController::class, 'index'])->name('index');
-            Route::get('/{id}', [GradeHistoryController::class, 'show'])->name('show'); // Tambahkan baris ini
+            Route::get('/{id}', [GradeHistoryController::class, 'show'])->name('show');
+
+            // Rute Manajemen Data (Modal HTMX)
+            Route::get('/{id}/create', [GradeHistoryController::class, 'create'])->name('create');
+            Route::post('/{id}/store', [GradeHistoryController::class, 'store'])->name('store');
+            Route::get('/{staff_id}/edit/{history_id}', [GradeHistoryController::class, 'edit'])->name('edit');
+            Route::put('/{staff_id}/update/{history_id}', [GradeHistoryController::class, 'update'])->name('update');
+            Route::delete('/{staff_id}/destroy/{history_id}', [GradeHistoryController::class, 'destroy'])->name('destroy');
         });
 
         // 4. Pendidikan
@@ -83,13 +90,21 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('/{id}/store', [EducationHistoryController::class, 'store'])->name('store');
             Route::get('/{staff_id}/edit/{edu_id}', [EducationHistoryController::class, 'edit'])->name('edit');
             Route::put('/{staff_id}/update/{edu_id}', [EducationHistoryController::class, 'update'])->name('update');
+            Route::delete('/{staff_id}/destroy/{edu_id}', [EducationHistoryController::class, 'destroyEducation'])->name('destroy');
         });
 
 
         // 5. Keluarga
         Route::prefix('family')->name('family.')->group(function () {
             Route::get('/', [FamilyController::class, 'index'])->name('index');
-            Route::get('/{id}', [FamilyController::class, 'show'])->name('show'); // Tambahkan rute ini
+            Route::get('/{id}', [FamilyController::class, 'show'])->name('show');
+
+            // Rute Manajemen Data Keluarga (Modal HTMX)
+            Route::get('/{id}/create', [FamilyController::class, 'create'])->name('create');
+            Route::post('/{id}/store', [FamilyController::class, 'store'])->name('store');
+            Route::get('/{staff_id}/edit/{family_id}', [FamilyController::class, 'edit'])->name('edit');
+            Route::put('/{staff_id}/update/{family_id}', [FamilyController::class, 'update'])->name('update');
+            Route::delete('/{staff_id}/destroy/{family_id}', [FamilyController::class, 'destroy'])->name('destroy');
         });
 
         // 6. Berkala (Kenaikan Gaji Berkala)

@@ -15,7 +15,7 @@ return new class extends Migration
         DB::statement("
             ALTER TABLE staff_families
             MODIFY relationship
-            ENUM('spouse', 'husband', 'wife', 'child', 'other')
+            ENUM('husband', 'wife', 'child', 'other')
             NOT NULL
         ");
 

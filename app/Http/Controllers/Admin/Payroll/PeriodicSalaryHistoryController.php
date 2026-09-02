@@ -138,7 +138,14 @@ class PeriodicSalaryHistoryController extends Controller
 
         if ($request->header('HX-Request')) {
             return response($this->show($request, $id)->render())
-                ->header('HX-Trigger', 'close-modal');
+                ->header('HX-Trigger', json_encode([
+                    'close-modal' => true,
+                    'showAlert' => [
+                        'icon'  => 'success',
+                        'title' => 'Berhasil!',
+                        'text'  => 'Data gaji berkala berhasil ditambahkan.',
+                    ],
+                ]));
         }
 
         return redirect()->route('admin.personnel.periodic-salary.show', $id);
@@ -181,7 +188,14 @@ class PeriodicSalaryHistoryController extends Controller
 
         if ($request->header('HX-Request')) {
             return response($this->show($request, $staff_id)->render())
-                ->header('HX-Trigger', 'close-modal');
+                ->header('HX-Trigger', json_encode([
+                    'close-modal' => true,
+                    'showAlert' => [
+                        'icon'  => 'success',
+                        'title' => 'Berhasil!',
+                        'text'  => 'Data gaji berkala berhasil diperbarui.',
+                    ],
+                ]));
         }
 
         return redirect()->route('admin.personnel.periodic-salary.show', $staff_id);
@@ -196,31 +210,35 @@ class PeriodicSalaryHistoryController extends Controller
             report($e);
 
             if ($request->header('HX-Request')) {
-                // Tetap balas 200 (bukan 500) supaya HX-Trigger diproses htmx dan
-                // muncul alert error, bukan silent fail di sisi user.
-                return response('', 200)->header('HX-Trigger', json_encode([
-                    'showAlert' => [
-                        'icon' => 'error',
-                        'title' => 'Gagal!',
-                        'text' => 'Riwayat gaji berkala gagal dihapus. Silakan coba lagi.'
-                    ]
-                ]));
+                // Render ulang tabel apa adanya (data belum berubah) supaya swap
+                // outerHTML di sisi klien tidak mengosongkan tabel, lalu tampilkan
+                // alert error lewat HX-Trigger.
+                return response($this->show($request, $staff_id)->render())
+                    ->header('HX-Trigger', json_encode([
+                        'showAlert' => [
+                            'icon'  => 'error',
+                            'title' => 'Gagal!',
+                            'text'  => 'Riwayat gaji berkala gagal dihapus. Silakan coba lagi.',
+                        ],
+                    ]));
             }
 
-            return redirect()->route('admin.personnel.periodic-salary.show.partials._table', $staff_id)
+            return redirect()->route('admin.personnel.periodic-salary.show', $staff_id)
                 ->with('error', 'Riwayat gaji berkala gagal dihapus.');
         }
 
         if ($request->header('HX-Request')) {
-            // Mengirim respons kosong dengan header trigger SweetAlert dan refresh tabel
-            return response('', 200)->header('HX-Trigger', json_encode([
-                'refreshPeriodicSalaryData' => true,
-                'showAlert' => [
-                    'icon' => 'success',
-                    'title' => 'Berhasil!',
-                    'text' => 'Riwayat gaji berkala berhasil dihapus.'
-                ]
-            ]));
+            // Render ulang tabel dengan data terbaru (baris yang dihapus sudah tidak ada)
+            // dan kirim sebagai body response, supaya tombol hapus (swap: outerHTML)
+            // langsung mengganti tabel lama dengan tabel baru tanpa perlu event tambahan.
+            return response($this->show($request, $staff_id)->render())
+                ->header('HX-Trigger', json_encode([
+                    'showAlert' => [
+                        'icon'  => 'success',
+                        'title' => 'Berhasil!',
+                        'text'  => 'Riwayat gaji berkala berhasil dihapus.',
+                    ],
+                ]));
         }
 
         return redirect()->route('admin.personnel.periodic-salary.show', $staff_id);
