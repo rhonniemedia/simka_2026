@@ -13,8 +13,13 @@ return new class extends Migration
     {
         Schema::create('staff_asn_positions', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->string('kategori_jabatan', 100)->comment('Contoh: Jabatan Fungsional, Jabatan Pelaksana');
-            $table->string('nama_jabatan', 255)->comment('Contoh: Guru Ahli Pertama, Pranata Komputer Terampil');
+
+            // Menggunakan bahasa Inggris dan disiapkan untuk menyimpan nilai string dari Enum (misal: 'fungsional')
+            $table->string('category', 50)->comment('Stores Enum values e.g., fungsional, pelaksana');
+
+            // Penamaan diubah menjadi bahasa Inggris
+            $table->string('name', 255)->comment('e.g., Guru Ahli Pertama, Pranata Komputer Terampil');
+
             $table->timestamps();
         });
     }

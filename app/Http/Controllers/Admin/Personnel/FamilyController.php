@@ -2,11 +2,15 @@
 
 namespace App\Http\Controllers\Admin\Personnel;
 
+use App\Enums\Staff\FamilyRelation;
+use App\Enums\Staff\Gender;
+use App\Enums\Staff\Profession;
 use App\Http\Controllers\Controller;
 use App\Models\Data as Staff;
 use App\Models\Data;
 use App\Models\EducationLevel;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class FamilyController extends Controller
 {
@@ -14,13 +18,15 @@ class FamilyController extends Controller
     {
         $search = $request->search;
 
-        $query = Staff::with(['families' => function ($qFamily) {
-            $qFamily->whereIn('relationship', ['husband', 'wife']);
+        $spouseRelations = [FamilyRelation::SUAMI->value, FamilyRelation::ISTRI->value];
+
+        $query = Staff::with(['families' => function ($qFamily) use ($spouseRelations) {
+            $qFamily->whereIn('relationship', $spouseRelations);
         }])
-            ->when($search, function ($q) use ($search) {
+            ->when($search, function ($q) use ($search, $spouseRelations) {
                 $q->where('name', 'like', "%{$search}%")
-                    ->orWhereHas('families', function ($qFamily) use ($search) {
-                        $qFamily->whereIn('relationship', ['husband', 'wife'])
+                    ->orWhereHas('families', function ($qFamily) use ($search, $spouseRelations) {
+                        $qFamily->whereIn('relationship', $spouseRelations)
                             ->where('name', 'like', "%{$search}%");
                     });
             })
@@ -39,8 +45,13 @@ class FamilyController extends Controller
     {
         $staff = Data::with(['vault', 'employmentStatus'])->findOrFail($id);
 
+        $relationOrder = implode(',', array_map(
+            fn(FamilyRelation $relation) => "'{$relation->value}'",
+            FamilyRelation::cases()
+        ));
+
         $families = $staff->families()
-            ->orderByRaw("FIELD(relationship, 'husband', 'wife', 'child', 'other')")
+            ->orderByRaw("FIELD(relationship, {$relationOrder})")
             ->paginate(10);
 
         if ($request->header('HX-Request')) {
@@ -64,14 +75,14 @@ class FamilyController extends Controller
 
         $validated = $request->validate([
             'name'                    => 'required|string|max:255',
-            'relationship'            => 'required|in:husband,wife,child,other',
-            'gender'                  => 'required|in:L,P',
+            'relationship'            => ['required', Rule::enum(FamilyRelation::class)],
+            'gender'                  => ['required', Rule::enum(Gender::class)],
             'family_relation_code'    => 'nullable|string|max:50',
             'nik'                     => 'nullable|string|max:50',
             'birth_place_encrypted'   => 'nullable|string|max:255',
             'birth_date'              => 'nullable|date',
             'telephone'               => 'nullable|string|max:255',
-            'occupation'              => 'nullable|string|max:255',
+            'occupation'              => ['nullable', Rule::enum(Profession::class)],
             'education_level_id'      => 'nullable|exists:staff_education_levels,id',
             'is_studying'             => 'nullable|boolean',
             'payroll_status'          => 'nullable|in:included,excluded',
@@ -111,14 +122,14 @@ class FamilyController extends Controller
 
         $validated = $request->validate([
             'name'                    => 'required|string|max:255',
-            'relationship'            => 'required|in:husband,wife,child,other',
-            'gender'                  => 'required|in:L,P',
+            'relationship'            => ['required', Rule::enum(FamilyRelation::class)],
+            'gender'                  => ['required', Rule::enum(Gender::class)],
             'family_relation_code'    => 'nullable|string|max:50',
             'nik'                     => 'nullable|string|max:50',
             'birth_place_encrypted'   => 'nullable|string|max:255',
             'birth_date'              => 'nullable|date',
             'telephone'               => 'nullable|string|max:255',
-            'occupation'              => 'nullable|string|max:255',
+            'occupation'              => ['nullable', Rule::enum(Profession::class)],
             'education_level_id'      => 'nullable|exists:staff_education_levels,id',
             'is_studying'             => 'nullable|boolean',
             'payroll_status'          => 'nullable|in:included,excluded',

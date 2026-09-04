@@ -6,13 +6,18 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Support\Facades\Hash;
 
+/**
+ * @deprecated Sejak migrasi ke staff_family_members + staff_family_relations,
+ * model ini hanya membaca tabel ARSIP (staff_families_legacy) untuk keperluan
+ * audit/riwayat. Untuk data keluarga yang aktif, pakai FamilyMember dan
+ * FamilyRelation.
+ */
 class Family extends Model
 {
     use HasFactory, HasUuids;
 
-    protected $table = 'staff_families';
+    protected $table = 'staff_families_legacy';
 
     public $incrementing = false;
     protected $keyType = 'string';

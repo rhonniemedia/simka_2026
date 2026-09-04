@@ -87,10 +87,47 @@ class Data extends Model
         return $this->hasOne(EducationHistory::class, 'staff_id')->latestOfMany('graduation_date');
     }
 
-    // Relasi ke Data Keluarga (1-to-many)
+    /**
+     * @deprecated Membaca tabel arsip (staff_families_legacy). Untuk data
+     * keluarga aktif, pakai familyMembers()/familyRelations().
+     */
     public function families()
     {
         return $this->hasMany(Family::class, 'staff_id');
+    }
+
+    /**
+     * Baris relasi keluarga milik staff ini (data relatif per-staff:
+     * relationship, kode HDK, status tunjangan, tanggal nikah).
+     */
+    public function familyRelations()
+    {
+        return $this->hasMany(FamilyRelation::class, 'staff_id');
+    }
+
+    /**
+     * Orang-orang (FamilyMember) yang tertaut ke staff ini. Orang yang
+     * sama bisa muncul di banyak staff (mis. anak dari suami-istri yang
+     * sama-sama pegawai) - itu ditautkan lewat staff_family_relations,
+     * bukan digandakan datanya.
+     */
+    public function familyMembers()
+    {
+        return $this->belongsToMany(
+            FamilyMember::class,
+            'staff_family_relations',
+            'staff_id',
+            'family_member_id'
+        )
+            ->withPivot([
+                'id',
+                'relationship',
+                'family_relation_code',
+                'payroll_status',
+                'marriage_date_encrypted',
+                'verification_status',
+            ])
+            ->withTimestamps();
     }
 
     // Relasi ke Riwayat Kenaikan Gaji Berkala / KGB (1-to-many)

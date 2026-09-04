@@ -1,3 +1,9 @@
+@php
+use App\Enums\Staff\FamilyRelation;
+use App\Enums\Staff\Gender;
+use App\Enums\Staff\Profession;
+@endphp
+
 <div id="family-detail-container"
     hx-get="{{ request()->fullUrl() }}"
     hx-trigger="refreshFamilyDetail from:body"
@@ -37,24 +43,24 @@
                 }
                 $usia = $rawBirthDate ? \Carbon\Carbon::parse($rawBirthDate)->age . ' Tahun' : '-';
 
-                $hubLabel = match($hubungan) {
-                'husband' => 'Suami',
-                'wife' => 'Istri',
-                'child' => 'Anak',
-                'other' => 'Lainnya',
-                default => '-',
-                };
+                $relationEnum = FamilyRelation::tryFrom($hubungan);
+                $genderEnum = Gender::tryFrom($gender);
+                $professionEnum = Profession::tryFrom($member->occupation ?? '');
 
-                $hubColor = match($hubungan) {
-                'husband' => 'bg-blue-100 text-blue-700 border-blue-200',
-                'wife' => 'bg-pink-100 text-pink-700 border-pink-200',
-                'child' => 'bg-purple-100 text-purple-700 border-purple-200',
+                $hubLabel = $relationEnum?->label() ?? '-';
+                $genderLabel = $genderEnum?->label() ?? ($gender ?: '-');
+                $occupationLabel = $professionEnum?->label() ?? ($member->occupation ?? '-');
+
+                $hubColor = match($relationEnum) {
+                FamilyRelation::SUAMI => 'bg-blue-100 text-blue-700 border-blue-200',
+                FamilyRelation::ISTRI => 'bg-pink-100 text-pink-700 border-pink-200',
+                FamilyRelation::ANAK => 'bg-purple-100 text-purple-700 border-purple-200',
                 default => 'bg-slate-100 text-slate-700 border-slate-200',
                 };
 
-                $iconColor = match($hubungan) {
-                'husband', 'wife' => ['from' => 'from-rose-300', 'to' => 'to-rose-500', 'icon' => 'heart'],
-                'child' => ['from' => 'from-indigo-300', 'to' => 'to-indigo-500', 'icon' => 'baby'],
+                $iconColor = match($relationEnum) {
+                FamilyRelation::SUAMI, FamilyRelation::ISTRI => ['from' => 'from-rose-300', 'to' => 'to-rose-500', 'icon' => 'heart'],
+                FamilyRelation::ANAK => ['from' => 'from-indigo-300', 'to' => 'to-indigo-500', 'icon' => 'baby'],
                 default => ['from' => 'from-slate-300', 'to' => 'to-slate-500', 'icon' => 'user'],
                 };
                 @endphp
@@ -84,8 +90,8 @@
                     {{-- Kolom 2: Demografi --}}
                     <td class="px-5 py-4 min-w-[160px]">
                         <div class="flex items-center gap-1.5 text-sm font-medium text-foreground whitespace-nowrap capitalize">
-                            <i data-lucide="{{ strtolower($gender) === 'p' ? 'user-round-female' : 'user-round' }}" class="size-3.5 text-secondary/50"></i>
-                            {{ $gender === 'P' ? 'Perempuan' : ($gender === 'L' ? 'Laki-Laki' : $gender) }}
+                            <i data-lucide="{{ $genderEnum === Gender::PEREMPUAN ? 'user-round-female' : 'user-round' }}" class="size-3.5 text-secondary/50"></i>
+                            {{ $genderLabel }}
                         </div>
                         <div class="text-xs text-secondary whitespace-nowrap mt-1 pl-5">
                             Usia: {{ $usia }}
@@ -99,7 +105,7 @@
                             {{ $member->educationLevel?->alias ?? '-' }}
                         </div>
                         <div class="text-xs text-secondary whitespace-nowrap mt-1 pl-5">
-                            {{ $member->occupation ?? '-' }}
+                            {{ $occupationLabel }}
                         </div>
                     </td>
 
@@ -205,24 +211,24 @@
         }
         $usia = $rawBirthDate ? \Carbon\Carbon::parse($rawBirthDate)->age . ' Tahun' : '-';
 
-        $hubLabel = match($hubungan) {
-        'husband' => 'Suami',
-        'wife' => 'Istri',
-        'child' => 'Anak',
-        'other' => 'Lainnya',
-        default => '-',
-        };
+        $relationEnum = FamilyRelation::tryFrom($hubungan);
+        $genderEnum = Gender::tryFrom($gender);
+        $professionEnum = Profession::tryFrom($member->occupation ?? '');
 
-        $hubColor = match($hubungan) {
-        'husband' => 'bg-blue-100 text-blue-700 border-blue-200',
-        'wife' => 'bg-pink-100 text-pink-700 border-pink-200',
-        'child' => 'bg-purple-100 text-purple-700 border-purple-200',
+        $hubLabel = $relationEnum?->label() ?? '-';
+        $genderLabel = $genderEnum?->label() ?? ($gender ?: '-');
+        $occupationLabel = $professionEnum?->label() ?? ($member->occupation ?? '-');
+
+        $hubColor = match($relationEnum) {
+        FamilyRelation::SUAMI => 'bg-blue-100 text-blue-700 border-blue-200',
+        FamilyRelation::ISTRI => 'bg-pink-100 text-pink-700 border-pink-200',
+        FamilyRelation::ANAK => 'bg-purple-100 text-purple-700 border-purple-200',
         default => 'bg-slate-100 text-slate-700 border-slate-200',
         };
 
-        $iconColor = match($hubungan) {
-        'husband', 'wife' => ['from' => 'from-rose-300', 'to' => 'to-rose-500', 'icon' => 'heart'],
-        'child' => ['from' => 'from-indigo-300', 'to' => 'to-indigo-500', 'icon' => 'baby'],
+        $iconColor = match($relationEnum) {
+        FamilyRelation::SUAMI, FamilyRelation::ISTRI => ['from' => 'from-rose-300', 'to' => 'to-rose-500', 'icon' => 'heart'],
+        FamilyRelation::ANAK => ['from' => 'from-indigo-300', 'to' => 'to-indigo-500', 'icon' => 'baby'],
         default => ['from' => 'from-slate-300', 'to' => 'to-slate-500', 'icon' => 'user'],
         };
         @endphp
@@ -240,8 +246,8 @@
                             {{ $member->name ?? '-' }}
                         </div>
                         <p class="text-xs text-secondary mt-1 truncate flex items-center gap-1.5 capitalize">
-                            <span class="inline-block size-1.5 rounded-full {{ strtolower($gender) === 'p' ? 'bg-pink-400' : 'bg-blue-400' }} shrink-0"></span>
-                            {{ $gender === 'P' ? 'Perempuan' : ($gender === 'L' ? 'Laki-Laki' : $gender) }}
+                            <span class="inline-block size-1.5 rounded-full {{ $genderEnum === Gender::PEREMPUAN ? 'bg-pink-400' : 'bg-blue-400' }} shrink-0"></span>
+                            {{ $genderLabel }}
                         </p>
                     </div>
                 </div>
@@ -270,7 +276,7 @@
                         Pekerjaan
                     </p>
                     <div class="text-right min-w-0 flex-1">
-                        <p class="font-medium text-foreground truncate">{{ $member->occupation ?? '-' }}</p>
+                        <p class="font-medium text-foreground truncate">{{ $occupationLabel }}</p>
                         <p class="text-secondary truncate mt-0.5">{{ $member->educationLevel?->alias ?? '-' }}</p>
                     </div>
                 </div>

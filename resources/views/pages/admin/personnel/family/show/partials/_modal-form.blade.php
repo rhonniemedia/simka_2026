@@ -1,4 +1,8 @@
 @php
+use App\Enums\Staff\FamilyRelation;
+use App\Enums\Staff\Gender;
+use App\Enums\Staff\Profession;
+
 $family = $family ?? null;
 $isEdit = !empty($family);
 
@@ -6,17 +10,20 @@ $levelOptions = $levels->map(function($lvl) {
 return ['value' => $lvl->id, 'label' => $lvl->name . ' (' . $lvl->alias . ')'];
 })->toArray();
 
-$relationshipOptions = [
-['value' => 'husband', 'label' => 'Suami'],
-['value' => 'wife', 'label' => 'Istri'],
-['value' => 'child', 'label' => 'Anak'],
-['value' => 'other', 'label' => 'Lainnya']
-];
+$relationshipOptions = array_map(
+fn (FamilyRelation $relation) => ['value' => $relation->value, 'label' => $relation->label()],
+FamilyRelation::cases()
+);
 
-$genderOptions = [
-['value' => 'L', 'label' => 'Laki-Laki'],
-['value' => 'P', 'label' => 'Perempuan']
-];
+$genderOptions = array_map(
+fn (Gender $gender) => ['value' => $gender->value, 'label' => $gender->label()],
+Gender::cases()
+);
+
+$professionOptions = array_map(
+fn (Profession $profession) => ['value' => $profession->value, 'label' => $profession->label()],
+Profession::cases()
+);
 
 $payrollOptions = [
 ['value' => 'included', 'label' => 'Masuk Tunjangan (Included)'],
@@ -133,7 +140,7 @@ $marriageDateValue = !empty($rawMarriage) ? \Carbon\Carbon::parse($rawMarriage)-
 
                     <div>
                         <label class="block text-sm font-medium text-foreground mb-1.5">Pekerjaan</label>
-                        <input type="text" name="occupation" value="{{ $family->occupation ?? '' }}" placeholder="Profesi / Pekerjaan" class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                        <x-ui.searchable-select name="occupation" :options="$professionOptions" :value="$family->occupation ?? ''" placeholder="-- Pilih Pekerjaan --" />
                     </div>
 
                     {{-- Informasi Administrasi & Dapodik --}}
