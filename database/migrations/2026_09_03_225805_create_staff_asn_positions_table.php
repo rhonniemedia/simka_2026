@@ -6,27 +6,27 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('staff_asn_positions', function (Blueprint $table) {
             $table->uuid('id')->primary();
 
-            // Menggunakan bahasa Inggris dan disiapkan untuk menyimpan nilai string dari Enum (misal: 'fungsional')
-            $table->string('category', 50)->comment('Stores Enum values e.g., fungsional, pelaksana');
+            // Kategori jenis jabatan fungsional dan pelaksana
+            $table->enum('position_type', [
+                'fungsional_keahlian',
+                'fungsional_keterampilan',
+                'pelaksana'
+            ])->comment('Categorizes the non-managerial positions');
 
-            // Penamaan diubah menjadi bahasa Inggris
+            // Peruntukan jabatan (PNS, PPPK, atau keduanya)
+            $table->enum('eligibility', ['pns', 'pppk', 'both'])->comment('Specifies if the position is for PNS, PPPK, or both');
+
             $table->string('name', 255)->comment('e.g., Guru Ahli Pertama, Pranata Komputer Terampil');
 
             $table->timestamps();
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('staff_asn_positions');

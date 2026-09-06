@@ -12,11 +12,11 @@
     {{-- Brand --}}
     <div class="min-w-0 flex-1 ml-3 lg:ml-0">
         <h2 class="text-lg md:text-2xl font-bold text-foreground leading-tight">
-            SIMKA
+            Dashboard
         </h2>
 
         <p class="hidden md:block text-xs text-secondary leading-tight truncate">
-            Sistem Informasi Kepegawaian dan Arsip
+            Sistem Informasi Kepegawaian dan Arsip (Simka)
         </p>
     </div>
     <div class="flex items-center gap-3">

@@ -27,13 +27,22 @@
                 @forelse ($staffs as $staff)
                 @php
                 $nik = $staff->vault?->nik ?? '-';
-                $f = $staff->families->first();
+                $f = $staff->familyRelations->first();
 
-                // Enum di database: husband, wife, child, other (atau terjemahannya)
                 $hubungan = $f->relationship ?? '-';
-                $gender = $f->gender ?? '-';
-                $pekerjaan = $f->occupation ?? '-';
-                $telepon = $f->telephone ?? '-'; // Memanggil nilai telepon terenkripsi
+
+                $namaPasangan = $f->familyMember->name ?? '-';
+                $gender = $f->familyMember->gender ?? '-';
+                $telepon = $f->familyMember->telephone ?? '-';
+
+                // Format Pekerjaan menggunakan Enum
+                $occ = $f->familyMember->occupation ?? null;
+                $pekerjaan = '-';
+                if ($occ instanceof \App\Enums\Staff\Profession) {
+                $pekerjaan = $occ->label();
+                } elseif (is_string($occ)) {
+                $pekerjaan = \App\Enums\Staff\Profession::tryFrom($occ)?->label() ?? $occ;
+                }
 
                 $hubLabel = match($hubungan) {
                 'husband', 'suami' => 'Suami',
@@ -72,7 +81,7 @@
                     <td class="px-5 py-4 min-w-[200px]">
                         @if ($f)
                         <div class="flex items-center gap-2">
-                            <div class="text-sm font-semibold text-foreground whitespace-nowrap uppercase">{{ $f->name ?? '-' }}</div>
+                            <div class="text-sm font-semibold text-foreground whitespace-nowrap uppercase">{{ $namaPasangan }}</div>
                             <i data-lucide="{{ strtolower($gender) === 'p' || strtolower($gender) === 'perempuan' ? 'user-round-female' : 'user-round' }}" class="size-3.5 text-secondary/50" title="Gender: {{ $gender }}"></i>
                         </div>
                         <div class="mt-1">
@@ -119,12 +128,22 @@
         @forelse ($staffs as $staff)
         @php
         $nik = $staff->vault?->nik ?? '-';
-        $f = $staff->families->first();
+        $f = $staff->familyRelations->first();
 
         $hubungan = $f->relationship ?? '-';
-        $gender = $f->gender ?? '-';
-        $pekerjaan = $f->occupation ?? '-';
-        $telepon = $f->telephone ?? '-';
+
+        $namaPasangan = $f->familyMember->name ?? '-';
+        $gender = $f->familyMember->gender ?? '-';
+        $telepon = $f->familyMember->telephone ?? '-';
+
+        // Format Pekerjaan menggunakan Enum
+        $occ = $f->familyMember->occupation ?? null;
+        $pekerjaan = '-';
+        if ($occ instanceof \App\Enums\Staff\Profession) {
+        $pekerjaan = $occ->label();
+        } elseif (is_string($occ)) {
+        $pekerjaan = \App\Enums\Staff\Profession::tryFrom($occ)?->label() ?? $occ;
+        }
 
         $hubLabel = match($hubungan) {
         'husband', 'suami' => 'Suami',
@@ -160,7 +179,6 @@
                     </div>
                 </a>
 
-                {{-- Status Hubungan (Sebelah Kanan Avatar) --}}
                 <div class="shrink-0">
                     @if ($f)
                     <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border {{ $hubColor }} uppercase tracking-wider">
@@ -170,10 +188,7 @@
                 </div>
             </div>
 
-            {{-- Area Data yang Terkunci Sempurna --}}
             <div class="mt-3 border-y border-border divide-y divide-border text-xs">
-
-                {{-- Baris 1: Pasangan --}}
                 <div class="flex items-start justify-between gap-3 py-2.5">
                     <p class="text-secondary flex items-center gap-1.5 shrink-0 pt-0.5">
                         <i data-lucide="contact" class="size-3.5 text-secondary/50"></i>
@@ -181,7 +196,7 @@
                     </p>
                     <div class="text-right min-w-0 flex-1">
                         @if ($f)
-                        <p class="font-medium text-foreground uppercase truncate">{{ $f->name ?? '-' }}</p>
+                        <p class="font-medium text-foreground uppercase truncate">{{ $namaPasangan }}</p>
                         <p class="text-secondary truncate mt-0.5 capitalize">{{ $gender === 'P' ? 'Perempuan' : ($gender === 'L' ? 'Laki-Laki' : $gender) }}</p>
                         @else
                         <p class="text-secondary italic">Belum ada data pasangan</p>
@@ -189,7 +204,6 @@
                     </div>
                 </div>
 
-                {{-- Baris 2: Pekerjaan & Kontak --}}
                 @if ($f)
                 <div class="flex items-start justify-between gap-3 py-2.5">
                     <p class="text-secondary flex items-center gap-1.5 shrink-0 pt-0.5">
@@ -203,8 +217,6 @@
                 </div>
                 @endif
             </div>
-
-            {{-- Bagian tombol aksi dihapus untuk versi mobile, karena fungsi detail sudah ada pada klik nama/avatar --}}
         </div>
         @empty
         <div class="px-4 py-16 text-center text-secondary">

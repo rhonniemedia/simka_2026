@@ -255,4 +255,18 @@ class DataVault extends Model
     {
         return $this->belongsTo(Data::class, 'staff_id');
     }
+
+    // ========================================================================
+    // SCOPES
+    // ========================================================================
+
+    /**
+     * Cari staff berdasarkan NIK tanpa perlu dekripsi tiap baris,
+     * memanfaatkan kolom nik_hash yang sudah di-index. Dipakai untuk
+     * mendeteksi anggota keluarga yang ternyata juga staff.
+     */
+    public function scopeWhereNik($query, string $nik)
+    {
+        return $query->where('nik_hash', hash('sha256', trim($nik)));
+    }
 }

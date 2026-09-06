@@ -9,6 +9,7 @@
             <div class="w-10 h-10 shrink-0 rounded-xl flex items-center justify-center bg-gradient-to-br from-red-500 to-purple-700 shadow-sm">
                 <i data-lucide="graduation-cap" class="size-5 text-white"></i>
             </div>
+
             <div>
                 <h1 class="font-bold text-base text-foreground leading-tight">SIMKA</h1>
                 <p class="text-xs text-secondary">SMK Negeri 1 Rejang Lebong</p>
@@ -16,7 +17,9 @@
         </div>
 
         <!-- Tombol Close (X) -->
-        <button @click="sidebarOpen = false" class="lg:hidden size-11 flex shrink-0 bg-white rounded-xl p-[10px] items-center justify-center ring-1 ring-border hover:ring-primary transition-all duration-300 cursor-pointer">
+        <button
+            @click="sidebarOpen = false"
+            class="lg:hidden size-11 flex shrink-0 bg-white rounded-xl p-[10px] items-center justify-center ring-1 ring-border hover:ring-primary transition-all duration-300 cursor-pointer">
             <i data-lucide="x" class="size-6 text-secondary"></i>
         </button>
     </div>
@@ -24,103 +27,132 @@
     <!-- Navigasi Utama -->
     <div class="flex flex-col p-5 pb-28 gap-2 overflow-y-auto flex-1 scrollbar-hide">
 
-        <!-- Menu Utama (Tanpa Kategori) -->
+        <!-- Dashboard -->
         <div class="flex flex-col gap-1">
+            <h3 class="font-bold text-sm text-foreground px-3 mb-2">
+                Dashboard
+            </h3>
+
             <a href="#" class="group cursor-pointer">
                 <div class="flex items-center justify-between rounded-xl p-3 transition-all duration-300 {{ request()->routeIs('dashboard') ? 'bg-primary/10 hover:bg-primary/20' : 'hover:bg-muted' }}">
                     <div class="flex items-center gap-3">
-                        <i data-lucide="layout-dashboard" class="size-5 transition-all duration-300 {{ request()->routeIs('dashboard') ? 'text-primary' : 'text-secondary group-hover:text-foreground' }}"></i>
+                        <i
+                            data-lucide="layout-dashboard"
+                            class="size-5 transition-all duration-300 {{ request()->routeIs('dashboard') ? 'text-primary' : 'text-secondary group-hover:text-foreground' }}">
+                        </i>
+
                         <span class="font-medium text-sm transition-all duration-300 {{ request()->routeIs('dashboard') ? 'text-primary font-semibold' : 'text-secondary group-hover:text-foreground' }}">
-                            Dashboard
+                            Beranda
                         </span>
                     </div>
                 </div>
             </a>
+        </div>
 
-            <a href="#" class="group cursor-pointer">
+
+        <!-- Master Data -->
+        <div class="flex flex-col gap-1 mt-4">
+            <h3 class="font-bold text-sm text-foreground px-3 mb-2">
+                Master Data
+            </h3>
+
+            <!-- Data Utama -->
+            <a href="{{ route('admin.master.index') }}" class="group cursor-pointer">
                 <div class="flex items-center justify-between rounded-xl p-3 transition-all duration-300 {{ request()->routeIs('admin.master.*') ? 'bg-primary/10 hover:bg-primary/20' : 'hover:bg-muted' }}">
                     <div class="flex items-center gap-3">
-                        <i data-lucide="copy" class="size-5 transition-all duration-300 {{ request()->routeIs('admin.master.*') ? 'text-primary' : 'text-secondary group-hover:text-foreground' }}"></i>
+                        <i
+                            data-lucide="database"
+                            class="size-5 transition-all duration-300 {{ request()->routeIs('admin.master.*') ? 'text-primary' : 'text-secondary group-hover:text-foreground' }}">
+                        </i>
+
                         <span class="font-medium text-sm transition-all duration-300 {{ request()->routeIs('admin.master.*') ? 'text-primary font-semibold' : 'text-secondary group-hover:text-foreground' }}">
-                            Data Master
+                            Data Utama
                         </span>
                     </div>
-                    <i data-lucide="plus" class="size-4 transition-all duration-300 {{ request()->routeIs('admin.master.*') ? 'text-primary' : 'text-secondary/50 group-hover:text-foreground' }}"></i>
                 </div>
             </a>
 
+            <!-- Data Pegawai -->
             <a href="{{ route('admin.personnel.data.index') }}" class="group cursor-pointer">
                 <div class="flex items-center justify-between rounded-xl p-3 transition-all duration-300 {{ request()->routeIs('admin.personnel.data.*') ? 'bg-primary/10 hover:bg-primary/20' : 'hover:bg-muted' }}">
                     <div class="flex items-center gap-3">
-                        <i data-lucide="file-text" class="size-5 transition-all duration-300 {{ request()->routeIs('admin.personnel.data.*') ? 'text-primary' : 'text-secondary group-hover:text-foreground' }}"></i>
+                        <i
+                            data-lucide="users"
+                            class="size-5 transition-all duration-300 {{ request()->routeIs('admin.personnel.data.*') ? 'text-primary' : 'text-secondary group-hover:text-foreground' }}">
+                        </i>
+
                         <span class="font-medium text-sm transition-all duration-300 {{ request()->routeIs('admin.personnel.data.*') ? 'text-primary font-semibold' : 'text-secondary group-hover:text-foreground' }}">
                             Data Pegawai
                         </span>
                     </div>
                 </div>
             </a>
-
-            <a href="#" class="group cursor-pointer">
-                <div class="flex items-center justify-between rounded-xl p-3 transition-all duration-300 {{ request()->routeIs('admin.personnel.mutation.*') ? 'bg-primary/10 hover:bg-primary/20' : 'hover:bg-muted' }}">
-                    <div class="flex items-center gap-3">
-                        <i data-lucide="book-user" class="size-5 transition-all duration-300 {{ request()->routeIs('admin.personnel.mutation.*') ? 'text-primary' : 'text-secondary group-hover:text-foreground' }}"></i>
-                        <span class="font-medium text-sm transition-all duration-300 {{ request()->routeIs('admin.personnel.mutation.*') ? 'text-primary font-semibold' : 'text-secondary group-hover:text-foreground' }}">
-                            Mutasi Pegawai
-                        </span>
-                    </div>
-                    <i data-lucide="plus" class="size-4 transition-all duration-300 {{ request()->routeIs('admin.personnel.mutation.*') ? 'text-primary' : 'text-secondary/50 group-hover:text-foreground' }}"></i>
-                </div>
-            </a>
         </div>
 
-        <!-- Berkas Pegawai -->
-        <div class="flex flex-col gap-1 mt-4">
-            <h3 class="font-bold text-sm text-foreground px-3 mb-2">Berkas Pegawai</h3>
-
-            <a href="#" class="group cursor-pointer">
-                <div class="flex items-center justify-between rounded-xl p-3 transition-all duration-300 {{ request()->routeIs('admin.documents.teacher.*') ? 'bg-primary/10 hover:bg-primary/20' : 'hover:bg-muted' }}">
-                    <div class="flex items-center gap-3">
-                        <i data-lucide="phone-call" class="size-5 transition-all duration-300 {{ request()->routeIs('admin.documents.teacher.*') ? 'text-primary' : 'text-secondary group-hover:text-foreground' }}"></i>
-                        <span class="font-medium text-sm transition-all duration-300 {{ request()->routeIs('admin.documents.teacher.*') ? 'text-primary font-semibold' : 'text-secondary group-hover:text-foreground' }}">
-                            Pendidik
-                        </span>
-                    </div>
-                    <i data-lucide="plus" class="size-4 transition-all duration-300 {{ request()->routeIs('admin.documents.teacher.*') ? 'text-primary' : 'text-secondary/50 group-hover:text-foreground' }}"></i>
-                </div>
-            </a>
-
-            <a href="#" class="group cursor-pointer">
-                <div class="flex items-center justify-between rounded-xl p-3 transition-all duration-300 {{ request()->routeIs('admin.documents.staff.*') ? 'bg-primary/10 hover:bg-primary/20' : 'hover:bg-muted' }}">
-                    <div class="flex items-center gap-3">
-                        <i data-lucide="users" class="size-5 transition-all duration-300 {{ request()->routeIs('admin.documents.staff.*') ? 'text-primary' : 'text-secondary group-hover:text-foreground' }}"></i>
-                        <span class="font-medium text-sm transition-all duration-300 {{ request()->routeIs('admin.documents.staff.*') ? 'text-primary font-semibold' : 'text-secondary group-hover:text-foreground' }}">
-                            Kependidikan
-                        </span>
-                    </div>
-                    <i data-lucide="plus" class="size-4 transition-all duration-300 {{ request()->routeIs('admin.documents.staff.*') ? 'text-primary' : 'text-secondary/50 group-hover:text-foreground' }}"></i>
-                </div>
-            </a>
-
-            <a href="#" class="group cursor-pointer">
-                <div class="flex items-center justify-between rounded-xl p-3 transition-all duration-300 {{ request()->routeIs('admin.documents.integrated.*') ? 'bg-primary/10 hover:bg-primary/20' : 'hover:bg-muted' }}">
-                    <div class="flex items-center gap-3">
-                        <i data-lucide="file-check" class="size-5 transition-all duration-300 {{ request()->routeIs('admin.documents.integrated.*') ? 'text-primary' : 'text-secondary group-hover:text-foreground' }}"></i>
-                        <span class="font-medium text-sm transition-all duration-300 {{ request()->routeIs('admin.documents.integrated.*') ? 'text-primary font-semibold' : 'text-secondary group-hover:text-foreground' }}">
-                            Berkas Terpadu
-                        </span>
-                    </div>
-                </div>
-            </a>
-        </div>
 
         <!-- Kepegawaian -->
         <div class="flex flex-col gap-1 mt-4">
-            <h3 class="font-bold text-sm text-foreground px-3 mb-2">Kepegawaian</h3>
+            <h3 class="font-bold text-sm text-foreground px-3 mb-2">
+                Kepegawaian
+            </h3>
 
+            <!-- Dokumen -->
+            <a href="{{ route('admin.personnel.documents.index') }}" class="group cursor-pointer">
+                <div class="flex items-center justify-between rounded-xl p-3 transition-all duration-300 {{ request()->routeIs('admin.personnel.documents.*') ? 'bg-primary/10 hover:bg-primary/20' : 'hover:bg-muted' }}">
+                    <div class="flex items-center gap-3">
+                        <i
+                            data-lucide="folder-open"
+                            class="size-5 transition-all duration-300 {{ request()->routeIs('admin.personnel.documents.*') ? 'text-primary' : 'text-secondary group-hover:text-foreground' }}">
+                        </i>
+
+                        <span class="font-medium text-sm transition-all duration-300 {{ request()->routeIs('admin.personnel.documents.*') ? 'text-primary font-semibold' : 'text-secondary group-hover:text-foreground' }}">
+                            Dokumen
+                        </span>
+                    </div>
+                </div>
+            </a>
+
+            <!-- Jabatan -->
+            <a href="#" class="group cursor-pointer">
+                <div class="flex items-center justify-between rounded-xl p-3 transition-all duration-300 {{ request()->routeIs('admin.personnel.positions.*') ? 'bg-primary/10 hover:bg-primary/20' : 'hover:bg-muted' }}">
+                    <div class="flex items-center gap-3">
+                        <i
+                            data-lucide="briefcase-business"
+                            class="size-5 transition-all duration-300 {{ request()->routeIs('admin.personnel.positions.*') ? 'text-primary' : 'text-secondary group-hover:text-foreground' }}">
+                        </i>
+
+                        <span class="font-medium text-sm transition-all duration-300 {{ request()->routeIs('admin.personnel.positions.*') ? 'text-primary font-semibold' : 'text-secondary group-hover:text-foreground' }}">
+                            Jabatan
+                        </span>
+                    </div>
+                </div>
+            </a>
+
+            <!-- Mutasi -->
+            <a href="#" class="group cursor-pointer">
+                <div class="flex items-center justify-between rounded-xl p-3 transition-all duration-300 {{ request()->routeIs('admin.personnel.mutation.*') ? 'bg-primary/10 hover:bg-primary/20' : 'hover:bg-muted' }}">
+                    <div class="flex items-center gap-3">
+                        <i
+                            data-lucide="arrow-right-left"
+                            class="size-5 transition-all duration-300 {{ request()->routeIs('admin.personnel.mutation.*') ? 'text-primary' : 'text-secondary group-hover:text-foreground' }}">
+                        </i>
+
+                        <span class="font-medium text-sm transition-all duration-300 {{ request()->routeIs('admin.personnel.mutation.*') ? 'text-primary font-semibold' : 'text-secondary group-hover:text-foreground' }}">
+                            Mutasi
+                        </span>
+                    </div>
+                </div>
+            </a>
+
+            <!-- Berkala -->
             <a href="{{ route('admin.personnel.periodic-salary.index') }}" class="group cursor-pointer">
                 <div class="flex items-center justify-between rounded-xl p-3 transition-all duration-300 {{ request()->routeIs('admin.personnel.periodic-salary.*') ? 'bg-primary/10 hover:bg-primary/20' : 'hover:bg-muted' }}">
                     <div class="flex items-center gap-3">
-                        <i data-lucide="layers" class="size-5 transition-all duration-300 {{ request()->routeIs('admin.personnel.periodic-salary.*') ? 'text-primary' : 'text-secondary group-hover:text-foreground' }}"></i>
+                        <i
+                            data-lucide="layers"
+                            class="size-5 transition-all duration-300 {{ request()->routeIs('admin.personnel.periodic-salary.*') ? 'text-primary' : 'text-secondary group-hover:text-foreground' }}">
+                        </i>
+
                         <span class="font-medium text-sm transition-all duration-300 {{ request()->routeIs('admin.personnel.periodic-salary.*') ? 'text-primary font-semibold' : 'text-secondary group-hover:text-foreground' }}">
                             Berkala
                         </span>
@@ -128,10 +160,15 @@
                 </div>
             </a>
 
+            <!-- Kepangkatan -->
             <a href="{{ route('admin.personnel.promotions.index') }}" class="group cursor-pointer">
                 <div class="flex items-center justify-between rounded-xl p-3 transition-all duration-300 {{ request()->routeIs('admin.personnel.promotions.*') ? 'bg-primary/10 hover:bg-primary/20' : 'hover:bg-muted' }}">
                     <div class="flex items-center gap-3">
-                        <i data-lucide="user-cog" class="size-5 transition-all duration-300 {{ request()->routeIs('admin.personnel.promotions.*') ? 'text-primary' : 'text-secondary group-hover:text-foreground' }}"></i>
+                        <i
+                            data-lucide="user-cog"
+                            class="size-5 transition-all duration-300 {{ request()->routeIs('admin.personnel.promotions.*') ? 'text-primary' : 'text-secondary group-hover:text-foreground' }}">
+                        </i>
+
                         <span class="font-medium text-sm transition-all duration-300 {{ request()->routeIs('admin.personnel.promotions.*') ? 'text-primary font-semibold' : 'text-secondary group-hover:text-foreground' }}">
                             Kepangkatan
                         </span>
@@ -139,10 +176,15 @@
                 </div>
             </a>
 
+            <!-- Pendidikan -->
             <a href="{{ route('admin.personnel.education.index') }}" class="group cursor-pointer">
                 <div class="flex items-center justify-between rounded-xl p-3 transition-all duration-300 {{ request()->routeIs('admin.personnel.education.*') ? 'bg-primary/10 hover:bg-primary/20' : 'hover:bg-muted' }}">
                     <div class="flex items-center gap-3">
-                        <i data-lucide="graduation-cap" class="size-5 transition-all duration-300 {{ request()->routeIs('admin.personnel.education.*') ? 'text-primary' : 'text-secondary group-hover:text-foreground' }}"></i>
+                        <i
+                            data-lucide="graduation-cap"
+                            class="size-5 transition-all duration-300 {{ request()->routeIs('admin.personnel.education.*') ? 'text-primary' : 'text-secondary group-hover:text-foreground' }}">
+                        </i>
+
                         <span class="font-medium text-sm transition-all duration-300 {{ request()->routeIs('admin.personnel.education.*') ? 'text-primary font-semibold' : 'text-secondary group-hover:text-foreground' }}">
                             Pendidikan
                         </span>
@@ -150,10 +192,15 @@
                 </div>
             </a>
 
+            <!-- Keluarga -->
             <a href="{{ route('admin.personnel.family.index') }}" class="group cursor-pointer">
                 <div class="flex items-center justify-between rounded-xl p-3 transition-all duration-300 {{ request()->routeIs('admin.personnel.family.*') ? 'bg-primary/10 hover:bg-primary/20' : 'hover:bg-muted' }}">
                     <div class="flex items-center gap-3">
-                        <i data-lucide="users-round" class="size-5 transition-all duration-300 {{ request()->routeIs('admin.personnel.family.*') ? 'text-primary' : 'text-secondary group-hover:text-foreground' }}"></i>
+                        <i
+                            data-lucide="users-round"
+                            class="size-5 transition-all duration-300 {{ request()->routeIs('admin.personnel.family.*') ? 'text-primary' : 'text-secondary group-hover:text-foreground' }}">
+                        </i>
+
                         <span class="font-medium text-sm transition-all duration-300 {{ request()->routeIs('admin.personnel.family.*') ? 'text-primary font-semibold' : 'text-secondary group-hover:text-foreground' }}">
                             Keluarga
                         </span>
@@ -161,10 +208,15 @@
                 </div>
             </a>
 
+            <!-- Pensiun -->
             <a href="#" class="group cursor-pointer">
                 <div class="flex items-center justify-between rounded-xl p-3 transition-all duration-300 {{ request()->routeIs('admin.personnel.retirement.*') ? 'bg-primary/10 hover:bg-primary/20' : 'hover:bg-muted' }}">
                     <div class="flex items-center gap-3">
-                        <i data-lucide="user-minus" class="size-5 transition-all duration-300 {{ request()->routeIs('admin.personnel.retirement.*') ? 'text-primary' : 'text-secondary group-hover:text-foreground' }}"></i>
+                        <i
+                            data-lucide="user-minus"
+                            class="size-5 transition-all duration-300 {{ request()->routeIs('admin.personnel.retirement.*') ? 'text-primary' : 'text-secondary group-hover:text-foreground' }}">
+                        </i>
+
                         <span class="font-medium text-sm transition-all duration-300 {{ request()->routeIs('admin.personnel.retirement.*') ? 'text-primary font-semibold' : 'text-secondary group-hover:text-foreground' }}">
                             Pensiun
                         </span>
@@ -173,6 +225,7 @@
             </a>
         </div>
     </div>
+
 
     <!-- Footer -->
     <div class="absolute bottom-0 left-0 w-[280px]">

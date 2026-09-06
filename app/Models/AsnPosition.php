@@ -2,26 +2,26 @@
 
 namespace App\Models;
 
-use App\Enums\Staff\AsnPositionCategory; // Import Enum yang baru dibuat
 use App\Models\AsnPositionHistory;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class StaffAsnPosition extends Model
+class AsnPosition extends Model
 {
     use HasUuids;
 
     protected $table = 'staff_asn_positions';
 
+    // Disesuaikan dengan kolom yang benar-benar ada di migration
+    // (create_staff_asn_positions_table): position_type, eligibility, name.
+    // Sebelumnya berisi 'category' yang bukan kolom asli tabel ini, sehingga
+    // AsnPosition::create() akan diam-diam membuang position_type &
+    // eligibility (mass assignment guard) dan insert akan gagal.
     protected $fillable = [
-        'category',
+        'position_type',
+        'eligibility',
         'name',
-    ];
-
-    // Beritahu Laravel untuk mengonversi kolom 'category' menjadi objek Enum
-    protected $casts = [
-        'category' => AsnPositionCategory::class,
     ];
 
     public function histories(): HasMany

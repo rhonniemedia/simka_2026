@@ -58,6 +58,26 @@ class Data extends Model
         return $this->belongsTo(EmploymentStatus::class, 'employment_id');
     }
 
+    /**
+     * Relasi ke Jabatan. Sebelumnya method ini belum ada padahal sudah
+     * dipakai di DataController::detailEmployment() (->with(['position']))
+     * - tanpa ini, pemanggilan relasi itu akan error.
+     */
+    public function position()
+    {
+        return $this->belongsTo(Position::class, 'position_id');
+    }
+
+    /**
+     * Relasi ke Konsentrasi/Jurusan utama staff (bukan authorizedConcentrations
+     * yang many-to-many - ini foreign key langsung concentration_id di
+     * staff_data).
+     */
+    public function concentration()
+    {
+        return $this->belongsTo(CoreConcentration::class, 'concentration_id');
+    }
+
     // ========================================================================
     // RELASI KEPEGAWAIAN BARU
     // ========================================================================

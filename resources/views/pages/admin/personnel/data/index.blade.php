@@ -30,6 +30,9 @@
         {{-- Grup Tombol Aksi (Mengikuti pola Rombongan Belajar) --}}
         <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-3">
             <button type="button"
+                hx-get="{{ route('admin.personnel.data.create') }}"
+                hx-target="#modal-container"
+                hx-swap="innerHTML"
                 title="Tambah Data Pegawai"
                 class="flex items-center justify-center gap-2 px-3 py-2.5 sm:px-5 bg-amber-600 hover:bg-amber-700 text-white rounded-full font-semibold text-sm transition-all duration-300 cursor-pointer shadow-sm shadow-amber-600/30 whitespace-nowrap">
                 <i data-lucide="plus" class="size-4 shrink-0"></i>

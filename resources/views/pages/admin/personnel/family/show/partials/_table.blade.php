@@ -1,6 +1,5 @@
 @php
 use App\Enums\Staff\FamilyRelation;
-use App\Enums\Staff\Gender;
 use App\Enums\Staff\Profession;
 @endphp
 
@@ -35,32 +34,27 @@ use App\Enums\Staff\Profession;
             <tbody class="divide-y divide-border border-b border-border">
                 @forelse ($families as $member)
                 @php
+                $person = $member->familyMember;
                 $hubungan = $member->relationship ?? '-';
-                $gender = $member->gender ?? '-';
-                $rawBirthDate = $member->birth_date;
-                if (is_string($rawBirthDate) && str_starts_with($rawBirthDate, 's:')) {
-                $rawBirthDate = @unserialize($rawBirthDate) ?: $rawBirthDate;
-                }
+                $gender = $person->gender ?? '-';
+                $rawBirthDate = $person->birth_date ?? null;
                 $usia = $rawBirthDate ? \Carbon\Carbon::parse($rawBirthDate)->age . ' Tahun' : '-';
 
-                $relationEnum = FamilyRelation::tryFrom($hubungan);
-                $genderEnum = Gender::tryFrom($gender);
-                $professionEnum = Profession::tryFrom($member->occupation ?? '');
+                $hubLabel = FamilyRelation::tryFrom($hubungan)?->label() ?? '-';
+                $occupationLabel = Profession::tryFrom($person->occupation ?? '')?->label() ?? ($person->occupation ?? '-');
+                $isSharedPerson = ($person->relations_count ?? 0) > 1;
+                $isLinkedStaff = (bool) ($person->linked_staff_id ?? null);
 
-                $hubLabel = $relationEnum?->label() ?? '-';
-                $genderLabel = $genderEnum?->label() ?? ($gender ?: '-');
-                $occupationLabel = $professionEnum?->label() ?? ($member->occupation ?? '-');
-
-                $hubColor = match($relationEnum) {
-                FamilyRelation::SUAMI => 'bg-blue-100 text-blue-700 border-blue-200',
-                FamilyRelation::ISTRI => 'bg-pink-100 text-pink-700 border-pink-200',
-                FamilyRelation::ANAK => 'bg-purple-100 text-purple-700 border-purple-200',
+                $hubColor = match($hubungan) {
+                'husband' => 'bg-blue-100 text-blue-700 border-blue-200',
+                'wife' => 'bg-pink-100 text-pink-700 border-pink-200',
+                'child' => 'bg-purple-100 text-purple-700 border-purple-200',
                 default => 'bg-slate-100 text-slate-700 border-slate-200',
                 };
 
-                $iconColor = match($relationEnum) {
-                FamilyRelation::SUAMI, FamilyRelation::ISTRI => ['from' => 'from-rose-300', 'to' => 'to-rose-500', 'icon' => 'heart'],
-                FamilyRelation::ANAK => ['from' => 'from-indigo-300', 'to' => 'to-indigo-500', 'icon' => 'baby'],
+                $iconColor = match($hubungan) {
+                'husband', 'wife' => ['from' => 'from-rose-300', 'to' => 'to-rose-500', 'icon' => 'heart'],
+                'child' => ['from' => 'from-indigo-300', 'to' => 'to-indigo-500', 'icon' => 'baby'],
                 default => ['from' => 'from-slate-300', 'to' => 'to-slate-500', 'icon' => 'user'],
                 };
                 @endphp
@@ -76,12 +70,22 @@ use App\Enums\Staff\Profession;
                             </div>
                             <div>
                                 <div class="font-semibold text-foreground text-sm uppercase flex items-center gap-2 whitespace-nowrap">
-                                    {{ $member->name ?? '-' }}
+                                    {{ $person->name ?? '-' }}
                                 </div>
-                                <div class="mt-1">
+                                <div class="mt-1 flex items-center gap-1.5 flex-wrap">
                                     <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border {{ $hubColor }} uppercase tracking-wider whitespace-nowrap">
                                         {{ $hubLabel }}
                                     </span>
+                                    @if ($isSharedPerson)
+                                    <span title="Data orang ini dipakai bersama staff lain" class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold border bg-slate-100 text-slate-600 border-slate-200 uppercase tracking-wider whitespace-nowrap">
+                                        <i data-lucide="users" class="size-3"></i> Bersama
+                                    </span>
+                                    @endif
+                                    @if ($isLinkedStaff)
+                                    <span title="Orang ini juga tercatat sebagai staff - cek status tunjangan" class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold border bg-amber-100 text-amber-700 border-amber-200 uppercase tracking-wider whitespace-nowrap">
+                                        <i data-lucide="triangle-alert" class="size-3"></i> Staff
+                                    </span>
+                                    @endif
                                 </div>
                             </div>
                         </div>
@@ -90,8 +94,8 @@ use App\Enums\Staff\Profession;
                     {{-- Kolom 2: Demografi --}}
                     <td class="px-5 py-4 min-w-[160px]">
                         <div class="flex items-center gap-1.5 text-sm font-medium text-foreground whitespace-nowrap capitalize">
-                            <i data-lucide="{{ $genderEnum === Gender::PEREMPUAN ? 'user-round-female' : 'user-round' }}" class="size-3.5 text-secondary/50"></i>
-                            {{ $genderLabel }}
+                            <i data-lucide="{{ strtolower($gender) === 'p' ? 'user-round-female' : 'user-round' }}" class="size-3.5 text-secondary/50"></i>
+                            {{ $gender === 'P' ? 'Perempuan' : ($gender === 'L' ? 'Laki-Laki' : $gender) }}
                         </div>
                         <div class="text-xs text-secondary whitespace-nowrap mt-1 pl-5">
                             Usia: {{ $usia }}
@@ -102,7 +106,7 @@ use App\Enums\Staff\Profession;
                     <td class="px-5 py-4 min-w-[160px]">
                         <div class="flex items-center gap-1.5 text-sm font-medium text-foreground whitespace-nowrap">
                             <i data-lucide="graduation-cap" class="size-3.5 text-secondary/50"></i>
-                            {{ $member->educationLevel?->alias ?? '-' }}
+                            {{ $person->educationLevel?->alias ?? '-' }}
                         </div>
                         <div class="text-xs text-secondary whitespace-nowrap mt-1 pl-5">
                             {{ $occupationLabel }}
@@ -143,13 +147,6 @@ use App\Enums\Staff\Profession;
                                 class="fixed z-[9999] w-48 rounded-xl border border-border bg-white shadow-lg py-2 flex flex-col text-left origin-top-right">
 
                                 <p class="px-4 pt-1 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-secondary">Aksi Keluarga</p>
-
-                                @if ($member->document_file_id)
-                                <button type="button" @click="open = false"
-                                    class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer text-left">
-                                    <i data-lucide="file-text" class="size-4 pointer-events-none"></i> Lihat Berkas
-                                </button>
-                                @endif
 
                                 <button type="button" @click="open = false"
                                     hx-get="{{ route('admin.personnel.family.edit', [$staff->id, $member->id]) }}"
@@ -203,32 +200,27 @@ use App\Enums\Staff\Profession;
     <div class="lg:hidden divide-y divide-border border-y border-border -mx-5 mt-2 mb-4">
         @forelse ($families as $member)
         @php
+        $person = $member->familyMember;
         $hubungan = $member->relationship ?? '-';
-        $gender = $member->gender ?? '-';
-        $rawBirthDate = $member->birth_date;
-        if (is_string($rawBirthDate) && str_starts_with($rawBirthDate, 's:')) {
-        $rawBirthDate = @unserialize($rawBirthDate) ?: $rawBirthDate;
-        }
+        $gender = $person->gender ?? '-';
+        $rawBirthDate = $person->birth_date ?? null;
         $usia = $rawBirthDate ? \Carbon\Carbon::parse($rawBirthDate)->age . ' Tahun' : '-';
 
-        $relationEnum = FamilyRelation::tryFrom($hubungan);
-        $genderEnum = Gender::tryFrom($gender);
-        $professionEnum = Profession::tryFrom($member->occupation ?? '');
+        $hubLabel = FamilyRelation::tryFrom($hubungan)?->label() ?? '-';
+        $occupationLabel = Profession::tryFrom($person->occupation ?? '')?->label() ?? ($person->occupation ?? '-');
+        $isSharedPerson = ($person->relations_count ?? 0) > 1;
+        $isLinkedStaff = (bool) ($person->linked_staff_id ?? null);
 
-        $hubLabel = $relationEnum?->label() ?? '-';
-        $genderLabel = $genderEnum?->label() ?? ($gender ?: '-');
-        $occupationLabel = $professionEnum?->label() ?? ($member->occupation ?? '-');
-
-        $hubColor = match($relationEnum) {
-        FamilyRelation::SUAMI => 'bg-blue-100 text-blue-700 border-blue-200',
-        FamilyRelation::ISTRI => 'bg-pink-100 text-pink-700 border-pink-200',
-        FamilyRelation::ANAK => 'bg-purple-100 text-purple-700 border-purple-200',
+        $hubColor = match($hubungan) {
+        'husband' => 'bg-blue-100 text-blue-700 border-blue-200',
+        'wife' => 'bg-pink-100 text-pink-700 border-pink-200',
+        'child' => 'bg-purple-100 text-purple-700 border-purple-200',
         default => 'bg-slate-100 text-slate-700 border-slate-200',
         };
 
-        $iconColor = match($relationEnum) {
-        FamilyRelation::SUAMI, FamilyRelation::ISTRI => ['from' => 'from-rose-300', 'to' => 'to-rose-500', 'icon' => 'heart'],
-        FamilyRelation::ANAK => ['from' => 'from-indigo-300', 'to' => 'to-indigo-500', 'icon' => 'baby'],
+        $iconColor = match($hubungan) {
+        'husband', 'wife' => ['from' => 'from-rose-300', 'to' => 'to-rose-500', 'icon' => 'heart'],
+        'child' => ['from' => 'from-indigo-300', 'to' => 'to-indigo-500', 'icon' => 'baby'],
         default => ['from' => 'from-slate-300', 'to' => 'to-slate-500', 'icon' => 'user'],
         };
         @endphp
@@ -243,12 +235,24 @@ use App\Enums\Staff\Profession;
                     </div>
                     <div class="min-w-0 flex-1">
                         <div class="font-semibold text-foreground text-sm uppercase truncate">
-                            {{ $member->name ?? '-' }}
+                            {{ $person->name ?? '-' }}
                         </div>
                         <p class="text-xs text-secondary mt-1 truncate flex items-center gap-1.5 capitalize">
-                            <span class="inline-block size-1.5 rounded-full {{ $genderEnum === Gender::PEREMPUAN ? 'bg-pink-400' : 'bg-blue-400' }} shrink-0"></span>
-                            {{ $genderLabel }}
+                            <span class="inline-block size-1.5 rounded-full {{ strtolower($gender) === 'p' ? 'bg-pink-400' : 'bg-blue-400' }} shrink-0"></span>
+                            {{ $gender === 'P' ? 'Perempuan' : ($gender === 'L' ? 'Laki-Laki' : $gender) }}
                         </p>
+                        <div class="mt-1.5 flex items-center gap-1.5 flex-wrap">
+                            @if ($isSharedPerson)
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold border bg-slate-100 text-slate-600 border-slate-200 uppercase tracking-wider">
+                                <i data-lucide="users" class="size-3"></i> Bersama
+                            </span>
+                            @endif
+                            @if ($isLinkedStaff)
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold border bg-amber-100 text-amber-700 border-amber-200 uppercase tracking-wider">
+                                <i data-lucide="triangle-alert" class="size-3"></i> Staff
+                            </span>
+                            @endif
+                        </div>
                     </div>
                 </div>
 
@@ -277,21 +281,13 @@ use App\Enums\Staff\Profession;
                     </p>
                     <div class="text-right min-w-0 flex-1">
                         <p class="font-medium text-foreground truncate">{{ $occupationLabel }}</p>
-                        <p class="text-secondary truncate mt-0.5">{{ $member->educationLevel?->alias ?? '-' }}</p>
+                        <p class="text-secondary truncate mt-0.5">{{ $person->educationLevel?->alias ?? '-' }}</p>
                     </div>
                 </div>
             </div>
 
             {{-- Tombol Aksi Mobile --}}
             <div class="mt-3 flex items-center justify-end gap-2 pt-1">
-                @if ($member->document_file_id)
-                <button type="button"
-                    class="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-blue-200 bg-blue-50 text-xs font-medium text-blue-600 hover:bg-blue-100 transition-colors cursor-pointer" title="Lihat Berkas">
-                    <i data-lucide="file-text" class="size-3.5"></i>
-                    Lihat
-                </button>
-                @endif
-
                 <button type="button"
                     hx-get="{{ route('admin.personnel.family.edit', [$staff->id, $member->id]) }}"
                     hx-target="#modal-container"

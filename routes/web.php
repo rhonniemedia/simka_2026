@@ -1,12 +1,20 @@
 <?php
 
-use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Admin\Documents\DocumentCategoryController;
+use App\Http\Controllers\Admin\Master\AsnPositionController;
+use App\Http\Controllers\Admin\Master\EducationLevelController;
+use App\Http\Controllers\Admin\Master\EmploymentStatusController;
+use App\Http\Controllers\Admin\Master\GradeController;
+use App\Http\Controllers\Admin\Master\MasterController;
+use App\Http\Controllers\Admin\Master\PersonnelTypeController;
+use App\Http\Controllers\Admin\Master\PositionController;
+use App\Http\Controllers\Admin\Payroll\PeriodicSalaryHistoryController;
 use App\Http\Controllers\Admin\Personnel\DataController;
 use App\Http\Controllers\Admin\Personnel\DocumentController;
 use App\Http\Controllers\Admin\Personnel\EducationHistoryController;
 use App\Http\Controllers\Admin\Personnel\FamilyController;
 use App\Http\Controllers\Admin\Personnel\GradeHistoryController;
-use App\Http\Controllers\Admin\Payroll\PeriodicSalaryHistoryController;
+use App\Http\Controllers\Auth\LoginController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -43,6 +51,71 @@ Route::get('/dashboard', function () {
 
 Route::prefix('admin')->name('admin.')->group(function () {
 
+    // --- TAMBAHKAN BLOK MASTER INI ---
+    Route::prefix('master')->name('master.')->group(function () {
+        // Halaman Utama Master Data
+        Route::get('/', [MasterController::class, 'index'])->name('index');
+
+        // 1. Endpoint CRUD: Jenis Personel
+        Route::get('/personnel-types', [PersonnelTypeController::class, 'index'])->name('personnel-types');
+        Route::get('/personnel-types/create', [PersonnelTypeController::class, 'create'])->name('personnel-types.create');
+        Route::post('/personnel-types', [PersonnelTypeController::class, 'store'])->name('personnel-types.store');
+        Route::get('/personnel-types/{id}/edit', [PersonnelTypeController::class, 'edit'])->name('personnel-types.edit');
+        Route::put('/personnel-types/{id}', [PersonnelTypeController::class, 'update'])->name('personnel-types.update');
+        Route::delete('/personnel-types/{id}', [PersonnelTypeController::class, 'destroy'])->name('personnel-types.destroy');
+
+        // 2. Endpoint CRUD: Status Kepegawaian (Ini yang sebelumnya kurang)
+        Route::get('/employment-statuses', [EmploymentStatusController::class, 'index'])->name('employment-statuses');
+        Route::get('/employment-statuses/create', [EmploymentStatusController::class, 'create'])->name('employment-statuses.create');
+        Route::post('/employment-statuses', [EmploymentStatusController::class, 'store'])->name('employment-statuses.store');
+        Route::get('/employment-statuses/{id}/edit', [EmploymentStatusController::class, 'edit'])->name('employment-statuses.edit');
+        Route::put('/employment-statuses/{id}', [EmploymentStatusController::class, 'update'])->name('employment-statuses.update');
+        Route::delete('/employment-statuses/{id}', [EmploymentStatusController::class, 'destroy'])->name('employment-statuses.destroy');
+
+        // 3. Endpoint CRUD: Golongan Pangkat
+        Route::get('/grades', [GradeController::class, 'index'])->name('grades');
+        Route::get('/grades/create', [GradeController::class, 'create'])->name('grades.create');
+        Route::post('/grades', [GradeController::class, 'store'])->name('grades.store');
+        Route::get('/grades/{id}/edit', [GradeController::class, 'edit'])->name('grades.edit');
+        Route::put('/grades/{id}', [GradeController::class, 'update'])->name('grades.update');
+        Route::delete('/grades/{id}', [GradeController::class, 'destroy'])->name('grades.destroy');
+
+        // 4. Endpoint CRUD: Tingkat Pendidikan
+        Route::get('/education-levels', [EducationLevelController::class, 'index'])->name('education-levels');
+        Route::get('/education-levels/create', [EducationLevelController::class, 'create'])->name('education-levels.create');
+        Route::post('/education-levels', [EducationLevelController::class, 'store'])->name('education-levels.store');
+        Route::get('/education-levels/{id}/edit', [EducationLevelController::class, 'edit'])->name('education-levels.edit');
+        Route::put('/education-levels/{id}', [EducationLevelController::class, 'update'])->name('education-levels.update');
+        Route::delete('/education-levels/{id}', [EducationLevelController::class, 'destroy'])->name('education-levels.destroy');
+
+        // 5. Endpoint CRUD: Jabatan Organisasi
+        Route::get('/positions', [PositionController::class, 'index'])->name('positions');
+        Route::get('/positions/create', [PositionController::class, 'create'])->name('positions.create');
+        Route::post('/positions', [PositionController::class, 'store'])->name('positions.store');
+        Route::get('/positions/{id}/edit', [PositionController::class, 'edit'])->name('positions.edit');
+        Route::put('/positions/{id}', [PositionController::class, 'update'])->name('positions.update');
+        Route::delete('/positions/{id}', [PositionController::class, 'destroy'])->name('positions.destroy');
+
+        // 6. Endpoint CRUD: Jabatan Kepegawaian (ASN)
+        Route::get('/asn-positions', [AsnPositionController::class, 'index'])->name('asn-positions');
+        Route::get('/asn-positions/create', [AsnPositionController::class, 'create'])->name('asn-positions.create');
+        Route::post('/asn-positions', [AsnPositionController::class, 'store'])->name('asn-positions.store');
+        Route::get('/asn-positions/{id}/edit', [AsnPositionController::class, 'edit'])->name('asn-positions.edit');
+        Route::put('/asn-positions/{id}', [AsnPositionController::class, 'update'])->name('asn-positions.update');
+        Route::delete('/asn-positions/{id}', [AsnPositionController::class, 'destroy'])->name('asn-positions.destroy');
+
+        // 7. Endpoint CRUD: Kategori Dokumen
+        // Penamaan disamakan dengan resource master lain (tanpa ".index" untuk daftar):
+        // admin.master.document-categories, .create, .store, .edit, .update, .destroy
+        Route::get('/document-categories', [DocumentCategoryController::class, 'index'])->name('document-categories');
+        Route::get('/document-categories/create', [DocumentCategoryController::class, 'create'])->name('document-categories.create');
+        Route::post('/document-categories', [DocumentCategoryController::class, 'store'])->name('document-categories.store');
+        Route::get('/document-categories/{id}/edit', [DocumentCategoryController::class, 'edit'])->name('document-categories.edit');
+        Route::put('/document-categories/{id}', [DocumentCategoryController::class, 'update'])->name('document-categories.update');
+        Route::delete('/document-categories/{id}', [DocumentCategoryController::class, 'destroy'])->name('document-categories.destroy');
+    });
+    // ---------------------------------
+
     // Grup Utama: Pegawai (Kepegawaian)
     Route::prefix('personnel')->name('personnel.')->group(function () {
 
@@ -65,7 +138,16 @@ Route::prefix('admin')->name('admin.')->group(function () {
         // 2. Dokumen Pegawai
         Route::prefix('documents')->name('documents.')->group(function () {
             Route::get('/', [DocumentController::class, 'index'])->name('index');
-            // Tambahkan rute CRUD dokumen di sini nantinya
+            Route::get('/create', [DocumentController::class, 'create'])->name('create');
+            Route::post('/', [DocumentController::class, 'store'])->name('store');
+            Route::get('/{id}/edit', [DocumentController::class, 'edit'])->name('edit');
+            Route::put('/{id}', [DocumentController::class, 'update'])->name('update');
+            Route::delete('/{id}', [DocumentController::class, 'destroy'])->name('destroy');
+
+            // Akses file - HANYA lewat controller ini (di balik middleware auth
+            // grup admin), tidak pernah lewat URL statis/disk publik.
+            Route::get('/{id}/preview', [DocumentController::class, 'preview'])->name('preview');
+            Route::get('/{id}/download', [DocumentController::class, 'download'])->name('download');
         });
 
         // 3. Kepangkatan
@@ -105,6 +187,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('/{staff_id}/edit/{family_id}', [FamilyController::class, 'edit'])->name('edit');
             Route::put('/{staff_id}/update/{family_id}', [FamilyController::class, 'update'])->name('update');
             Route::delete('/{staff_id}/destroy/{family_id}', [FamilyController::class, 'destroy'])->name('destroy');
+
+            Route::post('/{staff}/check-nik', [FamilyController::class, 'checkNik'])
+                ->name('check-nik');
         });
 
         // 6. Berkala (Kenaikan Gaji Berkala)
