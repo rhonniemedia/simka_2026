@@ -15,6 +15,7 @@ use App\Http\Controllers\Admin\Personnel\EducationHistoryController;
 use App\Http\Controllers\Admin\Personnel\FamilyController;
 use App\Http\Controllers\Admin\Personnel\GradeHistoryController;
 use App\Http\Controllers\Auth\LoginController;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -29,7 +30,7 @@ Route::middleware('guest')->group(function () {
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout')->middleware('auth');
 
 Route::get('/dashboard', function () {
-    $username = auth()->user()->username;
+    $username = Auth::user()->username;
     $logoutRoute = route('logout');
     $csrf = csrf_field();
 
