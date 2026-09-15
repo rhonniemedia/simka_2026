@@ -1,6 +1,8 @@
 <div id="documents-container" class="animate-fade-in"
     hx-get="{{ request()->fullUrl() }}"
     hx-trigger="refreshDocuments from:body"
+    hx-target="this"
+    hx-select="#documents-container"
     hx-swap="outerHTML"
     hx-push-url="true">
 
@@ -93,7 +95,13 @@
                                 </a>
                                 <div class="my-2 border-t border-border"></div>
                                 <p class="px-4 pt-1 pb-1.5 text-[10px] font-bold tracking-wider text-secondary">Manajemen Data</p>
-                                <button type="button" @click="open = false" hx-get="{{ route('admin.personnel.documents.edit', $item->id) }}" hx-target="#modal-container" hx-swap="innerHTML" class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors cursor-pointer text-left">
+                                <button type="button" @click="open = false"
+                                    hx-get="{{ route('admin.personnel.documents.edit', $item->id) }}"
+                                    hx-target="#modal-container"
+                                    hx-swap="innerHTML"
+                                    hx-select="unset"
+                                    hx-push-url="false"
+                                    class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors cursor-pointer text-left">
                                     <i data-lucide="file-pen-line" class="size-4 text-secondary"></i> Edit Data
                                 </button>
                                 <button type="button" @click="open = false; ShowConfirm({ title: 'Hapus Dokumen?', message: 'Yakin ingin menghapus dokumen ini?', confirmText: 'Ya, Hapus', cancelText: 'Batal' }, () => { htmx.ajax('DELETE', '{{ route('admin.personnel.documents.destroy', $item->id) }}', { swap: 'none', headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content ?? '{{ csrf_token() }}' } }); })" class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-error hover:bg-error/10 transition-colors cursor-pointer text-left">
@@ -143,7 +151,13 @@
                                 </a>
                                 <div class="my-2 border-t border-border"></div>
                                 <p class="px-4 pt-1 pb-1.5 text-[10px] font-bold tracking-wider text-secondary">Manajemen Data</p>
-                                <button type="button" @click="open = false" hx-get="{{ route('admin.personnel.documents.edit', $item->id) }}" hx-target="#modal-container" hx-swap="innerHTML" class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors cursor-pointer text-left">
+                                <button type="button" @click="open = false"
+                                    hx-get="{{ route('admin.personnel.documents.edit', $item->id) }}"
+                                    hx-target="#modal-container"
+                                    hx-swap="innerHTML"
+                                    hx-select="unset"
+                                    hx-push-url="false"
+                                    class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors cursor-pointer text-left">
                                     <i data-lucide="file-pen-line" class="size-4 text-secondary"></i> Edit Data
                                 </button>
                                 <button type="button" @click="open = false; ShowConfirm({ title: 'Hapus Dokumen?', message: 'Yakin ingin menghapus dokumen ini?', confirmText: 'Ya, Hapus', cancelText: 'Batal' }, () => { htmx.ajax('DELETE', '{{ route('admin.personnel.documents.destroy', $item->id) }}', { swap: 'none', headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content ?? '{{ csrf_token() }}' } }); })" class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-error hover:bg-error/10 transition-colors cursor-pointer text-left">

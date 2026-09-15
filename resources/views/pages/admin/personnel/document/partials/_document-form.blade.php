@@ -5,7 +5,7 @@ $modalTitle = $isEdit ? 'Edit Dokumen' : 'Tambah Dokumen';
 $actionUrl = $isEdit
 ? route('admin.personnel.documents.update', $item->id)
 : route('admin.personnel.documents.store');
-$method = $isEdit ? 'hx-put' : 'hx-post';
+$method = 'hx-post';
 
 $verificationOptions = [
 ['value' => 'draft', 'label' => 'Draft'],
@@ -44,6 +44,9 @@ $verificationOptions = [
             @htmx:after-request="saving = false"
             class="flex flex-col flex-1 min-h-0">
             @csrf
+            @if($isEdit)
+            @method('PUT')
+            @endif
 
             <div class="p-4 sm:p-6 space-y-4 overflow-y-auto">
 
