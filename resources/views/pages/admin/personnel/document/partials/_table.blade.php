@@ -4,7 +4,8 @@
     hx-target="this"
     hx-select="#documents-container"
     hx-swap="outerHTML"
-    hx-push-url="true">
+    hx-push-url="true"
+    data-no-loader>
 
     @php
     $verificationBadges = [
