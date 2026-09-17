@@ -44,8 +44,8 @@
                                 <x-ui.avatar :name="$r->name" :gender="$r->gender" :index="$loop->index" />
                             </div>
                             <div>
-                                <div class="font-semibold text-foreground text-sm uppercase whitespace-nowrap">
-                                    {{ $r->name_with_title }}
+                                <div class="font-semibold text-foreground text-sm whitespace-nowrap">
+                                    {{ $r->name }}
                                 </div>
                                 <div class="flex items-center gap-1.5 text-xs text-secondary mt-0.5 whitespace-nowrap">
                                     <span class="inline-block size-1.5 rounded-full bg-emerald-500 shrink-0"></span>

@@ -9,15 +9,26 @@ $concentrationSelectOptions = $concentrationOptions->map(fn($e) => ['value' => $
 
 $genderSelectOptions = array_map(fn($g) => ['value' => $g->value, 'label' => $g->label()], $genderOptions);
 $religionSelectOptions = array_map(fn($r) => ['value' => $r->value, 'label' => $r->label()], $religionOptions);
-$statusSelectOptions = array_map(fn($s) => ['value' => $s->value, 'label' => $s->label()], $statusOptions);
 
 $modalTitle = $isEdit ? 'Edit Data Pegawai' : 'Tambah Data Pegawai';
 $actionUrl = $isEdit ? route('admin.personnel.data.update', $staff->id) : route('admin.personnel.data.store');
 $method = $isEdit ? 'hx-put' : 'hx-post';
 
 $dobValue = $vault?->dob ? \Carbon\Carbon::parse($vault->dob)->format('Y-m-d') : '';
-$statusEffectiveDateValue = $staff?->status_effective_date ? \Carbon\Carbon::parse($staff->status_effective_date)->format('Y-m-d') : '';
-$priorServiceDateValue = $staff?->prior_service_period_effective_date ? \Carbon\Carbon::parse($staff->prior_service_period_effective_date)->format('Y-m-d') : '';
+// Sesuaikan nama kolom di bawah ini (entry_date, last_rank_effective_date, dst) dengan nama kolom sebenarnya di tabel/model jika berbeda.
+$entryDateValue = $staff?->entry_date ? \Carbon\Carbon::parse($staff->entry_date)->format('Y-m-d') : '';
+$lastRankEffectiveDateValue = $staff?->last_rank_effective_date ? \Carbon\Carbon::parse($staff->last_rank_effective_date)->format('Y-m-d') : '';
+$careerReviewValue = old('career_review', $staff->career_review ?? '0');
+$careerReviewSelectOptions = [
+['value' => '0', 'label' => 'Tidak'],
+['value' => '1', 'label' => 'Ya'],
+];
+$maritalDependentsSelectOptions = [
+['value' => '1', 'label' => 'Kawin dengan tanggungan'],
+['value' => '0', 'label' => 'Belum/Kawin tanpa tanggungan'],
+];
+
+$existingPhotoUrl = ($isEdit && $staff->photo) ? asset('storage/' . $staff->photo) : null;
 @endphp
 
 <div x-data="{ open: false }"
@@ -68,25 +79,61 @@ $priorServiceDateValue = $staff?->prior_service_period_effective_date ? \Carbon\
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5 transform motion-safe:transition-all motion-safe:duration-500 motion-safe:ease-out"
                     :class="showUI ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'">
 
-                    {{-- ===================== FOTO ===================== --}}
-                    <div class="md:col-span-2 flex items-center gap-4">
-                        <div class="size-16 rounded-2xl bg-slate-100 border border-border flex items-center justify-center overflow-hidden shrink-0">
-                            @if ($isEdit && $staff->photo)
-                            <img src="{{ asset('storage/' . $staff->photo) }}" alt="Foto {{ $staff->name }}" class="size-full object-cover">
-                            @else
-                            <i data-lucide="image" class="size-6 text-secondary/40"></i>
-                            @endif
+                    {{-- ============================================================ --}}
+                    {{-- BAGIAN 1 — FOTO PEGAWAI                                       --}}
+                    {{-- ============================================================ --}}
+                    <div class="md:col-span-2 flex items-center gap-2">
+                        <div class="size-6 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                            <i data-lucide="camera" class="size-3.5"></i>
                         </div>
-                        <div class="flex-1">
-                            <label class="block text-sm font-medium text-foreground mb-1.5">Foto Pegawai</label>
-                            <input type="file" name="photo" accept="image/*" class="w-full text-sm text-secondary file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-primary/10 file:text-primary file:text-sm file:font-semibold hover:file:bg-primary/20 cursor-pointer">
-                            <p class="text-[11px] text-secondary mt-1">Opsional. Maks 2MB, format gambar.</p>
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-secondary whitespace-nowrap">1. Foto Pegawai</h4>
+                        <div class="flex-1 h-px bg-border"></div>
+                    </div>
+
+                    <div class="md:col-span-2 flex items-center gap-4 p-4 rounded-xl border border-dashed border-border bg-slate-50/50"
+                        x-data="{
+                            preview: null,
+                            existing: {{ $existingPhotoUrl ? \Illuminate\Support\Js::from($existingPhotoUrl) : 'null' }},
+                            onPick(e) {
+                                const file = e.target.files[0];
+                                this.preview = file ? URL.createObjectURL(file) : null;
+                            },
+                            clear() {
+                                this.preview = null;
+                                this.$refs.photoInput.value = '';
+                            }
+                        }">
+                        {{-- Preview foto (rasio 3.3:4, selalu full-cover tanpa celah) --}}
+                        <div class="relative w-20 aspect-[3.3/4] rounded-md bg-white border border-border overflow-hidden shrink-0 shadow-sm">
+                            <img x-show="preview || existing" x-cloak :src="preview || existing" alt="Preview foto pegawai" class="absolute inset-0 w-full h-full object-cover">
+                            <div x-show="!preview && !existing" class="absolute inset-0 flex items-center justify-center">
+                                <i data-lucide="image" class="size-6 text-secondary/40"></i>
+                            </div>
+                        </div>
+
+                        <div class="flex-1 min-w-0">
+                            <label class="block text-sm font-medium text-foreground mb-1.5">Unggah Foto</label>
+                            <div class="flex items-center gap-2">
+                                <input type="file" name="photo" accept="image/*" x-ref="photoInput" @change="onPick($event)"
+                                    class="w-full text-sm text-secondary file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-primary/10 file:text-primary file:text-sm file:font-semibold hover:file:bg-primary/20 cursor-pointer">
+                                <button type="button" x-show="preview" x-cloak @click="clear()"
+                                    class="shrink-0 text-secondary hover:text-error transition-colors cursor-pointer" title="Batalkan pilihan">
+                                    <i data-lucide="x-circle" class="size-4"></i>
+                                </button>
+                            </div>
+                            <p class="text-[11px] text-secondary mt-1">Opsional. Maks 2MB, format JPG/PNG.</p>
                         </div>
                     </div>
 
-                    {{-- ===================== DATA UTAMA ===================== --}}
-                    <div class="md:col-span-2">
-                        <h4 class="text-xs font-bold uppercase tracking-wider text-secondary mb-1">Data Utama</h4>
+                    {{-- ============================================================ --}}
+                    {{-- BAGIAN 2 — DATA PRIBADI                                       --}}
+                    {{-- ============================================================ --}}
+                    <div class="md:col-span-2 flex items-center gap-2 pt-2">
+                        <div class="size-6 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                            <i data-lucide="user" class="size-3.5"></i>
+                        </div>
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-secondary whitespace-nowrap">2. Data Pribadi</h4>
+                        <div class="flex-1 h-px bg-border"></div>
                     </div>
 
                     <div class="md:col-span-2">
@@ -95,93 +142,13 @@ $priorServiceDateValue = $staff?->prior_service_period_effective_date ? \Carbon\
                     </div>
 
                     <div>
-                        <label class="block text-sm font-medium text-foreground mb-1.5">Gelar Depan</label>
-                        <input type="text" name="front_title" value="{{ old('front_title', $staff->front_title ?? '') }}" placeholder="Contoh: Dr., Ir." class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-foreground mb-1.5">Gelar Belakang</label>
-                        <input type="text" name="back_title" value="{{ old('back_title', $staff->back_title ?? '') }}" placeholder="Contoh: S.Kom., M.T." class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
-                    </div>
-
-                    <div>
                         <label class="block text-sm font-medium text-foreground mb-1.5">Jenis Kelamin <span class="text-error">*</span></label>
                         <x-ui.select name="gender" :options="$genderSelectOptions" :value="old('gender', $staff->gender ?? '')" required placeholder="-- Pilih Kelamin --" />
                     </div>
 
                     <div>
-                        <label class="block text-sm font-medium text-foreground mb-1.5">Status Kawin & Tanggungan</label>
-                        <input type="text" name="marital_dependents" value="{{ old('marital_dependents', $staff->marital_dependents ?? '') }}" placeholder="Contoh: K/2" class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
-                    </div>
-
-                    {{-- ===================== DATA KEPEGAWAIAN ===================== --}}
-                    <div class="md:col-span-2 mt-2">
-                        <h4 class="text-xs font-bold uppercase tracking-wider text-secondary mb-1">Data Kepegawaian</h4>
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-foreground mb-1.5">Jenis Pegawai <span class="text-error">*</span></label>
-                        <x-ui.select name="personnel_id" :options="$personnelSelectOptions" :value="old('personnel_id', $staff->personnel_id ?? '')" required placeholder="-- Pilih Jenis Pegawai --" />
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-foreground mb-1.5">Status Kepegawaian <span class="text-error">*</span></label>
-                        <x-ui.select name="employment_id" :options="$employmentSelectOptions" :value="old('employment_id', $staff->employment_id ?? '')" required placeholder="-- Pilih Status --" />
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-foreground mb-1.5">Jabatan <span class="text-error">*</span></label>
-                        <x-ui.searchable-select name="position_id" :options="$positionSelectOptions" :value="old('position_id', $staff->position_id ?? '')" placeholder="-- Pilih Jabatan --" />
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-foreground mb-1.5">Konsentrasi / Jurusan</label>
-                        <x-ui.searchable-select name="concentration_id" :options="$concentrationSelectOptions" :value="old('concentration_id', $staff->concentration_id ?? '')" placeholder="-- Pilih Konsentrasi (jika ada) --" />
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-foreground mb-1.5">Status Aktif <span class="text-error">*</span></label>
-                        <x-ui.select name="status" :options="$statusSelectOptions" :value="old('status', $staff->status ?? 'active')" required placeholder="-- Pilih Status --" />
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-foreground mb-1.5">Tanggal Berlaku Status</label>
-                        <input type="date" name="status_effective_date" value="{{ old('status_effective_date', $statusEffectiveDateValue) }}" class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-foreground mb-1.5">Masa Kerja Tambahan</label>
-                        <input type="text" name="prior_service_period" value="{{ old('prior_service_period', $staff->prior_service_period ?? '') }}" placeholder="Contoh: 2 Tahun 3 Bulan" class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-foreground mb-1.5">TMT Masa Kerja Tambahan</label>
-                        <input type="date" name="prior_service_period_effective_date" value="{{ old('prior_service_period_effective_date', $priorServiceDateValue) }}" class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
-                    </div>
-
-                    {{-- ===================== IDENTITAS ===================== --}}
-                    <div class="md:col-span-2 mt-2">
-                        <h4 class="text-xs font-bold uppercase tracking-wider text-secondary mb-1">Identitas</h4>
-                    </div>
-
-                    <div>
                         <label class="block text-sm font-medium text-foreground mb-1.5">NIK <span class="text-error">*</span></label>
                         <input type="text" name="nik" value="{{ old('nik', $vault->nik ?? '') }}" required placeholder="Nomor Induk Kependudukan" class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-foreground mb-1.5">NIP</label>
-                        <input type="text" name="nip" value="{{ old('nip', $vault->nip ?? '') }}" placeholder="Nomor Induk Pegawai (jika ada)" class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-foreground mb-1.5">NUPTK</label>
-                        <input type="text" name="nuptk" value="{{ old('nuptk', $vault->nuptk ?? '') }}" placeholder="Nomor Unik Pendidik & Tenaga Kependidikan" class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-foreground mb-1.5">Agama</label>
-                        <x-ui.select name="religion" :options="$religionSelectOptions" :value="old('religion', $vault->religion ?? '')" placeholder="-- Pilih Agama --" />
                     </div>
 
                     <div>
@@ -194,9 +161,101 @@ $priorServiceDateValue = $staff?->prior_service_period_effective_date ? \Carbon\
                         <input type="date" name="dob" value="{{ old('dob', $dobValue) }}" class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
                     </div>
 
-                    {{-- ===================== KONTAK & ALAMAT ===================== --}}
-                    <div class="md:col-span-2 mt-2">
-                        <h4 class="text-xs font-bold uppercase tracking-wider text-secondary mb-1">Kontak & Alamat</h4>
+                    <div>
+                        <label class="block text-sm font-medium text-foreground mb-1.5">Agama</label>
+                        <x-ui.select name="religion" :options="$religionSelectOptions" :value="old('religion', $vault->religion ?? '')" placeholder="-- Pilih Agama --" />
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-foreground mb-1.5">Status Kawin & Tanggungan</label>
+                        <x-ui.select name="marital_dependents" :options="$maritalDependentsSelectOptions" :value="old('marital_dependents', $staff->marital_dependents ?? '')" placeholder="-- Pilih Status --" />
+                    </div>
+
+                    {{-- ============================================================ --}}
+                    {{-- BAGIAN 3 — DATA KEPEGAWAIAN                                   --}}
+                    {{-- ============================================================ --}}
+                    <div class="md:col-span-2 flex items-center gap-2 pt-2">
+                        <div class="size-6 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                            <i data-lucide="briefcase" class="size-3.5"></i>
+                        </div>
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-secondary whitespace-nowrap">3. Data Kepegawaian</h4>
+                        <div class="flex-1 h-px bg-border"></div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-foreground mb-1.5">Status Kepegawaian <span class="text-error">*</span></label>
+                        <x-ui.select name="employment_id" :options="$employmentSelectOptions" :value="old('employment_id', $staff->employment_id ?? '')" required placeholder="-- Pilih Status --" />
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-foreground mb-1.5">NIP</label>
+                        <input type="text" name="nip" value="{{ old('nip', $vault->nip ?? '') }}" placeholder="Nomor Induk Pegawai (jika ada)" class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-foreground mb-1.5">Jenis Pegawai <span class="text-error">*</span></label>
+                        <x-ui.select name="personnel_id" :options="$personnelSelectOptions" :value="old('personnel_id', $staff->personnel_id ?? '')" required placeholder="-- Pilih Jenis Pegawai --" />
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-foreground mb-1.5">NUPTK</label>
+                        <input type="text" name="nuptk" value="{{ old('nuptk', $vault->nuptk ?? '') }}" placeholder="Nomor Unik Pendidik & Tenaga Kependidikan" class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-foreground mb-1.5">Jabatan <span class="text-error">*</span></label>
+                        <x-ui.searchable-select name="position_id" :options="$positionSelectOptions" :value="old('position_id', $staff->position_id ?? '')" placeholder="-- Pilih Jabatan --" />
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-foreground mb-1.5">Masuk ke Sekolah Ini <span class="text-error">*</span></label>
+                        <input type="date" name="entry_date" value="{{ old('entry_date', $entryDateValue) }}" required class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-foreground mb-1.5">Konsentrasi / Jurusan</label>
+                        <x-ui.searchable-select name="concentration_id" :options="$concentrationSelectOptions" :value="old('concentration_id', $staff->concentration_id ?? '')" placeholder="-- Pilih Konsentrasi (jika ada) --" />
+                    </div>
+
+                    {{-- Peninjauan Masa Kerja: baris berikutnya (TMT / Tahun / Bulan) hanya muncul jika "Ya" --}}
+                    <div x-data="{ careerReview: '{{ $careerReviewValue }}' }" class="contents">
+                        <div @change="careerReview = $event.target.value">
+                            <label class="block text-sm font-medium text-foreground mb-1.5">Peninjauan Masa Kerja <span class="text-error">*</span></label>
+                            <x-ui.select name="career_review" :options="$careerReviewSelectOptions" :value="$careerReviewValue" required placeholder="-- Pilih Peninjauan --" />
+                        </div>
+
+                        <div x-show="careerReview === '1'" x-cloak class="md:col-span-2 flex flex-col md:flex-row gap-4 sm:gap-5">
+                            <div class="md:w-1/2">
+                                <label class="block text-sm font-medium text-foreground mb-1.5">TMT Pangkat Terakhir</label>
+                                <input type="date" name="last_rank_effective_date" value="{{ old('last_rank_effective_date', $lastRankEffectiveDateValue) }}" :required="careerReview === '1'" class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                            </div>
+
+                            <div class="md:w-1/2">
+                                <label class="block text-sm font-medium text-foreground mb-1.5">Masa Kerja</label>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <input type="number" min="0" name="service_period_years" placeholder="0" value="{{ old('service_period_years', $staff->service_period_years ?? '') }}" :required="careerReview === '1'" class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                                        <span class="block text-[11px] text-secondary mt-1">Tahun</span>
+                                    </div>
+
+                                    <div>
+                                        <input type="number" min="0" max="11" name="service_period_months" placeholder="0" value="{{ old('service_period_months', $staff->service_period_months ?? '') }}" :required="careerReview === '1'" class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                                        <span class="block text-[11px] text-secondary mt-1">Bulan</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- ============================================================ --}}
+                    {{-- BAGIAN 4 — KONTAK & ALAMAT                                    --}}
+                    {{-- ============================================================ --}}
+                    <div class="md:col-span-2 flex items-center gap-2 pt-2">
+                        <div class="size-6 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                            <i data-lucide="map-pin" class="size-3.5"></i>
+                        </div>
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-secondary whitespace-nowrap">4. Kontak & Alamat</h4>
+                        <div class="flex-1 h-px bg-border"></div>
                     </div>
 
                     <div>
@@ -244,12 +303,19 @@ $priorServiceDateValue = $staff?->prior_service_period_effective_date ? \Carbon\
                         <input type="text" name="province" value="{{ old('province', $vault->province ?? '') }}" required class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
                     </div>
 
-                    {{-- ===================== FINANSIAL (opsional) ===================== --}}
+                    {{-- ============================================================ --}}
+                    {{-- BAGIAN 5 — DATA FINANSIAL (OPSIONAL)                          --}}
+                    {{-- ============================================================ --}}
                     <div class="md:col-span-2 mt-2 p-4 rounded-xl border border-border bg-slate-50/50 grid grid-cols-1 md:grid-cols-2 gap-4"
-                        x-data="{ showFinance: {{ ($vault?->npwp || $vault?->bank_account || $vault?->base_salary) ? 'true' : 'false' }} }">
+                        x-data="{ showFinance: {{ ($vault?->npwp || $vault?->bank_account) ? 'true' : 'false' }} }">
                         <div class="md:col-span-2 flex items-center justify-between">
-                            <h4 class="text-xs font-bold uppercase tracking-wider text-secondary">Data Finansial (Opsional)</h4>
-                            <button type="button" @click="showFinance = !showFinance" class="text-xs font-medium text-primary flex items-center gap-1 cursor-pointer">
+                            <div class="flex items-center gap-2">
+                                <div class="size-6 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                                    <i data-lucide="wallet" class="size-3.5"></i>
+                                </div>
+                                <h4 class="text-xs font-bold uppercase tracking-wider text-secondary whitespace-nowrap">5. Data Finansial (Opsional)</h4>
+                            </div>
+                            <button type="button" @click="showFinance = !showFinance" class="text-xs font-medium text-primary flex items-center gap-1 cursor-pointer shrink-0">
                                 <span x-text="showFinance ? 'Sembunyikan' : 'Tampilkan'"></span>
                                 <i data-lucide="chevron-down" class="size-3.5 transition-transform" :class="showFinance ? 'rotate-180' : ''"></i>
                             </button>
@@ -263,11 +329,6 @@ $priorServiceDateValue = $staff?->prior_service_period_effective_date ? \Carbon\
                         <div x-show="showFinance" x-cloak>
                             <label class="block text-xs font-medium text-foreground mb-1.5">Nomor Rekening</label>
                             <input type="text" name="bank_account" value="{{ old('bank_account', $vault->bank_account ?? '') }}" class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
-                        </div>
-
-                        <div x-show="showFinance" x-cloak class="md:col-span-2">
-                            <label class="block text-xs font-medium text-foreground mb-1.5">Gaji Pokok</label>
-                            <input type="number" step="0.01" min="0" name="base_salary" value="{{ old('base_salary', $vault->base_salary ?? '') }}" class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
                         </div>
                     </div>
 
