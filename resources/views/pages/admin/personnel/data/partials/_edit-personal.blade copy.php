@@ -49,7 +49,7 @@ $existingPhotoUrl = ($isEdit && $staff->photo) ? asset('storage/' . $staff->phot
             </button>
         </div>
 
-        {{-- Form HTMX dengan State Validasi Alpine --}}
+        {{-- Form HTMX --}}
         <form id="staff-form"
             {!! $method !!}="{{ $actionUrl }}"
             hx-target="#staff-container"
@@ -57,41 +57,26 @@ $existingPhotoUrl = ($isEdit && $staff->photo) ? asset('storage/' . $staff->phot
             hx-swap="outerHTML"
             hx-encoding="multipart/form-data"
             hx-validate="true"
-            x-data="{ 
+            x-data="{
                 saving: false,
-                errors: {},
                 photoPreview: null,
-                fileName: '',
+                photoError: '',
                 existingPhoto: {{ $existingPhotoUrl ? \Illuminate\Support\Js::from($existingPhotoUrl) : 'null' }},
+                fileName: '',
                 
-                validateField(field, value) {
-                    this.errors[field] = '';
-                    if (!value) return;
-                    const rules = {
-                        nik: { regex: /^\d{16}$/, msg: 'NIK harus berisi tepat 16 digit angka.' },
-                        nip: { regex: /^\d{15,20}$/, msg: 'NIP harus berisi 15 hingga 20 digit angka.' },
-                        phone_number: { regex: /^[0-9]{10,15}$/, msg: 'Nomor telepon tidak valid (10-15 angka).' },
-                        email: { regex: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, msg: 'Format email tidak valid.' },
-                        npwp: { regex: /^\d{15,16}$/, msg: 'NPWP harus 15 atau 16 digit angka.' },
-                        bank_account: { regex: /^\d{8,20}$/, msg: 'Nomor rekening harus 8 hingga 20 digit angka.' }
-                    };
-                    if (rules[field] && !rules[field].regex.test(value)) {
-                        this.errors[field] = rules[field].msg;
-                    }
-                },
                 checkPhoto(event) {
                     const file = event.target.files[0];
-                    this.errors.photo = '';
+                    this.photoError = '';
                     this.fileName = '';
                     this.photoPreview = null;
                     if (file) {
                         if (!file.type.startsWith('image/')) {
-                            this.errors.photo = 'File harus berupa gambar (JPG/PNG).';
+                            this.photoError = 'File harus berupa gambar (JPG/PNG).';
                             event.target.value = '';
                             return;
                         }
                         if (file.size > 2 * 1024 * 1024) {
-                            this.errors.photo = 'Ukuran foto maksimal 2MB.';
+                            this.photoError = 'Ukuran foto maksimal 2MB.';
                             event.target.value = '';
                             return;
                         }
@@ -102,8 +87,11 @@ $existingPhotoUrl = ($isEdit && $staff->photo) ? asset('storage/' . $staff->phot
                 clearPhoto() {
                     this.photoPreview = null;
                     this.fileName = '';
-                    this.errors.photo = '';
+                    this.photoError = '';
                     this.$refs.photoInput.value = '';
+                },
+                stripNumbers(event) {
+                    event.target.value = event.target.value.replace(/[^0-9]/g, '');
                 },
                 calculatePriorDate() {
                     const lastDate = this.$refs.lastRankDate?.value;
@@ -122,9 +110,6 @@ $existingPhotoUrl = ($isEdit && $staff->photo) ? asset('storage/' . $staff->phot
                     } else if (hiddenInput) {
                         hiddenInput.value = '';
                     }
-                },
-                get hasErrors() {
-                    return Object.values(this.errors).some(msg => msg !== '');
                 }
             }"
             @htmx:before-request="saving = true"
@@ -133,7 +118,7 @@ $existingPhotoUrl = ($isEdit && $staff->photo) ? asset('storage/' . $staff->phot
 
             @csrf
 
-            {{-- PENTING: Default status ke 'active' agar lolos validasi Laravel --}}
+            {{-- TAMBAHAN PENTING: Default status ke 'active' agar lolos validasi Laravel --}}
             <input type="hidden" name="status" value="active">
 
             @if ($isEdit)
@@ -154,35 +139,32 @@ $existingPhotoUrl = ($isEdit && $staff->photo) ? asset('storage/' . $staff->phot
                         <h4 class="text-xs font-bold uppercase tracking-wider text-blue-900 whitespace-nowrap">1. Foto Pegawai</h4>
                         <div class="flex-1 h-px bg-blue-200"></div>
                     </div>
-                    <div class="md:col-span-2 flex items-center gap-4 p-4 rounded-xl border-2 border-dashed shadow-sm transition-colors"
-                        :class="errors.photo ? 'border-error bg-error/5' : 'border-blue-300 bg-blue-50/40'">
-                        <div class="relative w-20 aspect-[3.3/4] rounded-lg bg-white border overflow-hidden shrink-0 shadow-sm"
-                            :class="errors.photo ? 'border-error' : 'border-blue-300'">
+                    <div class="md:col-span-2 flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 rounded-xl border-2 border-dashed border-blue-300 bg-blue-50/40 shadow-sm">
+                        {{-- Preview foto --}}
+                        <div class="relative w-20 aspect-[3.3/4] rounded-lg bg-white border border-blue-300 overflow-hidden shrink-0 shadow-sm">
                             <img x-show="photoPreview || existingPhoto" x-cloak :src="photoPreview || existingPhoto" alt="Preview" class="absolute inset-0 w-full h-full object-cover">
-                            <div x-show="!photoPreview && !existingPhoto" class="absolute inset-0 flex flex-col items-center justify-center bg-blue-100/30 text-blue-400"
-                                :class="errors.photo ? 'text-error bg-error/10' : ''">
+                            <div x-show="!photoPreview && !existingPhoto" class="absolute inset-0 flex flex-col items-center justify-center bg-blue-100/30 text-blue-400">
                                 <i data-lucide="image" class="size-6"></i>
                             </div>
                         </div>
                         <div class="flex-1 min-w-0">
                             <div class="flex items-center gap-2">
-                                <label class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border bg-white text-xs font-semibold transition-all shadow-sm cursor-pointer"
-                                    :class="errors.photo ? 'border-error text-error hover:bg-error/10' : 'border-blue-300 text-blue-800 hover:bg-blue-100 hover:border-blue-400'">
-                                    <i data-lucide="upload" class="size-3.5" :class="errors.photo ? 'text-error' : 'text-blue-600'"></i>
+                                <label class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-blue-300 bg-white text-blue-800 hover:bg-blue-100 hover:border-blue-400 text-xs font-semibold transition-all shadow-sm cursor-pointer">
+                                    <i data-lucide="upload" class="size-3.5 text-blue-600"></i>
                                     <span x-text="photoPreview || existingPhoto ? 'Ganti Foto' : 'Pilih Foto'"></span>
-                                    <input type="file" name="photo" accept="image/jpeg, image/png, image/jpg" class="hidden" x-ref="photoInput" @change="checkPhoto($event)">
+                                    <input type="file" name="photo" accept="image/*" class="hidden" x-ref="photoInput" @change="checkPhoto($event)">
                                 </label>
                                 <button type="button" x-show="photoPreview" x-cloak @click="clearPhoto()"
                                     class="p-2 rounded-xl border border-red-200 bg-white text-red-600 hover:bg-red-50 hover:border-red-300 transition-colors cursor-pointer shadow-sm" title="Hapus pilihan">
                                     <i data-lucide="trash-2" class="size-3.5"></i>
                                 </button>
                             </div>
-                            <p x-show="fileName && !errors.photo" x-cloak class="text-xs font-medium text-blue-950 truncate mt-2 flex items-center gap-1">
+                            <p x-show="fileName" x-cloak class="text-xs font-medium text-blue-950 truncate mt-2 flex items-center gap-1">
                                 <i data-lucide="paperclip" class="size-3 text-blue-600"></i>
                                 <span x-text="fileName"></span>
                             </p>
-                            <p x-show="errors.photo" x-cloak x-text="errors.photo" class="text-[11px] font-bold text-error mt-2"></p>
-                            <p x-show="!errors.photo" class="text-[11px] font-medium text-blue-800/80 mt-1.5">Maksimal 2MB (Format JPG atau PNG).</p>
+                            <p x-show="photoError" x-cloak class="text-xs font-semibold text-red-600 mt-1.5" x-text="photoError"></p>
+                            <p x-show="!photoError" class="text-[11px] font-medium text-blue-800/80 mt-1.5">Maksimal 2MB (Format JPG atau PNG).</p>
                         </div>
                     </div>
 
@@ -207,10 +189,9 @@ $existingPhotoUrl = ($isEdit && $staff->photo) ? asset('storage/' . $staff->phot
                     <div>
                         <label class="block text-sm font-medium text-foreground mb-1.5">NIK <span class="text-error">*</span></label>
                         <input type="text" name="nik" value="{{ old('nik', $vault->nik ?? '') }}" required placeholder="16 Digit NIK"
-                            @input="validateField('nik', $event.target.value)"
-                            :class="errors.nik ? 'border-error focus:ring-error/20 focus:border-error' : 'border-border focus:ring-primary/20 focus:border-primary'"
-                            class="w-full rounded-xl border px-3.5 py-2.5 text-sm focus:outline-none transition-colors">
-                        <p x-show="errors.nik" x-cloak x-text="errors.nik" class="text-[11px] text-error mt-1.5 font-medium"></p>
+                            pattern="[0-9]{16}" minlength="16" maxlength="16" title="NIK harus terdiri dari exactly 16 digit angka"
+                            @input="stripNumbers($event)"
+                            class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-foreground mb-1.5">Tempat Lahir</label>
@@ -246,10 +227,9 @@ $existingPhotoUrl = ($isEdit && $staff->photo) ? asset('storage/' . $staff->phot
                     <div>
                         <label class="block text-sm font-medium text-foreground mb-1.5">NIP</label>
                         <input type="text" name="nip" value="{{ old('nip', $vault->nip ?? '') }}" placeholder="15-20 Digit NIP"
-                            @input="validateField('nip', $event.target.value)"
-                            :class="errors.nip ? 'border-error focus:ring-error/20 focus:border-error' : 'border-border focus:ring-primary/20 focus:border-primary'"
-                            class="w-full rounded-xl border px-3.5 py-2.5 text-sm focus:outline-none transition-colors">
-                        <p x-show="errors.nip" x-cloak x-text="errors.nip" class="text-[11px] text-error mt-1.5 font-medium"></p>
+                            pattern="[0-9]{15,20}" minlength="15" maxlength="20" title="NIP harus terdiri dari 15 hingga 20 digit angka"
+                            @input="stripNumbers($event)"
+                            class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-foreground mb-1.5">Jenis Pegawai <span class="text-error">*</span></label>
@@ -257,7 +237,9 @@ $existingPhotoUrl = ($isEdit && $staff->photo) ? asset('storage/' . $staff->phot
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-foreground mb-1.5">NUPTK</label>
-                        <input type="text" name="nuptk" value="{{ old('nuptk', $vault->nuptk ?? '') }}" placeholder="Nomor Unik Pendidik & Tenaga Kependidikan" class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                        <input type="text" name="nuptk" value="{{ old('nuptk', $vault->nuptk ?? '') }}" placeholder="Nomor Unik Pendidik & Tenaga Kependidikan"
+                            @input="stripNumbers($event)"
+                            class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-foreground mb-1.5">Jabatan <span class="text-error">*</span></label>
@@ -327,18 +309,13 @@ $existingPhotoUrl = ($isEdit && $staff->photo) ? asset('storage/' . $staff->phot
                     <div>
                         <label class="block text-sm font-medium text-foreground mb-1.5">Nomor Telepon <span class="text-error">*</span></label>
                         <input type="text" name="phone_number" value="{{ old('phone_number', $vault->phone_number ?? '') }}" required placeholder="10-15 Digit Nomor"
-                            @input="validateField('phone_number', $event.target.value)"
-                            :class="errors.phone_number ? 'border-error focus:ring-error/20 focus:border-error' : 'border-border focus:ring-primary/20 focus:border-primary'"
-                            class="w-full rounded-xl border px-3.5 py-2.5 text-sm focus:outline-none transition-colors">
-                        <p x-show="errors.phone_number" x-cloak x-text="errors.phone_number" class="text-[11px] text-error mt-1.5 font-medium"></p>
+                            pattern="[0-9]{10,15}" minlength="10" maxlength="15" title="Nomor telepon harus terdiri dari 10 hingga 15 digit angka"
+                            @input="stripNumbers($event)"
+                            class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-foreground mb-1.5">Email</label>
-                        <input type="email" name="email" value="{{ old('email', $vault->email ?? '') }}" placeholder="nama@contoh.com"
-                            @input="validateField('email', $event.target.value)"
-                            :class="errors.email ? 'border-error focus:ring-error/20 focus:border-error' : 'border-border focus:ring-primary/20 focus:border-primary'"
-                            class="w-full rounded-xl border px-3.5 py-2.5 text-sm focus:outline-none transition-colors">
-                        <p x-show="errors.email" x-cloak x-text="errors.email" class="text-[11px] text-error mt-1.5 font-medium"></p>
+                        <input type="email" name="email" value="{{ old('email', $vault->email ?? '') }}" placeholder="nama@contoh.com" class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
                     </div>
                     <div class="md:col-span-2">
                         <label class="block text-sm font-medium text-foreground mb-1.5">Alamat <span class="text-error">*</span></label>
@@ -389,18 +366,16 @@ $existingPhotoUrl = ($isEdit && $staff->photo) ? asset('storage/' . $staff->phot
                         <div x-show="showFinance" x-cloak>
                             <label class="block text-xs font-semibold text-emerald-950 mb-1.5">NPWP</label>
                             <input type="text" name="npwp" value="{{ old('npwp', $vault->npwp ?? '') }}" placeholder="15-16 Digit NPWP"
-                                @input="validateField('npwp', $event.target.value)"
-                                :class="errors.npwp ? 'border-error focus:ring-error/20 focus:border-error' : 'border-emerald-300 focus:ring-emerald-500/20 focus:border-emerald-500'"
-                                class="w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm focus:outline-none shadow-sm text-foreground transition-colors">
-                            <p x-show="errors.npwp" x-cloak x-text="errors.npwp" class="text-[11px] text-error mt-1.5 font-medium"></p>
+                                pattern="[0-9]{15,16}" minlength="15" maxlength="16" title="NPWP harus terdiri dari 15 atau 16 digit angka"
+                                @input="stripNumbers($event)"
+                                class="w-full rounded-xl border border-emerald-300 bg-white px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 shadow-sm text-foreground">
                         </div>
                         <div x-show="showFinance" x-cloak>
                             <label class="block text-xs font-semibold text-emerald-950 mb-1.5">Nomor Rekening</label>
                             <input type="text" name="bank_account" value="{{ old('bank_account', $vault->bank_account ?? '') }}" placeholder="8-20 Digit Rekening"
-                                @input="validateField('bank_account', $event.target.value)"
-                                :class="errors.bank_account ? 'border-error focus:ring-error/20 focus:border-error' : 'border-emerald-300 focus:ring-emerald-500/20 focus:border-emerald-500'"
-                                class="w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm focus:outline-none shadow-sm text-foreground transition-colors">
-                            <p x-show="errors.bank_account" x-cloak x-text="errors.bank_account" class="text-[11px] text-error mt-1.5 font-medium"></p>
+                                pattern="[0-9]{8,20}" minlength="8" maxlength="20" title="Nomor rekening harus terdiri dari 8 hingga 20 digit angka"
+                                @input="stripNumbers($event)"
+                                class="w-full rounded-xl border border-emerald-300 bg-white px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 shadow-sm text-foreground">
                         </div>
                     </div>
                 </div>
@@ -413,12 +388,11 @@ $existingPhotoUrl = ($isEdit && $staff->photo) ? asset('storage/' . $staff->phot
                     <i data-lucide="x-circle" class="size-4"></i>
                     <span>Batal</span>
                 </button>
-                <button type="submit" :disabled="saving || hasErrors"
-                    class="w-full sm:w-auto flex items-center justify-center min-w-[140px] px-5 py-2.5 rounded-xl text-white text-sm font-semibold shadow-sm transition-all cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
-                    :class="hasErrors ? 'bg-slate-400 hover:bg-slate-400 shadow-none' : 'bg-primary hover:bg-primary/90 shadow-primary/30'">
+                <button type="submit" :disabled="saving"
+                    class="w-full sm:w-auto flex items-center justify-center min-w-[140px] px-5 py-2.5 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary/90 shadow-sm shadow-primary/30 transition-all cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed">
                     <div x-show="!saving" class="flex items-center gap-1.5">
                         <i data-lucide="save" class="size-4"></i>
-                        <span x-text="hasErrors ? 'Perbaiki Form' : 'Simpan Data'"></span>
+                        <span>Simpan Data</span>
                     </div>
                     <div x-show="saving" x-cloak class="flex items-center gap-1.5">
                         <i data-lucide="loader-2" stroke-width="3" class="size-4 animate-spin"></i>
@@ -428,6 +402,9 @@ $existingPhotoUrl = ($isEdit && $staff->photo) ? asset('storage/' . $staff->phot
             </div>
         </form>
     </x-ui.modal>
+    <script>
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    </script>
 
     <script>
         if (typeof lucide !== 'undefined') lucide.createIcons();

@@ -16,7 +16,7 @@
         </h2>
 
         <p class="hidden md:block text-xs text-secondary leading-tight truncate">
-            Sistem Informasi Kepegawaian dan Arsip (Simka)
+            SIMKA | Sistem Informasi Kepegawaian dan Arsip
         </p>
     </div>
     <div class="flex items-center gap-3">
