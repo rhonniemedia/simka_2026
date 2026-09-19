@@ -4,21 +4,74 @@ namespace App\Http\Controllers\Admin\Personnel;
 
 use App\Enums\Staff\Gender;
 use App\Enums\Staff\Religion;
-use App\Enums\Staff\StaffStatus;
 use App\Http\Controllers\Controller;
 use App\Models\CoreConcentration;
 use App\Models\Data;
 use App\Models\EmploymentStatus;
 use App\Models\PersonnelType;
 use App\Models\Position;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class DataController extends Controller
 {
+    /*
+    |--------------------------------------------------------------------
+    | Peta step form
+    |--------------------------------------------------------------------
+    | Form Data Pegawai terdiri dari 4 step dan setiap step disimpan ke
+    | database begitu tombol "Selanjutnya" ditekan:
+    |
+    |   1. Pribadi          -> staff_data + vault   (membuat draft)
+    |   2. Kepegawaian      -> staff_data + vault
+    |   3. Kontak & Alamat  -> vault
+    |   4. Finansial        -> vault                (opsional; menutup draft)
+    |
+    | Selama step 4 belum disimpan, baris staff_data berstatus
+    | is_draft = true dan TIDAK tampil di daftar maupun statistik.
+    */
+
+    private const TOTAL_STEPS = 4;
+
+    /** Draft yang tidak disentuh selama N hari dibuang otomatis. */
+    private const STALE_DRAFT_DAYS = 7;
+
+    private const FORM_VIEW = 'pages.admin.personnel.data.partials._edit-personal';
+
+    /** Kolom staff_data yang diisi pada tiap step. */
+    private const STAFF_FIELDS = [
+        1 => ['name', 'front_title', 'back_title', 'gender', 'marital_dependents'],
+        2 => [
+            'employment_id',
+            'personnel_id',
+            'position_id',
+            'concentration_id',
+            'prior_service_period',
+            'prior_service_period_effective_date',
+            'status_effective_date',
+        ],
+    ];
+
+    /** Atribut vault yang diisi pada tiap step (dienkripsi oleh model DataVault). */
+    private const VAULT_FIELDS = [
+        1 => ['nik', 'pob', 'dob', 'religion'],
+        2 => ['nip', 'nuptk'],
+        3 => ['phone_number', 'email', 'address', 'rt', 'rw', 'village', 'district', 'regency', 'province'],
+        4 => ['npwp', 'bank_account', 'base_salary'],
+    ];
+
+    /*
+    |--------------------------------------------------------------------
+    | Daftar, statistik, hapus, detail
+    |--------------------------------------------------------------------
+    */
+
     public function index(Request $request)
     {
         // 1. Ambil parameter dari request
@@ -28,10 +81,10 @@ class DataController extends Controller
         $filterGender = $request->input('filter_gender');
         $search = $request->input('search');
 
-        // 2. Inisiasi Query beserta relasinya
-        $query = Data::with(['vault', 'personnelType', 'grade', 'employmentStatus']);
+        // 2. Inisiasi query beserta relasinya. Draft yang belum selesai tidak ditampilkan.
+        $query = Data::completed()->with(['vault', 'personnelType', 'grade', 'employmentStatus']);
 
-        // 3. Logika Pencarian (Nama & Hash NIK/NIP/NUPTK)
+        // 3. Pencarian (nama & hash NIK/NIP/NUPTK)
         if (!empty($search)) {
             $searchHash = hash('sha256', trim($search));
 
@@ -45,7 +98,7 @@ class DataController extends Controller
             });
         }
 
-        // 4. Logika Filter
+        // 4. Filter
         if (!empty($filterEmploymentStatus)) {
             $query->where('employment_id', $filterEmploymentStatus);
         }
@@ -62,10 +115,10 @@ class DataController extends Controller
             $query->where('gender', $filterGender);
         }
 
-        // 5. Eksekusi Paginasi (Berdasarkan abjad)
+        // 5. Paginasi (berdasarkan abjad)
         $staff = $query->orderBy('name', 'asc')->paginate(10)->withQueryString();
 
-        // 6. Siapkan Data Opsi untuk Select Filter
+        // 6. Opsi untuk select filter
         $employmentOptions = DB::table('staff_employment_statuses')->pluck('name', 'id');
         $personnelOptions = DB::table('staff_personnel_types')->pluck('name', 'id');
         $positionOptions = DB::table('staff_positions')->pluck('name', 'id');
@@ -73,12 +126,12 @@ class DataController extends Controller
         // 6b. Statistik kartu
         $stats = $this->getStats();
 
-        // 7. Render view parsial jika request datang dari HTMX
+        // 7. View parsial jika request datang dari HTMX
         if ($request->header('HX-Request')) {
             return view('pages.admin.personnel.data.partials._table', compact('staff'));
         }
 
-        // 8. Render halaman utama penuh
+        // 8. Halaman utama penuh
         return view('pages.admin.personnel.data.index', array_merge(
             compact(
                 'staff',
@@ -97,18 +150,17 @@ class DataController extends Controller
 
     private function getStats(): array
     {
-        // Ubah referensi 'data' menjadi 'staff_data' sesuai dengan nama tabel di database
-        $statuses = Data::leftJoin('staff_employment_statuses', 'staff_data.employment_id', '=', 'staff_employment_statuses.id')
+        $statuses = Data::completed()
+            ->leftJoin('staff_employment_statuses', 'staff_data.employment_id', '=', 'staff_employment_statuses.id')
             ->selectRaw('staff_employment_statuses.slug, count(staff_data.id) as total')
             ->groupBy('staff_employment_statuses.id', 'staff_employment_statuses.slug')
             ->pluck('total', 'slug');
 
-        // Mengambil data berdasarkan slug 'pppk' dan 'pppk-pw'
         $pppk = $statuses->get('pppk', 0);
         $pppkPw = $statuses->get('pppk-pw', 0);
 
         return [
-            'totalStats'   => Data::count(),
+            'totalStats'   => Data::completed()->count(),
             'pnsStats'     => $statuses->get('pns', 0),
             'pppkTotal'    => $pppk + $pppkPw,
             'pppkPenuh'    => $pppk,
@@ -123,13 +175,7 @@ class DataController extends Controller
         $staff->delete();
 
         if ($request->header('HX-Request')) {
-            $table = $this->index($request)->render();
-            $statsOob = view('pages.admin.personnel.data.partials._stats-cards', array_merge(
-                $this->getStats(),
-                ['isOob' => true]
-            ))->render();
-
-            return $table . $statsOob;
+            return $this->tableWithStatsOob($request);
         }
 
         return $this->index($request);
@@ -149,51 +195,19 @@ class DataController extends Controller
 
     /*
     |--------------------------------------------------------------------
-    | Create & Update
+    | Form: tampilkan modal
     |--------------------------------------------------------------------
-    | Satu form (_edit-personal.blade.php) dipakai untuk create maupun
-    | edit - sama seperti pola di modul Keluarga. Nama file "edit-personal"
-    | dipertahankan karena sudah dipakai route yang ada, walau sekarang
-    | isinya form gabungan (personal + kepegawaian + vault).
     */
 
+    /**
+     * Modal Tambah Data. Kalau user ini masih punya draft yang belum
+     * selesai, form dibuka kembali di step yang belum tuntas.
+     */
     public function create()
     {
-        return view(
-            'pages.admin.personnel.data.partials._edit-personal',
-            array_merge(['staff' => null], $this->buildFormOptions())
-        );
-    }
+        $this->pruneStaleDrafts();
 
-    public function store(Request $request)
-    {
-        $validated = $this->validateStaff($request);
-
-        $staff = DB::transaction(function () use ($validated, $request) {
-            $staff = Data::create([
-                'name'                                => $validated['name'],
-                'front_title'                         => $validated['front_title'] ?? null,
-                'back_title'                           => $validated['back_title'] ?? null,
-                'slug'                                 => $this->generateUniqueSlug($validated['name']),
-                'employment_id'                        => $validated['employment_id'],
-                'personnel_id'                         => $validated['personnel_id'],
-                'position_id'                          => $validated['position_id'],
-                'concentration_id'                     => $validated['concentration_id'] ?? null,
-                'prior_service_period'                 => $validated['prior_service_period'] ?? null,
-                'prior_service_period_effective_date'  => $validated['prior_service_period_effective_date'] ?? null,
-                'gender'                               => $validated['gender'],
-                'marital_dependents'                   => $validated['marital_dependents'] ?? null,
-                'status'                               => $validated['status'],
-                'status_effective_date'                => $validated['status_effective_date'] ?? null,
-                'photo'                                => $this->handlePhotoUpload($request),
-            ]);
-
-            $staff->vault()->create($this->vaultPayload($validated));
-
-            return $staff;
-        });
-
-        return $this->respondWithSuccess($request, 'Data pegawai berhasil ditambahkan.', $staff->id);
+        return $this->renderForm($this->findOwnDraft());
     }
 
     public function edit($id)
@@ -203,52 +217,68 @@ class DataController extends Controller
 
     public function editPersonal($id)
     {
-        $staff = Data::with(['vault'])->findOrFail($id);
-
-        return view(
-            'pages.admin.personnel.data.partials._edit-personal',
-            array_merge(compact('staff'), $this->buildFormOptions())
-        );
+        return $this->renderForm(Data::with('vault')->findOrFail($id));
     }
 
-    public function update(Request $request, $id)
+    private function renderForm(?Data $staff)
     {
-        $staff = Data::with('vault')->findOrFail($id);
-        $validated = $this->validateStaff($request, $id);
+        [$startStep, $maxStep] = $this->resolveSteps($staff);
 
-        DB::transaction(function () use ($staff, $validated, $request) {
-            $staff->update([
-                'name'                                => $validated['name'],
-                'front_title'                         => $validated['front_title'] ?? null,
-                'back_title'                           => $validated['back_title'] ?? null,
-                'employment_id'                        => $validated['employment_id'],
-                'personnel_id'                         => $validated['personnel_id'],
-                'position_id'                          => $validated['position_id'],
-                'concentration_id'                     => $validated['concentration_id'] ?? null,
-                'prior_service_period'                 => $validated['prior_service_period'] ?? null,
-                'prior_service_period_effective_date'  => $validated['prior_service_period_effective_date'] ?? null,
-                'gender'                               => $validated['gender'],
-                'marital_dependents'                   => $validated['marital_dependents'] ?? null,
-                'status'                               => $validated['status'],
-                'status_effective_date'                => $validated['status_effective_date'] ?? null,
-                'photo'                                => $this->handlePhotoUpload($request, $staff->photo),
-            ]);
-
-            if ($staff->vault) {
-                $staff->vault->update($this->vaultPayload($validated));
-            } else {
-                $staff->vault()->create($this->vaultPayload($validated));
-            }
-        });
-
-        return $this->respondWithSuccess($request, 'Data pegawai berhasil diperbarui.', $staff->id);
+        return view(self::FORM_VIEW, array_merge(
+            ['staff' => $staff, 'startStep' => $startStep, 'maxStep' => $maxStep],
+            $this->buildFormOptions()
+        ));
     }
 
-    /*
-    |--------------------------------------------------------------------
-    | Helpers
-    |--------------------------------------------------------------------
-    */
+    /**
+     * @return array{0:int,1:int} [step awal saat modal dibuka, step tertinggi yang boleh dibuka lewat stepper]
+     */
+    private function resolveSteps(?Data $staff): array
+    {
+        if (!$staff) {
+            return [1, 1];
+        }
+
+        // Data lengkap (mode edit): semua step boleh dibuka bebas.
+        if (!$staff->is_draft) {
+            return [1, self::TOTAL_STEPS];
+        }
+
+        // Draft: lanjutkan dari step pertama yang belum tuntas.
+        $next = $this->firstIncompleteStep($staff);
+
+        return [$next, $next];
+    }
+
+    /**
+     * Step pertama (2, 3, atau 4) yang datanya belum lengkap. Step 1 selalu
+     * dianggap tuntas karena barisnya baru ada setelah step 1 disimpan.
+     * Nilai 4 berarti step 2 dan 3 sudah lengkap dan tinggal step 4.
+     */
+    private function firstIncompleteStep(Data $staff): int
+    {
+        $vault = $staff->vault;
+
+        $step2Done = filled($staff->employment_id)
+            && filled($staff->personnel_id)
+            && filled($staff->position_id)
+            && filled($staff->status_effective_date)
+            && $staff->prior_service_period !== null;
+
+        if (!$step2Done) {
+            return 2;
+        }
+
+        $step3Done = $vault
+            && filled($vault->phone_number_encrypted)
+            && filled($vault->address_encrypted)
+            && filled($vault->village_encrypted)
+            && filled($vault->district_encrypted)
+            && filled($vault->regency_encrypted)
+            && filled($vault->province_encrypted);
+
+        return $step3Done ? 4 : 3;
+    }
 
     private function buildFormOptions(): array
     {
@@ -259,104 +289,388 @@ class DataController extends Controller
             'concentrationOptions' => class_exists(CoreConcentration::class) ? CoreConcentration::orderBy('name')->get() : collect(),
             'religionOptions'      => Religion::cases(),
             'genderOptions'        => Gender::cases(),
-            'statusOptions'        => StaffStatus::cases(),
         ];
     }
 
-    private function validateStaff(Request $request, ?string $ignoreStaffId = null): array
-    {
-        return $request->validate([
-            'name'                                 => 'required|string|max:255',
-            'front_title'                          => 'nullable|string|max:100',
-            'back_title'                           => 'nullable|string|max:100',
-            'gender'                               => ['required', Rule::enum(Gender::class)],
-            'employment_id'                        => 'required|exists:staff_employment_statuses,id',
-            'personnel_id'                         => 'required|exists:staff_personnel_types,id',
-            'position_id'                          => 'required|exists:staff_positions,id',
-            'concentration_id'                     => 'nullable|exists:core_concentrations,id',
-            'prior_service_period'                 => 'nullable|string|max:255',
-            'prior_service_period_effective_date'  => 'nullable|date',
-            'marital_dependents'                   => 'nullable|string|max:50',
-            'status'                               => ['required', Rule::enum(StaffStatus::class)],
-            'status_effective_date'                => 'nullable|date',
-            'photo'                                => 'nullable|image|max:2048',
+    /*
+    |--------------------------------------------------------------------
+    | Simpan per step
+    |--------------------------------------------------------------------
+    */
 
-            // Vault - lihat catatan uniqueVaultRule() soal kenapa NIK/NIP
-            // tidak bisa pakai rule unique: bawaan Laravel (kolom yang
-            // unique di database adalah *_hash, bukan nilai plaintext-nya).
-            'nik'                                  => ['required', 'string', 'max:50', $this->uniqueVaultRule('nik_hash', $ignoreStaffId)],
-            'nip'                                  => ['nullable', 'string', 'max:50', $this->uniqueVaultRule('nip_hash', $ignoreStaffId)],
-            'nuptk'                                => 'nullable|string|max:50',
-            'pob'                                  => 'nullable|string|max:255',
-            'dob'                                  => 'nullable|date',
-            'religion'                             => ['nullable', Rule::enum(Religion::class)],
-            'npwp'                                 => 'nullable|string|max:50',
-            'bank_account'                         => 'nullable|string|max:50',
-            'base_salary'                          => 'nullable|numeric|min:0',
-            'phone_number'                         => 'required|string|max:20',
-            'email'                                => 'nullable|email|max:255',
-            'address'                              => 'required|string|max:500',
-            'rt'                                   => 'nullable|string|max:10',
-            'rw'                                   => 'nullable|string|max:10',
-            'village'                              => 'required|string|max:255',
-            'district'                             => 'required|string|max:255',
-            'regency'                              => 'required|string|max:255',
-            'province'                             => 'required|string|max:255',
-        ]);
+    /**
+     * Step 1 untuk data BARU: membuat baris staff_data (draft) + vault.
+     * Respons JSON berisi staff_id yang dipakai form untuk step berikutnya.
+     */
+    public function storeStep(Request $request): JsonResponse
+    {
+        try {
+            if ($this->resolveStep($request) !== 1) {
+                throw ValidationException::withMessages([
+                    '_form' => 'Pengisian data pegawai baru harus dimulai dari langkah 1.',
+                ]);
+            }
+
+            $validated = $this->validateStep($request, 1);
+        } catch (ValidationException $e) {
+            return $this->validationErrorResponse($e);
+        }
+
+        $userId = Auth::id();
+
+        $staff = DB::transaction(function () use ($validated, $userId) {
+            $staff = Data::create($this->staffAttributesFor(1, $validated) + [
+                'slug'       => $this->generateUniqueSlug($validated['name']),
+                'is_draft'   => true,
+                'created_by' => $userId,
+                'updated_by' => $userId,
+            ]);
+
+            $staff->vault()->create($this->vaultAttributesFor(1, $validated) + [
+                'created_by' => $userId,
+                'updated_by' => $userId,
+            ]);
+
+            return $staff;
+        });
+
+        return response()->json([
+            'ok'       => true,
+            'staff_id' => $staff->id,
+            'step'     => 1,
+            'message'  => 'Langkah 1 tersimpan.',
+        ], 201);
+    }
+
+    /**
+     * Simpan satu step untuk data yang sudah ada (draft maupun edit).
+     *
+     * - Step 1..3 : respons JSON, form lanjut ke step berikutnya.
+     * - Step 4    : menutup draft (bila ada) dan mengembalikan tabel + statistik
+     *               untuk HTMX, sama seperti alur simpan yang lama.
+     */
+    public function updateStep(Request $request, string $id)
+    {
+        $staff = Data::with('vault')->findOrFail($id);
+
+        try {
+            $step = $this->resolveStep($request);
+            $isFinalStep = $step === self::TOTAL_STEPS;
+            $wasDraft = (bool) $staff->is_draft;
+
+            // Semua atribut vault (kecuali NIK) baru bisa diisi setelah step 1 membuat barisnya.
+            if (!$staff->vault && $step !== 1) {
+                throw ValidationException::withMessages([
+                    '_form' => 'Data identitas (langkah 1) belum tersimpan. Kembali ke langkah 1 terlebih dahulu.',
+                ]);
+            }
+
+            // Draft baru boleh ditutup kalau step 2 dan 3 benar-benar sudah tersimpan.
+            if ($isFinalStep && $wasDraft) {
+                $incomplete = $this->firstIncompleteStep($staff);
+                if ($incomplete < self::TOTAL_STEPS) {
+                    throw ValidationException::withMessages([
+                        '_form' => "Data pada langkah {$incomplete} belum lengkap. Kembali ke langkah tersebut lalu simpan.",
+                    ]);
+                }
+            }
+
+            $validated = $this->validateStep($request, $step, $staff->id);
+        } catch (ValidationException $e) {
+            return $this->validationErrorResponse($e);
+        }
+
+        $userId = Auth::id();
+
+        DB::transaction(function () use ($staff, $step, $validated, $isFinalStep, $userId) {
+            $staffData = $this->staffAttributesFor($step, $validated);
+            $vaultData = $this->vaultAttributesFor($step, $validated);
+
+            if ($isFinalStep) {
+                $staffData['is_draft'] = false;
+            }
+
+            $staff->update($staffData + ['updated_by' => $userId]);
+
+            if ($vaultData !== []) {
+                if ($staff->vault) {
+                    $staff->vault->update($vaultData + ['updated_by' => $userId]);
+                } else {
+                    $staff->vault()->create($vaultData + ['created_by' => $userId, 'updated_by' => $userId]);
+                }
+            }
+
+            $staff->touch();
+        });
+
+        if (!$isFinalStep) {
+            return response()->json([
+                'ok'       => true,
+                'staff_id' => $staff->id,
+                'step'     => $step,
+                'message'  => "Langkah {$step} tersimpan.",
+            ]);
+        }
+
+        return $this->respondWithSuccess(
+            $request,
+            $wasDraft ? 'Data pegawai berhasil ditambahkan.' : 'Data pegawai berhasil diperbarui.',
+            $staff->id
+        );
+    }
+
+    /**
+     * Buang draft yang belum selesai (tombol "Mulai dari awal" di modal).
+     * Hanya draft yang bisa dibuang lewat rute ini, data lengkap tidak.
+     */
+    public function discardDraft(string $id): JsonResponse
+    {
+        $staff = Data::draft()->findOrFail($id);
+
+        $this->deleteDraft($staff);
+
+        return response()->json(['ok' => true]);
+    }
+
+    /*
+    |--------------------------------------------------------------------
+    | Draft
+    |--------------------------------------------------------------------
+    */
+
+    private function findOwnDraft(): ?Data
+    {
+        $userId = Auth::id();
+
+        if (!$userId) {
+            return null;
+        }
+
+        return Data::draft()
+            ->with('vault')
+            ->where('created_by', $userId)
+            ->latest('updated_at')
+            ->first();
+    }
+
+    /**
+     * Draft yang ditinggalkan menahan NIK/NIP-nya (kolom hash unik), jadi
+     * yang sudah lama tidak disentuh dibuang agar tidak menumpuk.
+     */
+    private function pruneStaleDrafts(): void
+    {
+        Data::draft()
+            ->where('updated_at', '<', now()->subDays(self::STALE_DRAFT_DAYS))
+            ->get()
+            ->each(fn(Data $draft) => $this->deleteDraft($draft));
+    }
+
+    private function deleteDraft(Data $staff): void
+    {
+        DB::transaction(function () use ($staff) {
+            $staff->vault()->delete();
+            $staff->delete();
+        });
+    }
+
+    /*
+    |--------------------------------------------------------------------
+    | Validasi per step
+    |--------------------------------------------------------------------
+    */
+
+    private function resolveStep(Request $request): int
+    {
+        $step = (int) $request->input('step');
+
+        if ($step < 1 || $step > self::TOTAL_STEPS) {
+            throw ValidationException::withMessages(['_form' => 'Langkah form tidak valid.']);
+        }
+
+        return $step;
+    }
+
+    private function validateStep(Request $request, int $step, ?string $ignoreStaffId = null): array
+    {
+        return \Illuminate\Support\Facades\Validator::make(
+            $request->all(),
+            $this->stepRules($step, $ignoreStaffId),
+            $this->validationMessages(),
+            $this->validationAttributes()
+        )->validate();
+    }
+
+    private function stepRules(int $step, ?string $ignoreStaffId = null): array
+    {
+        return match ($step) {
+            1 => [
+                'name'               => ['required', 'string', 'max:255'],
+                'front_title'        => ['nullable', 'string', 'max:100'],
+                'back_title'         => ['nullable', 'string', 'max:100'],
+                'gender'             => ['required', Rule::enum(Gender::class)],
+                'nik'                => ['required', 'string', 'regex:/^\d{16}$/', $this->uniqueVaultRule('nik_hash', $ignoreStaffId)],
+                'pob'                => ['nullable', 'string', 'max:255'],
+                'dob'                => ['nullable', 'date'],
+                'religion'           => ['nullable', Rule::enum(Religion::class)],
+                'marital_dependents' => ['nullable', 'string', 'max:50'],
+            ],
+
+            2 => [
+                'employment_id'                       => ['required', 'exists:staff_employment_statuses,id'],
+                'personnel_id'                        => ['required', 'exists:staff_personnel_types,id'],
+                'position_id'                         => ['required', 'exists:staff_positions,id'],
+                'concentration_id'                    => ['nullable', 'exists:core_concentrations,id'],
+                'nip'                                 => ['nullable', 'string', 'regex:/^\d{15,20}$/', $this->uniqueVaultRule('nip_hash', $ignoreStaffId)],
+                'nuptk'                               => ['nullable', 'string', 'max:50'],
+                'status_effective_date'               => ['required', 'date'],
+                'prior_service_period'                => ['required', Rule::in(['0', '1'])],
+                'prior_service_period_effective_date' => ['nullable', 'date'],
+            ],
+
+            3 => [
+                'phone_number' => ['required', 'string', 'regex:/^[0-9]{10,15}$/', $this->uniqueVaultRule('phone_number_hash', $ignoreStaffId)],
+                'email'        => ['nullable', 'email', 'max:255', $this->uniqueVaultRule('email_hash', $ignoreStaffId)],
+                'address'      => ['required', 'string', 'max:500'],
+                'rt'           => ['nullable', 'string', 'max:10'],
+                'rw'           => ['nullable', 'string', 'max:10'],
+                'village'      => ['required', 'string', 'max:255'],
+                'district'     => ['required', 'string', 'max:255'],
+                'regency'      => ['required', 'string', 'max:255'],
+                'province'     => ['required', 'string', 'max:255'],
+            ],
+
+            4 => [
+                'npwp'         => ['nullable', 'string', 'regex:/^\d{15,16}$/'],
+                'bank_account' => ['nullable', 'string', 'regex:/^\d{8,20}$/'],
+                'base_salary'  => ['nullable', 'numeric', 'min:0'],
+            ],
+        };
     }
 
     /**
      * NIK/NIP unik secara fisik disimpan sebagai *_hash (SHA-256), bukan
-     * nilai plaintext-nya - jadi rule bawaan Laravel `unique:table,column`
-     * tidak bisa dipakai langsung (itu akan membandingkan NIK mentah
-     * dengan kolom hash, yang tidak akan pernah cocok). Closure ini
-     * meng-hash dulu nilai yang diinput baru dicocokkan ke kolom hash-nya.
+     * nilai plaintext-nya, jadi rule bawaan `unique:table,column` tidak
+     * bisa dipakai. Closure ini meng-hash input dulu lalu mencocokkannya
+     * ke kolom hash. Bila yang bentrok ternyata masih draft, pesannya
+     * dibedakan supaya jelas kenapa datanya tidak terlihat di daftar.
      */
     private function uniqueVaultRule(string $hashColumn, ?string $ignoreStaffId): \Closure
     {
         return function (string $attribute, $value, \Closure $fail) use ($hashColumn, $ignoreStaffId) {
-            $hash = hash('sha256', trim($value));
+            $hash = hash('sha256', trim((string) $value));
 
-            $exists = DB::table('staff_data_vault')
-                ->where($hashColumn, $hash)
-                ->when($ignoreStaffId, fn($q) => $q->where('staff_id', '!=', $ignoreStaffId))
-                ->exists();
+            $conflict = DB::table('staff_data_vault as v')
+                ->join('staff_data as s', 's.id', '=', 'v.staff_id')
+                ->where("v.{$hashColumn}", $hash)
+                ->when($ignoreStaffId, fn($q) => $q->where('v.staff_id', '!=', $ignoreStaffId))
+                ->select('s.is_draft')
+                ->first();
 
-            if ($exists) {
-                $label = strtoupper($attribute);
-                $fail("{$label} ini sudah terdaftar untuk staff lain.");
+            if (!$conflict) {
+                return;
             }
+
+            $label = $this->validationAttributes()[$attribute] ?? $attribute;
+
+            $fail($conflict->is_draft
+                ? "{$label} ini sedang dipakai pada draft data pegawai yang belum selesai."
+                : "{$label} ini sudah terdaftar untuk pegawai lain.");
         };
     }
 
-    private function vaultPayload(array $validated): array
+    private function validationMessages(): array
     {
         return [
-            'nik'          => $validated['nik'],
-            'nip'          => $validated['nip'] ?? null,
-            'nuptk'        => $validated['nuptk'] ?? null,
-            'pob'          => $validated['pob'] ?? null,
-            'dob'          => $validated['dob'] ?? null,
-            'religion'     => $validated['religion'] ?? null,
-            'npwp'         => $validated['npwp'] ?? null,
-            'bank_account' => $validated['bank_account'] ?? null,
-            'base_salary'  => $validated['base_salary'] ?? null,
-            'phone_number' => $validated['phone_number'],
-            'email'        => $validated['email'] ?? null,
-            'address'      => $validated['address'],
-            'rt'           => $validated['rt'] ?? null,
-            'rw'           => $validated['rw'] ?? null,
-            'village'      => $validated['village'],
-            'district'     => $validated['district'],
-            'regency'      => $validated['regency'],
-            'province'     => $validated['province'],
+            'required'     => ':attribute wajib diisi.',
+            'string'       => ':attribute harus berupa teks.',
+            'max.string'   => ':attribute maksimal :max karakter.',
+            'date'         => ':attribute bukan tanggal yang valid.',
+            'email.email'  => 'Format :attribute tidak valid.',
+            'numeric'      => ':attribute harus berupa angka.',
+            'min.numeric'  => ':attribute minimal :min.',
+            'exists'       => ':attribute yang dipilih tidak valid.',
+            'enum'         => ':attribute yang dipilih tidak valid.',
+            'in'           => ':attribute yang dipilih tidak valid.',
+            'nik.regex'          => 'NIK harus berisi tepat 16 digit angka.',
+            'nip.regex'          => 'NIP harus berisi 15 hingga 20 digit angka.',
+            'phone_number.regex' => 'Nomor telepon tidak valid (10-15 angka).',
+            'npwp.regex'         => 'NPWP harus 15 atau 16 digit angka.',
+            'bank_account.regex' => 'Nomor rekening harus 8 hingga 20 digit angka.',
         ];
+    }
+
+    private function validationAttributes(): array
+    {
+        return [
+            'name'                                => 'Nama lengkap',
+            'front_title'                         => 'Gelar depan',
+            'back_title'                          => 'Gelar belakang',
+            'gender'                              => 'Jenis kelamin',
+            'nik'                                 => 'NIK',
+            'pob'                                 => 'Tempat lahir',
+            'dob'                                 => 'Tanggal lahir',
+            'religion'                            => 'Agama',
+            'marital_dependents'                  => 'Status kawin & tanggungan',
+            'employment_id'                       => 'Status kepegawaian',
+            'personnel_id'                        => 'Jenis pegawai',
+            'position_id'                         => 'Jabatan',
+            'concentration_id'                    => 'Konsentrasi',
+            'nip'                                 => 'NIP',
+            'nuptk'                               => 'NUPTK',
+            'status_effective_date'               => 'Tanggal masuk / TMT status',
+            'prior_service_period'                => 'Peninjauan masa kerja',
+            'prior_service_period_effective_date' => 'TMT masa kerja',
+            'phone_number'                        => 'Nomor telepon',
+            'email'                               => 'Email',
+            'address'                             => 'Alamat',
+            'rt'                                  => 'RT',
+            'rw'                                  => 'RW',
+            'village'                             => 'Desa / kelurahan',
+            'district'                            => 'Kecamatan',
+            'regency'                             => 'Kabupaten / kota',
+            'province'                            => 'Provinsi',
+            'npwp'                                => 'NPWP',
+            'bank_account'                        => 'Nomor rekening',
+            'base_salary'                         => 'Gaji pokok',
+        ];
+    }
+
+    /*
+    |--------------------------------------------------------------------
+    | Pemetaan hasil validasi -> atribut model
+    |--------------------------------------------------------------------
+    | Hanya key yang benar-benar dikirim pada step tersebut yang ikut
+    | disimpan, jadi field yang tidak ada di form (mis. gelar) tidak
+    | tertimpa jadi NULL setiap kali data disimpan.
+    */
+
+    private function staffAttributesFor(int $step, array $validated): array
+    {
+        $data = $this->blankToNull(Arr::only($validated, self::STAFF_FIELDS[$step] ?? []));
+
+        // Tanpa peninjauan masa kerja, tanggal TMT-nya tidak boleh tersisa.
+        if (($data['prior_service_period'] ?? null) === '0') {
+            $data['prior_service_period_effective_date'] = null;
+        }
+
+        return $data;
+    }
+
+    private function vaultAttributesFor(int $step, array $validated): array
+    {
+        return $this->blankToNull(Arr::only($validated, self::VAULT_FIELDS[$step] ?? []));
+    }
+
+    private function blankToNull(array $data): array
+    {
+        return array_map(fn($value) => $value === '' ? null : $value, $data);
     }
 
     private function generateUniqueSlug(string $name): string
     {
         $base = Str::slug($name);
-        $slug = $base !== '' ? $base : 'staff';
+        $base = $base !== '' ? $base : 'staff';
+        $slug = $base;
         $i = 1;
 
         while (Data::where('slug', $slug)->exists()) {
@@ -367,32 +681,30 @@ class DataController extends Controller
         return $slug;
     }
 
-    private function handlePhotoUpload(Request $request, ?string $existingPath = null): ?string
+    /*
+    |--------------------------------------------------------------------
+    | Respons
+    |--------------------------------------------------------------------
+    */
+
+    private function tableWithStatsOob(Request $request): string
     {
-        if (!$request->hasFile('photo')) {
-            return $existingPath;
-        }
+        $table = $this->index($request)->render();
+        $statsOob = view('pages.admin.personnel.data.partials._stats-cards', array_merge(
+            $this->getStats(),
+            ['isOob' => true]
+        ))->render();
 
-        if ($existingPath) {
-            Storage::disk('public')->delete($existingPath);
-        }
-
-        return $request->file('photo')->store('staff-photos', 'public');
+        return $table . $statsOob;
     }
 
     private function respondWithSuccess(Request $request, string $message, string $staffId)
     {
         if ($request->header('HX-Request')) {
-            $table = $this->index($request)->render();
-            $statsOob = view('pages.admin.personnel.data.partials._stats-cards', array_merge(
-                $this->getStats(),
-                ['isOob' => true]
-            ))->render();
-
-            return response($table . $statsOob)
+            return response($this->tableWithStatsOob($request))
                 ->header('HX-Trigger', json_encode([
                     'close-modal' => true,
-                    'showAlert' => [
+                    'showAlert'   => [
                         'icon'  => 'success',
                         'title' => 'Berhasil!',
                         'text'  => $message,
@@ -400,6 +712,18 @@ class DataController extends Controller
                 ]));
         }
 
+        if ($request->expectsJson()) {
+            return response()->json(['ok' => true, 'finished' => true, 'staff_id' => $staffId, 'message' => $message]);
+        }
+
         return redirect()->route('admin.personnel.data.index', ['highlight' => $staffId]);
+    }
+
+    private function validationErrorResponse(ValidationException $e): JsonResponse
+    {
+        return response()->json([
+            'message' => $e->getMessage(),
+            'errors'  => $e->errors(),
+        ], $e->status);
     }
 }

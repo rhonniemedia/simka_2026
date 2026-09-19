@@ -66,7 +66,7 @@
     {{-- Trigger saat submit form biasa (bukan form yang di-handle HTMX) --}}
     @submit.window="
         const form = $event.target;
-        if (!form.hasAttribute('hx-post') && !form.hasAttribute('hx-get') && !form.hasAttribute('hx-put')) {
+        if (!form.hasAttribute('hx-post') && !form.hasAttribute('hx-get') && !form.hasAttribute('hx-put') && !isOptedOut(form)) {
             showLoading = true;
         }
     "

@@ -124,10 +124,17 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::prefix('data')->name('data.')->group(function () {
             Route::get('/', [DataController::class, 'index'])->name('index');
             Route::get('/create', [DataController::class, 'create'])->name('create');
-            Route::post('/', [DataController::class, 'store'])->name('store');
             Route::get('/{id}/edit', [DataController::class, 'edit'])->name('edit');
-            Route::put('/{id}', [DataController::class, 'update'])->name('update');
             Route::delete('/{id}', [DataController::class, 'destroy'])->name('destroy');
+
+            // Simpan per step (pengganti store & update yang lama).
+            // - store-step  : step 1 pada data baru -> membuat draft.
+            // - update-step : step 1..4 pada data yang sudah ada (draft maupun edit).
+            //                 Step terakhir mengubah draft menjadi data lengkap.
+            // - discard-draft : membuang draft yang belum selesai.
+            Route::post('/step', [DataController::class, 'storeStep'])->name('store-step');
+            Route::put('/{id}/step', [DataController::class, 'updateStep'])->name('update-step');
+            Route::delete('/{id}/draft', [DataController::class, 'discardDraft'])->name('discard-draft');
 
             // Rute modal (dipanggil via HTMX dari menu Aksi di tabel).
             // Method-nya sudah ada di DataController tapi belum pernah didaftarkan sebagai rute.

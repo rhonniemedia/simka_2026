@@ -17,6 +17,28 @@ class Data extends Model
     protected $keyType = 'string';
     protected $guarded = ['id'];
 
+    protected $casts = [
+        'is_draft' => 'boolean',
+    ];
+
+    /**
+     * Data yang sudah lengkap (bukan draft form bertahap). Dipakai oleh
+     * daftar & statistik agar draft yang belum selesai tidak ikut tampil.
+     * Nama kolom diberi prefix tabel supaya aman dipakai bersama join.
+     */
+    public function scopeCompleted($query)
+    {
+        return $query->where($this->getTable() . '.is_draft', false);
+    }
+
+    /**
+     * Data yang baru tersimpan sebagian lewat form bertahap.
+     */
+    public function scopeDraft($query)
+    {
+        return $query->where($this->getTable() . '.is_draft', true);
+    }
+
     /**
      * Accessor untuk mendapatkan nama lengkap beserta gelar.
      * Contoh output: "Dr. Ir. Roni Saputra, S.Kom., M.T."

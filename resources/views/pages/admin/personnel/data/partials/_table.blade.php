@@ -2,7 +2,8 @@
 <div id="staff-container"
     hx-get="{{ request()->fullUrl() }}"
     hx-trigger="refreshStaffData from:body"
-    hx-swap="outerHTML">
+    hx-swap="outerHTML"
+    data-no-loader>
 
     {{-- ============ 1. DESKTOP TABLE (lg ke atas) ============ --}}
     <div class="hidden lg:block overflow-x-auto">
