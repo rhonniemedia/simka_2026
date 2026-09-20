@@ -80,6 +80,20 @@ $eligibilities = [
                     <label class="block text-sm font-medium text-foreground mb-1.5">Nama Jabatan <span class="text-error">*</span></label>
                     <input type="text" name="name" value="{{ old('name', $item->name ?? '') }}" required placeholder="Contoh: Guru Ahli Pertama" class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
                 </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-foreground mb-1.5">Batas Usia Pensiun</label>
+                    <div class="relative">
+                        <input type="number" name="retirement_age" min="50" max="70"
+                            value="{{ old('retirement_age', $item->retirement_age ?? '') }}"
+                            placeholder="58"
+                            class="w-full rounded-xl border border-border px-3.5 py-2.5 pr-16 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                        <span class="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-medium text-secondary pointer-events-none">tahun</span>
+                    </div>
+                    <p class="text-xs text-secondary mt-1.5">
+                        Kosongkan untuk otomatis: 58 tahun, atau 60 tahun untuk jabatan fungsional keahlian "Guru...".
+                    </p>
+                </div>
             </div>
 
             {{-- Footer Modal --}}

@@ -14,6 +14,8 @@ use App\Http\Controllers\Admin\Personnel\DocumentController;
 use App\Http\Controllers\Admin\Personnel\EducationHistoryController;
 use App\Http\Controllers\Admin\Personnel\FamilyController;
 use App\Http\Controllers\Admin\Personnel\GradeHistoryController;
+use App\Http\Controllers\Admin\Personnel\PositionHistoryController;
+use App\Http\Controllers\Admin\Personnel\RetirementController;
 use App\Http\Controllers\Auth\LoginController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -141,6 +143,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('/{id}/detail-personal', [DataController::class, 'detailPersonal'])->name('detail-personal');
             Route::get('/{id}/detail-employment', [DataController::class, 'detailEmployment'])->name('detail-employment');
             Route::get('/{id}/edit-personal', [DataController::class, 'editPersonal'])->name('edit-personal');
+            Route::get('/{id}/edit-photo', [DataController::class, 'editPhoto'])->name('edit-photo');
+            Route::put('/{id}/photo', [DataController::class, 'updatePhoto'])->name('update-photo');
         });
 
         // 2. Dokumen Pegawai
@@ -215,7 +219,24 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         // 7. Pensiun
         Route::prefix('retirement')->name('retirement.')->group(function () {
-            Route::get('/')->name('index');
+            Route::get('/', [RetirementController::class, 'index'])->name('index');
+
+            // Proses pensiun (Modal HTMX)
+            Route::get('/{id}/process', [RetirementController::class, 'process'])->name('process');
+            Route::post('/{id}/process', [RetirementController::class, 'store'])->name('process.store');
+        });
+
+        // 8. Jabatan ASN (Riwayat Jabatan Fungsional/Pelaksana)
+        Route::prefix('positions')->name('positions.')->group(function () {
+            Route::get('/', [PositionHistoryController::class, 'index'])->name('index');
+            Route::get('/{id}', [PositionHistoryController::class, 'show'])->name('show');
+
+            // Rute Manajemen Data (Modal HTMX)
+            Route::get('/{id}/create', [PositionHistoryController::class, 'create'])->name('create');
+            Route::post('/{id}/store', [PositionHistoryController::class, 'store'])->name('store');
+            Route::get('/{staff_id}/edit/{history_id}', [PositionHistoryController::class, 'edit'])->name('edit');
+            Route::put('/{staff_id}/update/{history_id}', [PositionHistoryController::class, 'update'])->name('update');
+            Route::delete('/{staff_id}/destroy/{history_id}', [PositionHistoryController::class, 'destroy'])->name('destroy');
         });
     });
 });

@@ -90,6 +90,10 @@
                                 <div class="font-semibold text-foreground text-sm whitespace-nowrap">
                                     {{ $item->name }}
                                 </div>
+                                <div class="flex items-center gap-1 mt-0.5">
+                                    <i data-lucide="hourglass" class="size-3 text-secondary shrink-0"></i>
+                                    <span class="text-[11px] text-secondary">BUP {{ $item->retirement_age }} tahun</span>
+                                </div>
                             </div>
                         </div>
                     </td>
@@ -151,6 +155,10 @@
                 <div class="text-xs text-secondary mt-0.5 truncate">
                     <span class="font-medium text-foreground">{{ $formatPositionType($item->position_type) }}</span>
                     &bull; {{ $formatEligibility($item->eligibility) }}
+                </div>
+                <div class="flex items-center gap-1 mt-1">
+                    <i data-lucide="hourglass" class="size-3 text-secondary shrink-0"></i>
+                    <span class="text-[11px] text-secondary">BUP {{ $item->retirement_age }} tahun</span>
                 </div>
             </div>
             <div class="flex items-center gap-1.5 shrink-0">

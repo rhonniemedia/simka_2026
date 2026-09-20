@@ -11,7 +11,7 @@
                 <tr class="border-b border-border">
                     <th class="w-[30%] px-4 py-3 text-sm font-bold text-secondary tracking-wider">
                         Data Pegawai
-                        <div class="text-[11px] font-normal normal-case">Nama | NIK</div>
+                        <div class="text-[11px] font-normal normal-case">Nama | Nomor Induk Kependudukan</div>
                     </th>
                     <th class="w-[30%] px-4 py-3 text-sm font-bold text-secondary tracking-wider">
                         Pasangan
@@ -67,7 +67,7 @@
                                 <x-ui.avatar :name="$staff->name ?? 'Unknown'" :gender="$staff->gender" :index="$loop->index" />
                             </div>
                             <div>
-                                <div class="font-semibold text-foreground text-sm uppercase group-hover:text-primary transition-colors whitespace-nowrap">
+                                <div class="font-semibold text-foreground text-sm group-hover:text-primary transition-colors whitespace-nowrap">
                                     {{ $staff->name ?? 'Data Tidak Ditemukan' }}
                                 </div>
                                 <div class="flex items-center gap-1.5 text-xs text-secondary mt-1 whitespace-nowrap">
@@ -81,7 +81,7 @@
                     <td class="px-5 py-4 min-w-[200px]">
                         @if ($f)
                         <div class="flex items-center gap-2">
-                            <div class="text-sm font-semibold text-foreground whitespace-nowrap uppercase">{{ $namaPasangan }}</div>
+                            <div class="text-sm font-semibold text-foreground whitespace-nowrap">{{ $namaPasangan }}</div>
                             <i data-lucide="{{ strtolower($gender) === 'p' || strtolower($gender) === 'perempuan' ? 'user-round-female' : 'user-round' }}" class="size-3.5 text-secondary/50" title="Gender: {{ $gender }}"></i>
                         </div>
                         <div class="mt-1">

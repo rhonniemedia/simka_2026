@@ -10,6 +10,10 @@ $concentrationSelectOptions = $concentrationOptions->map(fn($e) => ['value' => $
 $genderSelectOptions = array_map(fn($g) => ['value' => $g->value, 'label' => $g->label()], $genderOptions);
 $religionSelectOptions = array_map(fn($r) => ['value' => $r->value, 'label' => $r->label()], $religionOptions);
 
+// Agama di database bisa berupa kode angka lama (mis. "1") atau value enum ("islam").
+// fromStored() memetakannya ke value enum supaya select terpilih dengan benar.
+$religionValue = \App\Enums\Staff\Religion::fromStored($vault?->religion)?->value ?? '';
+
 $modalTitle = $isEdit ? 'Edit Data Pegawai' : 'Tambah Data Pegawai';
 
 $dobValue = $vault?->dob ? \Carbon\Carbon::parse($vault->dob)->format('Y-m-d') : '';
@@ -401,17 +405,21 @@ $err = fn(string $field) => new \Illuminate\Support\HtmlString(
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-foreground mb-1.5">Tanggal Lahir</label>
-                            <input type="date" name="dob" value="{{ old('dob', $dobValue) }}" class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                            <input type="date" name="dob" value="{{ old('dob', $dobValue) }}" placeholder="YYYY-MM-DD" class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
                             {{ $err('dob') }}
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-foreground mb-1.5">Agama</label>
-                            <x-ui.select name="religion" :options="$religionSelectOptions" :value="old('religion', $vault->religion ?? '')" placeholder="-- Pilih Agama --" />
+                            <x-ui.select
+                                name="religion"
+                                :options="$religionSelectOptions"
+                                :value="old('religion', $religionValue)"
+                                placeholder="-- Pilih Agama --" />
                             {{ $err('religion') }}
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-foreground mb-1.5">Status Kawin & Tanggungan</label>
-                            <x-ui.select name="marital_dependents" :options="[['value' => 'K/0', 'label' => 'Kawin tanpa tanggungan'], ['value' => 'K/1', 'label' => 'Kawin 1 tanggungan'], ['value' => 'K/2', 'label' => 'Kawin 2 tanggungan'], ['value' => 'K/3', 'label' => 'Kawin 3 tanggungan'], ['value' => 'BK', 'label' => 'Belum Kawin']]" :value="old('marital_dependents', $staff->marital_dependents ?? '')" placeholder="-- Pilih Status --" />
+                            <x-ui.select name="marital_dependents" :options="[['value' => '1', 'label' => 'Kawin dengan tanggungan'], ['value' => '0', 'label' => 'Kawin/Belum tanpa tanggungan']]" :value="old('marital_dependents', $staff->marital_dependents ?? '')" placeholder="-- Pilih Status --" />
                             {{ $err('marital_dependents') }}
                         </div>
                     </div>
@@ -456,7 +464,7 @@ $err = fn(string $field) => new \Illuminate\Support\HtmlString(
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-foreground mb-1.5">Tanggal Masuk / TMT Status <span class="text-error">*</span></label>
-                            <input type="date" name="status_effective_date" value="{{ old('status_effective_date', $statusEffectiveDateValue) }}" required class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                            <input type="date" name="status_effective_date" value="{{ old('status_effective_date', $statusEffectiveDateValue) }}" required placeholder="YYYY-MM-DD" class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
                             {{ $err('status_effective_date') }}
                         </div>
                         <div class="md:col-span-2">
@@ -487,7 +495,7 @@ $err = fn(string $field) => new \Illuminate\Support\HtmlString(
                             <div x-show="prior.enabled" x-cloak class="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-indigo-200/60">
                                 <div>
                                     <label class="block text-xs font-semibold text-indigo-950 mb-1.5">TMT Pangkat Terakhir</label>
-                                    <input type="date" name="last_rank_effective_date" x-model="prior.lastRank" class="w-full rounded-xl border border-indigo-300 bg-white px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 shadow-sm text-foreground">
+                                    <input type="date" name="last_rank_effective_date" x-model="prior.lastRank" placeholder="YYYY-MM-DD" class="w-full rounded-xl border border-indigo-300 bg-white px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 shadow-sm text-foreground">
                                 </div>
                                 <div>
                                     <label class="block text-xs font-semibold text-indigo-950 mb-1.5">Masa Kerja (Dikurangkan)</label>
@@ -555,22 +563,22 @@ $err = fn(string $field) => new \Illuminate\Support\HtmlString(
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-foreground mb-1.5">Desa / Kelurahan <span class="text-error">*</span></label>
-                            <input type="text" name="village" value="{{ old('village', $vault->village ?? '') }}" required class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                            <input type="text" name="village" value="{{ old('village', $vault->village ?? '') }}" required placeholder="Nama Desa / Kelurahan" class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
                             {{ $err('village') }}
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-foreground mb-1.5">Kecamatan <span class="text-error">*</span></label>
-                            <input type="text" name="district" value="{{ old('district', $vault->district ?? '') }}" required class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                            <input type="text" name="district" value="{{ old('district', $vault->district ?? '') }}" required placeholder="Nama Kecamatan" class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
                             {{ $err('district') }}
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-foreground mb-1.5">Kabupaten / Kota <span class="text-error">*</span></label>
-                            <input type="text" name="regency" value="{{ old('regency', $vault->regency ?? '') }}" required class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                            <input type="text" name="regency" value="{{ old('regency', $vault->regency ?? '') }}" required placeholder="Nama Kabupaten / Kota" class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
                             {{ $err('regency') }}
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-foreground mb-1.5">Provinsi <span class="text-error">*</span></label>
-                            <input type="text" name="province" value="{{ old('province', $vault->province ?? '') }}" required class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                            <input type="text" name="province" value="{{ old('province', $vault->province ?? '') }}" required placeholder="Nama Provinsi" class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
                             {{ $err('province') }}
                         </div>
                     </div>

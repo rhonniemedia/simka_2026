@@ -11,7 +11,7 @@
                 <tr class="border-b border-border">
                     <th class="w-[30%] px-4 py-3 text-sm font-bold text-secondary tracking-wider">
                         Data Pegawai
-                        <div class="text-[11px] font-normal normal-case">Nama | NIK</div>
+                        <div class="text-[11px] font-normal normal-case">Nama | Nomor Induk Kependudukan</div>
                     </th>
                     <th class="w-[30%] px-4 py-3 text-sm font-bold text-secondary tracking-wider">
                         Pendidikan
@@ -51,7 +51,7 @@
                                 <x-ui.avatar :name="$r->name" :gender="$r->gender" :index="$loop->index" />
                             </div>
                             <div>
-                                <div class="font-semibold text-foreground text-sm uppercase group-hover:text-primary transition-colors whitespace-nowrap">
+                                <div class="font-semibold text-foreground text-sm group-hover:text-primary transition-colors whitespace-nowrap">
                                     {{ $r->name }}
                                 </div>
                                 <div class="flex items-center gap-1.5 text-xs text-secondary mt-0.5 whitespace-nowrap">

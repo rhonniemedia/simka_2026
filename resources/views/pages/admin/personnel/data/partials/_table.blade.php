@@ -12,7 +12,7 @@
                 <tr class="border-b border-border">
                     <th class="w-[32%] px-4 py-3 text-sm font-bold text-secondary tracking-wider">
                         Data Pegawai
-                        <div class="text-[11px] font-normal normal-case">Nama | NIK</div>
+                        <div class="text-[11px] font-normal normal-case">Nama | Nomor Induk Kependudukan</div>
                     </th>
                     <th class="w-[30%] px-4 py-3 text-sm font-bold text-secondary tracking-wider">
                         Kepegawaian
@@ -108,18 +108,21 @@
                                 class="fixed z-[9999] w-56 rounded-xl border border-border bg-white shadow-lg py-3 flex flex-col text-left origin-top-right">
 
                                 <p class="px-4 pt-1 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-secondary">Detail</p>
-                                <button type="button" @click="open = false" hx-get="{{ route('admin.personnel.data.detail-personal', $r->id) }}" hx-target="#modal-container" hx-swap="outerHTML" class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors cursor-pointer text-left">
+                                <button type="button" @click="open = false" hx-get="{{ route('admin.personnel.data.detail-personal', $r->id) }}" hx-target="#modal-container" hx-swap="innerHTML" class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors cursor-pointer text-left">
                                     <i data-lucide="user" class="size-4 text-secondary pointer-events-none"></i> Data Pegawai
                                 </button>
-                                <button type="button" @click="open = false" hx-get="{{ route('admin.personnel.data.detail-employment', $r->id) }}" hx-target="#modal-container" hx-swap="outerHTML" class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors cursor-pointer text-left">
+                                <button type="button" @click="open = false" hx-get="{{ route('admin.personnel.data.detail-employment', $r->id) }}" hx-target="#modal-container" hx-swap="innerHTML" class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors cursor-pointer text-left">
                                     <i data-lucide="briefcase" class="size-4 text-secondary pointer-events-none"></i> Detail Kepegawaian
                                 </button>
 
                                 <div class="my-2 border-t border-border"></div>
 
                                 <p class="px-4 pt-1 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-secondary">Edit & Delete</p>
-                                <button type="button" @click="open = false" hx-get="{{ route('admin.personnel.data.edit-personal', $r->id) }}" hx-target="#modal-container" hx-swap="outerHTML" class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors cursor-pointer text-left">
+                                <button type="button" @click="open = false" hx-get="{{ route('admin.personnel.data.edit-personal', $r->id) }}" hx-target="#modal-container" hx-swap="innerHTML" class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors cursor-pointer text-left">
                                     <i data-lucide="file-pen-line" class="size-4 text-secondary pointer-events-none"></i> Edit Data
+                                </button>
+                                <button type="button" @click="open = false" hx-get="{{ route('admin.personnel.data.edit-photo', $r->id) }}" hx-target="#modal-container" hx-swap="innerHTML" class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors cursor-pointer text-left">
+                                    <i data-lucide="camera" class="size-4 text-secondary pointer-events-none"></i> Ganti Foto
                                 </button>
 
                                 <button type="button" hx-delete="{{ route('admin.personnel.data.destroy', $r->id) }}" hx-target="#staff-container" hx-select="#staff-container" hx-swap="outerHTML" hx-confirm="Yakin ingin menghapus data {{ $r->name }}? Tindakan ini tidak dapat dibatalkan." class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-error hover:bg-error/10 transition-colors cursor-pointer text-left">
@@ -161,8 +164,8 @@
                 <div class="min-w-0 flex-1">
                     <div class="flex items-start justify-between gap-2">
                         <div class="min-w-0">
-                            <p class="font-semibold text-foreground text-sm uppercase truncate block">
-                                {{ $r->name_with_title }}
+                            <p class="font-semibold text-foreground text-sm truncate block">
+                                {{ $r->name }}
                             </p>
                             <p class="text-xs text-secondary mt-0.5 truncate flex items-center gap-1.5" title="NIK">
                                 <span class="inline-block size-1.5 rounded-full bg-emerald-500 shrink-0"></span>
@@ -248,18 +251,21 @@
                         class="fixed z-[9999] w-56 rounded-xl border border-border bg-white shadow-lg py-3 flex flex-col text-left origin-top-right">
 
                         <p class="px-4 pt-1 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-secondary">Detail</p>
-                        <button type="button" @click="open = false" hx-get="{{ route('admin.personnel.data.detail-personal', $r->id) }}" hx-target="#modal-container" hx-swap="outerHTML" class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors cursor-pointer text-left">
+                        <button type="button" @click="open = false" hx-get="{{ route('admin.personnel.data.detail-personal', $r->id) }}" hx-target="#modal-container" hx-swap="innerHTML" class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors cursor-pointer text-left">
                             <i data-lucide="user" class="size-4 text-secondary pointer-events-none"></i> Data Pegawai
                         </button>
-                        <button type="button" @click="open = false" hx-get="{{ route('admin.personnel.data.detail-employment', $r->id) }}" hx-target="#modal-container" hx-swap="outerHTML" class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors cursor-pointer text-left">
+                        <button type="button" @click="open = false" hx-get="{{ route('admin.personnel.data.detail-employment', $r->id) }}" hx-target="#modal-container" hx-swap="innerHTML" class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors cursor-pointer text-left">
                             <i data-lucide="briefcase" class="size-4 text-secondary pointer-events-none"></i> Detail Kepegawaian
                         </button>
 
                         <div class="my-2 border-t border-border"></div>
 
                         <p class="px-4 pt-1 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-secondary">Edit & Delete</p>
-                        <button type="button" @click="open = false" hx-get="{{ route('admin.personnel.data.edit-personal', $r->id) }}" hx-target="#modal-container" hx-swap="outerHTML" class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors cursor-pointer text-left">
+                        <button type="button" @click="open = false" hx-get="{{ route('admin.personnel.data.edit-personal', $r->id) }}" hx-target="#modal-container" hx-swap="innerHTML" class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors cursor-pointer text-left">
                             <i data-lucide="file-pen-line" class="size-4 text-secondary pointer-events-none"></i> Edit Data
+                        </button>
+                        <button type="button" @click="open = false" hx-get="{{ route('admin.personnel.data.edit-photo', $r->id) }}" hx-target="#modal-container" hx-swap="innerHTML" class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors cursor-pointer text-left">
+                            <i data-lucide="camera" class="size-4 text-secondary pointer-events-none"></i> Ganti Foto
                         </button>
 
                         <button type="button" hx-delete="{{ route('admin.personnel.data.destroy', $r->id) }}" hx-target="#staff-container" hx-select="#staff-container" hx-swap="outerHTML" hx-confirm="Yakin ingin menghapus data {{ $r->name }}? Tindakan ini tidak dapat dibatalkan." class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-error hover:bg-error/10 transition-colors cursor-pointer text-left">

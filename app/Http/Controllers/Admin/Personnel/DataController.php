@@ -43,6 +43,8 @@ class DataController extends Controller
     private const STALE_DRAFT_DAYS = 7;
 
     private const FORM_VIEW = 'pages.admin.personnel.data.partials._edit-personal';
+    private const DETAIL_PERSONAL_VIEW = 'pages.admin.personnel.data.partials._detail-personal';
+    private const DETAIL_EMPLOYMENT_VIEW = 'pages.admin.personnel.data.partials._detail-employment';
 
     /** Kolom staff_data yang diisi pada tiap step. */
     private const STAFF_FIELDS = [
@@ -119,9 +121,9 @@ class DataController extends Controller
         $staff = $query->orderBy('name', 'asc')->paginate(10)->withQueryString();
 
         // 6. Opsi untuk select filter
-        $employmentOptions = DB::table('staff_employment_statuses')->pluck('name', 'id');
-        $personnelOptions = DB::table('staff_personnel_types')->pluck('name', 'id');
-        $positionOptions = DB::table('staff_positions')->pluck('name', 'id');
+        $employmentOptions = DB::table('staff_employment_statuses')->orderBy('code')->pluck('name', 'id');
+        $personnelOptions = DB::table('staff_personnel_types')->orderBy('code')->pluck('name', 'id');
+        $positionOptions = DB::table('staff_positions')->orderBy('code')->pluck('name', 'id');
 
         // 6b. Statistik kartu
         $stats = $this->getStats();
@@ -183,14 +185,20 @@ class DataController extends Controller
 
     public function detailPersonal($id)
     {
-        $staff = Data::with(['vault'])->findOrFail($id);
-        return view('pages.admin.personnel.data.modals._detail-personal', compact('staff'));
+        $staff = Data::with(['vault', 'employmentStatus', 'position'])->findOrFail($id);
+
+        return view(self::DETAIL_PERSONAL_VIEW, compact('staff'));
     }
 
     public function detailEmployment($id)
     {
-        $staff = Data::with(['personnelType', 'position'])->findOrFail($id);
-        return view('pages.admin.personnel.data.modals._detail-employment', compact('staff'));
+        $staff = Data::with(['vault', 'employmentStatus', 'personnelType', 'position'])->findOrFail($id);
+
+        $concentration = class_exists(CoreConcentration::class) && filled($staff->concentration_id)
+            ? CoreConcentration::find($staff->concentration_id)
+            : null;
+
+        return view(self::DETAIL_EMPLOYMENT_VIEW, compact('staff', 'concentration'));
     }
 
     /*
@@ -218,6 +226,16 @@ class DataController extends Controller
     public function editPersonal($id)
     {
         return $this->renderForm(Data::with('vault')->findOrFail($id));
+    }
+
+    /**
+     * Modal Upload/Ganti Foto Pegawai.
+     */
+    public function editPhoto($id)
+    {
+        $staff = Data::findOrFail($id);
+
+        return view('pages.admin.personnel.data.partials._edit-photo-modal', compact('staff'));
     }
 
     private function renderForm(?Data $staff)
@@ -417,6 +435,49 @@ class DataController extends Controller
             $wasDraft ? 'Data pegawai berhasil ditambahkan.' : 'Data pegawai berhasil diperbarui.',
             $staff->id
         );
+    }
+
+    /**
+     * Simpan/ganti foto pegawai. Foto lama (jika ada) dihapus dari storage
+     * setelah foto baru berhasil disimpan.
+     */
+    public function updatePhoto(Request $request, string $id)
+    {
+        $staff = Data::findOrFail($id);
+
+        try {
+            \Illuminate\Support\Facades\Validator::make(
+                $request->all(),
+                [
+                    'photo' => ['required', 'image', 'mimes:jpg,jpeg,png', 'max:1024'],
+                ],
+                [
+                    'required' => ':attribute wajib diunggah.',
+                    'image'    => ':attribute harus berupa gambar.',
+                    'mimes'    => ':attribute harus berformat JPG atau PNG.',
+                    'max'      => ':attribute maksimal 1 MB.',
+                ],
+                [
+                    'photo' => 'Foto',
+                ]
+            )->validate();
+        } catch (ValidationException $e) {
+            return $this->validationErrorResponse($e);
+        }
+
+        $oldPhoto = $staff->photo;
+
+        $path = $request->file('photo')->store('staff-photos', 'public');
+
+        $staff->photo = $path;
+        $staff->updated_by = Auth::id();
+        $staff->save();
+
+        if ($oldPhoto && \Illuminate\Support\Facades\Storage::disk('public')->exists($oldPhoto)) {
+            \Illuminate\Support\Facades\Storage::disk('public')->delete($oldPhoto);
+        }
+
+        return $this->respondWithSuccess($request, 'Foto pegawai berhasil diperbarui.', $staff->id);
     }
 
     /**

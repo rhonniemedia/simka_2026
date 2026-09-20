@@ -81,15 +81,21 @@ $hasError = $errors->has($name);
     <div class="relative" x-ref="btn">
         <input type="text"
             x-model="search"
-            @focus="open()"
+            x-ref="input"
+            @click="openDropdown ? close() : open()"
             @input="openDropdown = true"
+            @keydown.arrow-down.prevent="if (!openDropdown) open()"
+            @keydown.escape="if (openDropdown) { close(); $event.stopPropagation(); }"
+            @keydown.tab="close()"
             placeholder="{{ $placeholder }}"
             class="{{ $inputClass }} {{ $hasError ? $errorClass : '' }} pr-10"
             autocomplete="off"
             required>
 
         <div class="absolute inset-y-0 right-0 flex items-center px-3.5 pointer-events-none">
-            <i data-lucide="chevron-down" class="size-4 text-secondary"></i>
+            <span class="flex transition-transform duration-200" :class="openDropdown ? 'rotate-180' : ''">
+                <i data-lucide="chevron-down" class="size-4 text-secondary"></i>
+            </span>
         </div>
     </div>
 

@@ -41,109 +41,108 @@ class DataVault extends Model
     ];
 
     // ========================================================================
+    // HELPER ENKRIPSI
+    // ========================================================================
+
+    /**
+     * Membuat accessor/mutator untuk field yang disimpan terenkripsi di kolom
+     * "{$name}_encrypted", dengan kolom "{$name}_hash" opsional.
+     *
+     * - get : mendekripsi kolom terenkripsi (null bila kosong).
+     * - set : trim lalu enkripsi; nilai kosong (null / '' / spasi saja) disimpan
+     *         sebagai null. Nilai "0" tetap dianggap terisi.
+     *
+     * @param string $name       Nama atribut (snake_case), mis. 'phone_number'.
+     * @param bool   $withHash   Isi juga kolom "{$name}_hash" (SHA-256) untuk pencarian/unik.
+     * @param bool   $lowerHash  Hash dihitung dari versi lowercase, supaya "Islam" dan
+     *                           "islam" menghasilkan hash yang sama. Nilai terenkripsi
+     *                           tetap menyimpan teks aslinya.
+     */
+    private function encryptedAttribute(string $name, bool $withHash = false, bool $lowerHash = false): Attribute
+    {
+        $encryptedColumn = "{$name}_encrypted";
+        $hashColumn      = "{$name}_hash";
+
+        return Attribute::make(
+            get: fn($value, $attributes) => filled($attributes[$encryptedColumn] ?? null)
+                ? Crypt::decryptString($attributes[$encryptedColumn])
+                : null,
+            set: function ($value) use ($encryptedColumn, $hashColumn, $withHash, $lowerHash) {
+                // trim() membuang spasi yang tidak sengaja terinput.
+                $clean = filled($value) ? trim((string) $value) : '';
+                $clean = $clean !== '' ? $clean : null;
+
+                $result = [
+                    $encryptedColumn => $clean !== null ? Crypt::encryptString($clean) : null,
+                ];
+
+                if ($withHash) {
+                    // strtolower (bukan mb_strtolower) dipertahankan agar hash data
+                    // lama tetap sama.
+                    $result[$hashColumn] = $clean !== null
+                        ? hash('sha256', $lowerHash ? strtolower($clean) : $clean)
+                        : null;
+                }
+
+                return $result;
+            }
+        );
+    }
+
+    // ========================================================================
     // IDENTITAS
     // ========================================================================
 
     protected function nik(): Attribute
     {
-        return Attribute::make(
-            get: fn($value, $attributes) => isset($attributes['nik_encrypted']) ? Crypt::decryptString($attributes['nik_encrypted']) : null,
-            set: fn($value) => [
-                // trim() digunakan untuk membuang spasi yang tidak sengaja terinput
-                'nik_encrypted' => $value ? Crypt::encryptString(trim($value)) : null,
-                'nik_hash'      => $value ? hash('sha256', trim($value)) : null,
-            ]
-        );
+        return $this->encryptedAttribute('nik', withHash: true);
     }
 
     protected function nip(): Attribute
     {
-        return Attribute::make(
-            get: fn($value, $attributes) => isset($attributes['nip_encrypted']) ? Crypt::decryptString($attributes['nip_encrypted']) : null,
-            set: fn($value) => [
-                'nip_encrypted' => $value ? Crypt::encryptString(trim($value)) : null,
-                'nip_hash'      => $value ? hash('sha256', trim($value)) : null,
-            ]
-        );
+        return $this->encryptedAttribute('nip', withHash: true);
     }
 
     protected function nuptk(): Attribute
     {
-        return Attribute::make(
-            get: fn($value, $attributes) => isset($attributes['nuptk_encrypted']) ? Crypt::decryptString($attributes['nuptk_encrypted']) : null,
-            set: fn($value) => [
-                'nuptk_encrypted' => $value ? Crypt::encryptString(trim($value)) : null,
-                'nuptk_hash'      => $value ? hash('sha256', trim($value)) : null,
-            ]
-        );
+        return $this->encryptedAttribute('nuptk', withHash: true);
     }
 
-    protected function pob(): Attribute // Tempat Lahir (Hanya enkripsi, tidak ada hash di migration)
+    // Tempat Lahir (hanya enkripsi, tidak ada hash di migration)
+    protected function pob(): Attribute
     {
-        return Attribute::make(
-            get: fn($value, $attributes) => isset($attributes['pob_encrypted']) ? Crypt::decryptString($attributes['pob_encrypted']) : null,
-            set: fn($value) => [
-                'pob_encrypted' => $value ? Crypt::encryptString(trim($value)) : null,
-            ]
-        );
+        return $this->encryptedAttribute('pob');
     }
 
-    protected function dob(): Attribute // Tanggal Lahir (Format standard YYYY-MM-DD, cukup trim)
+    // Tanggal Lahir (format standar YYYY-MM-DD)
+    protected function dob(): Attribute
     {
-        return Attribute::make(
-            get: fn($value, $attributes) => isset($attributes['dob_encrypted']) ? Crypt::decryptString($attributes['dob_encrypted']) : null,
-            set: fn($value) => [
-                'dob_encrypted' => $value ? Crypt::encryptString(trim($value)) : null,
-                'dob_hash'      => $value ? hash('sha256', trim($value)) : null,
-            ]
-        );
+        return $this->encryptedAttribute('dob', withHash: true);
     }
 
-    protected function religion(): Attribute // Agama (Input teks bebas/pilihan yang rentan huruf besar/kecil)
+    // Agama (hash lowercase agar pencarian "islam" atau "Islam" sama)
+    protected function religion(): Attribute
     {
-        return Attribute::make(
-            get: fn($value, $attributes) => isset($attributes['religion_encrypted']) ? Crypt::decryptString($attributes['religion_encrypted']) : null,
-            set: fn($value) => [
-                // Enkripsi tetap menyimpan string asli (misal: "Islam") agar saat didekripsi tampilannya bagus
-                'religion_encrypted' => $value ? Crypt::encryptString(trim($value)) : null,
-                // Hash diubah ke lowercase agar pencarian "islam" atau "Islam" menghasilkan hash yang sama
-                'religion_hash'      => $value ? hash('sha256', strtolower(trim($value))) : null,
-            ]
-        );
+        return $this->encryptedAttribute('religion', withHash: true, lowerHash: true);
     }
 
     // ========================================================================
-    // FINANSIAL (Hanya enkripsi, tidak ada hash di migration)
+    // FINANSIAL (hanya enkripsi, tidak ada hash di migration)
     // ========================================================================
 
     protected function npwp(): Attribute
     {
-        return Attribute::make(
-            get: fn($value, $attributes) => isset($attributes['npwp_encrypted']) ? Crypt::decryptString($attributes['npwp_encrypted']) : null,
-            set: fn($value) => [
-                'npwp_encrypted' => $value ? Crypt::encryptString(trim($value)) : null,
-            ]
-        );
+        return $this->encryptedAttribute('npwp');
     }
 
     protected function bankAccount(): Attribute
     {
-        return Attribute::make(
-            get: fn($value, $attributes) => isset($attributes['bank_account_encrypted']) ? Crypt::decryptString($attributes['bank_account_encrypted']) : null,
-            set: fn($value) => [
-                'bank_account_encrypted' => $value ? Crypt::encryptString(trim($value)) : null,
-            ]
-        );
+        return $this->encryptedAttribute('bank_account');
     }
 
     protected function baseSalary(): Attribute
     {
-        return Attribute::make(
-            get: fn($value, $attributes) => isset($attributes['base_salary_encrypted']) ? Crypt::decryptString($attributes['base_salary_encrypted']) : null,
-            set: fn($value) => [
-                'base_salary_encrypted' => $value ? Crypt::encryptString(trim($value)) : null,
-            ]
-        );
+        return $this->encryptedAttribute('base_salary');
     }
 
     // ========================================================================
@@ -152,24 +151,13 @@ class DataVault extends Model
 
     protected function phoneNumber(): Attribute
     {
-        return Attribute::make(
-            get: fn($value, $attributes) => isset($attributes['phone_number_encrypted']) ? Crypt::decryptString($attributes['phone_number_encrypted']) : null,
-            set: fn($value) => [
-                'phone_number_encrypted' => $value ? Crypt::encryptString(trim($value)) : null,
-                'phone_number_hash'      => $value ? hash('sha256', trim($value)) : null,
-            ]
-        );
+        return $this->encryptedAttribute('phone_number', withHash: true);
     }
 
-    protected function email(): Attribute // Email (Sangat krusial menggunakan strtolower + trim)
+    // Email (hash lowercase karena email tidak membedakan huruf besar/kecil)
+    protected function email(): Attribute
     {
-        return Attribute::make(
-            get: fn($value, $attributes) => isset($attributes['email_encrypted']) ? Crypt::decryptString($attributes['email_encrypted']) : null,
-            set: fn($value) => [
-                'email_encrypted' => $value ? Crypt::encryptString(trim($value)) : null,
-                'email_hash'      => $value ? hash('sha256', strtolower(trim($value))) : null,
-            ]
-        );
+        return $this->encryptedAttribute('email', withHash: true, lowerHash: true);
     }
 
     // ========================================================================
@@ -178,73 +166,38 @@ class DataVault extends Model
 
     protected function address(): Attribute
     {
-        return Attribute::make(
-            get: fn($value, $attributes) => isset($attributes['address_encrypted']) ? Crypt::decryptString($attributes['address_encrypted']) : null,
-            set: fn($value) => [
-                'address_encrypted' => $value ? Crypt::encryptString(trim($value)) : null,
-            ]
-        );
+        return $this->encryptedAttribute('address');
     }
 
     protected function rt(): Attribute
     {
-        return Attribute::make(
-            get: fn($value, $attributes) => isset($attributes['rt_encrypted']) ? Crypt::decryptString($attributes['rt_encrypted']) : null,
-            set: fn($value) => [
-                'rt_encrypted' => $value ? Crypt::encryptString(trim($value)) : null,
-            ]
-        );
+        return $this->encryptedAttribute('rt');
     }
 
     protected function rw(): Attribute
     {
-        return Attribute::make(
-            get: fn($value, $attributes) => isset($attributes['rw_encrypted']) ? Crypt::decryptString($attributes['rw_encrypted']) : null,
-            set: fn($value) => [
-                'rw_encrypted' => $value ? Crypt::encryptString(trim($value)) : null,
-            ]
-        );
+        return $this->encryptedAttribute('rw');
     }
 
     protected function village(): Attribute
     {
-        return Attribute::make(
-            get: fn($value, $attributes) => isset($attributes['village_encrypted']) ? Crypt::decryptString($attributes['village_encrypted']) : null,
-            set: fn($value) => [
-                'village_encrypted' => $value ? Crypt::encryptString(trim($value)) : null,
-            ]
-        );
+        return $this->encryptedAttribute('village');
     }
 
-    protected function district(): Attribute // Kecamatan (Memiliki hash berdasarkan migration)
+    // Kecamatan (memiliki hash berdasarkan migration)
+    protected function district(): Attribute
     {
-        return Attribute::make(
-            get: fn($value, $attributes) => isset($attributes['district_encrypted']) ? Crypt::decryptString($attributes['district_encrypted']) : null,
-            set: fn($value) => [
-                'district_encrypted' => $value ? Crypt::encryptString(trim($value)) : null,
-                'district_hash'      => $value ? hash('sha256', strtolower(trim($value))) : null,
-            ]
-        );
+        return $this->encryptedAttribute('district', withHash: true, lowerHash: true);
     }
 
     protected function regency(): Attribute
     {
-        return Attribute::make(
-            get: fn($value, $attributes) => isset($attributes['regency_encrypted']) ? Crypt::decryptString($attributes['regency_encrypted']) : null,
-            set: fn($value) => [
-                'regency_encrypted' => $value ? Crypt::encryptString(trim($value)) : null,
-            ]
-        );
+        return $this->encryptedAttribute('regency');
     }
 
     protected function province(): Attribute
     {
-        return Attribute::make(
-            get: fn($value, $attributes) => isset($attributes['province_encrypted']) ? Crypt::decryptString($attributes['province_encrypted']) : null,
-            set: fn($value) => [
-                'province_encrypted' => $value ? Crypt::encryptString(trim($value)) : null,
-            ]
-        );
+        return $this->encryptedAttribute('province');
     }
 
     // ========================================================================

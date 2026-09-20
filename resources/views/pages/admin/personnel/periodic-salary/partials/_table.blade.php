@@ -11,7 +11,7 @@
                 <tr class="border-b border-border">
                     <th class="w-[30%] px-4 py-3 text-sm font-bold text-secondary tracking-wider">
                         Data Pegawai
-                        <div class="text-[11px] font-normal normal-case">Nama | NIK</div>
+                        <div class="text-[11px] font-normal normal-case">Nama | Nomor Induk Kependudukan</div>
                     </th>
                     <th class="w-[30%] px-4 py-3 text-sm font-bold text-secondary tracking-wider">
                         Berkala Terakhir
@@ -57,7 +57,7 @@
                                 <x-ui.avatar :name="$staff?->name ?? 'Unknown'" :gender="$staff?->gender" :index="$loop->index" />
                             </div>
                             <div>
-                                <div class="font-semibold text-foreground text-sm uppercase group-hover:text-primary transition-colors whitespace-nowrap">
+                                <div class="font-semibold text-foreground text-sm group-hover:text-primary transition-colors whitespace-nowrap">
                                     {{ $staff?->name ?? 'Data Tidak Ditemukan' }}
                                 </div>
                                 <div class="flex items-center gap-1.5 text-xs text-secondary mt-1 whitespace-nowrap">

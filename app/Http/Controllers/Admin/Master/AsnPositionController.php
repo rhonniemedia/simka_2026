@@ -61,6 +61,13 @@ class AsnPositionController extends Controller
             return $this->respondWithError($e->errors());
         }
 
+        // AsnPosition::booted() hanya menghitung ulang default saat data BARU
+        // dibuat (event "creating"). Saat edit, kalau field ini dikosongkan,
+        // jangan kirim null ke update() -> biarkan nilai lama tetap dipakai.
+        if (blank($validated['retirement_age'] ?? null)) {
+            unset($validated['retirement_age']);
+        }
+
         $item->update($validated);
 
         return $this->respondWithSuccess('Jabatan Kepegawaian berhasil diperbarui.');
@@ -99,8 +106,14 @@ class AsnPositionController extends Controller
             'position_type' => 'required|in:fungsional_keahlian,fungsional_keterampilan,pelaksana',
             'eligibility'   => 'required|in:pns,pppk,both',
             'name'          => ['required', 'string', 'max:255', $nameRule],
+            // Nullable: kalau dikosongkan, AsnPosition::booted() otomatis
+            // mengisi 58 tahun (atau 60 untuk Fungsional Keahlian "Guru...").
+            'retirement_age' => ['nullable', 'integer', 'min:50', 'max:70'],
         ], [
             'name.unique' => 'Nama jabatan ini sudah terdaftar, gunakan nama lain.',
+            'retirement_age.integer' => 'Batas usia pensiun harus berupa angka.',
+            'retirement_age.min' => 'Batas usia pensiun minimal 50 tahun.',
+            'retirement_age.max' => 'Batas usia pensiun maksimal 70 tahun.',
         ]);
     }
 
