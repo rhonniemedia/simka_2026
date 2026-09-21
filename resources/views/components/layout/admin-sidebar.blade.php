@@ -7,7 +7,7 @@
     <div class="flex items-center justify-between border-b border-border h-[90px] px-5 gap-3">
         <div class="flex items-center gap-3">
             <div class="w-10 h-10 shrink-0 rounded-xl flex items-center justify-center bg-gradient-to-br from-red-500 to-purple-700 shadow-sm">
-                <i data-lucide="graduation-cap" class="size-5 text-white"></i>
+                <i data-lucide="file-archive" class="size-5 text-white"></i>
             </div>
 
             <div>
@@ -224,6 +224,36 @@
                 </div>
             </a>
         </div>
+
+        <!-- Pengguna -->
+        <div class="flex flex-col gap-1 mt-4">
+            <h3 class="font-bold text-sm text-foreground px-3 mb-2">
+                Pengguna
+            </h3>
+
+            <div class="flex flex-col gap-1">
+
+                <a href="#" class="group cursor-pointer">
+                    <div class="flex items-center rounded-xl p-3 gap-3 transition-all duration-300 hover:bg-muted">
+                        <i data-lucide="users-round" class="size-5 text-secondary transition-all duration-300 group-hover:text-foreground"></i>
+                        <span class="text-sm font-medium text-secondary transition-all duration-300 group-hover:text-foreground">
+                            Daftar Pengguna
+                        </span>
+                    </div>
+                </a>
+
+                <a href="#" class="group cursor-pointer">
+                    <div class="flex items-center rounded-xl p-3 gap-3 transition-all duration-300 hover:bg-muted">
+                        <i data-lucide="user-cog" class="size-5 text-secondary transition-all duration-300 group-hover:text-foreground"></i>
+                        <span class="text-sm font-medium text-secondary transition-all duration-300 group-hover:text-foreground">
+                            Profil Saya
+                        </span>
+                    </div>
+                </a>
+
+            </div>
+        </div>
+
     </div>
 
 

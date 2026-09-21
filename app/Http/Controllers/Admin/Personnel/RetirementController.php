@@ -6,13 +6,16 @@ use App\Http\Controllers\Controller;
 use App\Models\AsnPositionHistory;
 use App\Models\Data;
 use App\Models\EmploymentStatus;
+use App\Models\StaffStatusHistory;
 use App\Services\Personnel\RetirementList;
 use Carbon\Carbon;
 use DateTimeImmutable;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Throwable;
 
 class RetirementController extends Controller
@@ -87,13 +90,36 @@ class RetirementController extends Controller
     |--------------------------------------------------------------------
     | 3. SIMPAN
     |--------------------------------------------------------------------
-    | Semua nilai dihitung ulang di server (status & TMT tidak diambil dari
-    | input), dan baris pegawai dikunci agar tidak diproses dua kali.
+    | Sama seperti fitur Mutasi: perubahan status ditulis ke riwayat
+    | (staff_status_histories) dan ke data pegawai dalam satu transaksi.
+    |
+    | Status & TMT tidak diambil dari input: keduanya dihitung ulang di
+    | server. Baris pegawai dikunci agar tidak diproses dua kali.
     */
 
     public function store(Request $request, string $id)
     {
-        $outcome = DB::transaction(function () use ($id) {
+        try {
+            $validated = $request->validate(
+                [
+                    'decree_number' => ['required', 'string', 'max:255'],
+                    'note' => ['nullable', 'string', 'max:1000'],
+                ],
+                [
+                    'required' => ':attribute wajib diisi.',
+                    'string' => ':attribute harus berupa teks.',
+                    'max' => ':attribute maksimal :max karakter.',
+                ],
+                [
+                    'decree_number' => 'Nomor SK',
+                    'note' => 'Catatan',
+                ]
+            );
+        } catch (ValidationException $e) {
+            return $this->validationErrorResponse($e);
+        }
+
+        $outcome = DB::transaction(function () use ($id, $validated) {
             Data::completed()->whereKey($id)->lockForUpdate()->firstOrFail();
 
             $row = $this->buildRows($id)[0] ?? null;
@@ -108,6 +134,16 @@ class RetirementController extends Controller
 
             $staff = $row['staff'];
             $tmt = $row['calc']['tmt'];
+
+            StaffStatusHistory::create([
+                'staff_id' => $staff->id,
+                'from_status' => $staff->status,
+                'to_status' => RetirementList::RETIRED_STATUS,
+                'decree_number' => $validated['decree_number'],
+                'effective_date' => $tmt->format('Y-m-d'),
+                'note' => $validated['note'] ?? null,
+                'created_by' => Auth::id(),
+            ]);
 
             $staff->update([
                 'status' => RetirementList::RETIRED_STATUS,
@@ -313,6 +349,18 @@ class RetirementController extends Controller
         }
 
         return redirect()->route('admin.personnel.retirement.index');
+    }
+
+    /**
+     * Format sama dengan modul Mutasi: JSON { message, errors } agar modal
+     * dapat menampilkan pesan di bawah masing-masing field.
+     */
+    private function validationErrorResponse(ValidationException $e): JsonResponse
+    {
+        return response()->json([
+            'message' => $e->getMessage(),
+            'errors' => $e->errors(),
+        ], $e->status);
     }
 
     private function formatDate(DateTimeImmutable $date): string

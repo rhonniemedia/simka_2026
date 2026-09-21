@@ -7,25 +7,44 @@ $tmtText = $row['tmt']
 ? \Carbon\Carbon::parse($row['tmt']->format('Y-m-d'))->locale('id')->isoFormat('D MMMM Y')
 : '-';
 
-$fieldClass = 'w-full bg-muted/50 border border-border rounded-xl px-3.5 py-2.5 text-sm text-foreground cursor-default focus:outline-none';
+// Gaya field: sama dengan form edit pegawai & form mutasi.
+$labelClass = 'block text-sm font-medium text-foreground mb-1.5';
+$inputClass = 'w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary';
+$readonlyClass = 'w-full bg-muted/50 border border-border rounded-xl px-3.5 py-2.5 text-sm text-foreground cursor-default focus:outline-none';
+$errorClass = 'text-[11px] text-error mt-1.5 font-medium';
 @endphp
 
 <div x-data="{
         open: false,
-        submitting: false,
+        saving: false,
+        errors: {},
         close() {
             const container = this.$root.closest('#modal-container');
             this.open = false;
             setTimeout(() => { if (container) container.innerHTML = ''; }, 150);
+        },
+        setErrors(xhr) {
+            this.errors = {};
+
+            if (xhr && xhr.status === 422) {
+                try {
+                    this.errors = JSON.parse(xhr.response).errors ?? {};
+                } catch (e) {
+                    this.errors = {};
+                }
+            }
+        },
+        err(field) {
+            return this.errors[field]?.[0] ?? null;
         }
     }"
     x-init="setTimeout(() => open = true, 10)"
     @close-modal.window="close()"
-    @keydown.escape.window="if (open && !submitting) close()">
+    @keydown.escape.window="if (open && !saving) close()">
 
     <x-ui.modal show="open" maxWidth="md">
 
-        {{-- Header --}}
+        {{-- ============================ HEADER ============================ --}}
         <div class="flex items-start sm:items-center justify-between gap-3 px-4 sm:px-6 py-4 border-b border-border bg-slate-50/50 shrink-0">
             <div class="flex items-center gap-3 sm:gap-4 min-w-0">
                 <div class="size-10 sm:size-12 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center shrink-0 shadow-sm">
@@ -42,47 +61,77 @@ $fieldClass = 'w-full bg-muted/50 border border-border rounded-xl px-3.5 py-2.5 
             </button>
         </div>
 
-        {{-- Form: status & TMT dihitung ulang di server, jadi tidak ada input yang dikirim selain token. --}}
+        {{-- Form: status & TMT dihitung ulang di server, jadi yang dikirim hanya Nomor SK dan Catatan.
+             Status "Menyimpan..." dan pembacaan error 422 dipasang di <form> karena event htmx
+             dikirim ke elemen pemilik hx-post. --}}
         <form hx-post="{{ route('admin.personnel.retirement.process.store', $staff->id) }}"
             hx-swap="none"
-            @htmx:before-request="submitting = true"
-            @htmx:after-request="submitting = false"
+            @htmx:before-request="saving = true"
+            @htmx:after-request="
+                saving = false;
+                setErrors($event.detail.xhr);
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+            "
             class="flex flex-col flex-1 min-h-0">
             @csrf
 
-            {{-- Body --}}
-            <div class="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 space-y-4">
+            {{-- ============================ BODY ============================ --}}
+            <div class="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 space-y-4 [scrollbar-gutter:stable]">
+
+                {{-- Baca-saja --}}
                 <div>
-                    <label class="block text-sm text-foreground mb-2">Nama</label>
-                    <input type="text" value="{{ $staff->name }}" readonly tabindex="-1" class="{{ $fieldClass }}">
+                    <label class="{{ $labelClass }}">Nama</label>
+                    <input type="text" value="{{ $staff->name }}" readonly tabindex="-1" class="{{ $readonlyClass }}">
                 </div>
 
-                <div>
-                    <label class="block text-sm text-foreground mb-2">Status</label>
-                    <input type="text" value="Pensiun" readonly tabindex="-1" class="{{ $fieldClass }}">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="{{ $labelClass }}">Status</label>
+                        <input type="text" value="Pensiun" readonly tabindex="-1" class="{{ $readonlyClass }}">
+                    </div>
+                    <div>
+                        <label class="{{ $labelClass }}">TMT Pensiun</label>
+                        <input type="text" value="{{ $tmtText }}" readonly tabindex="-1" class="{{ $readonlyClass }}">
+                    </div>
                 </div>
 
+                {{-- Nomor SK --}}
                 <div>
-                    <label class="block text-sm text-foreground mb-2">TMT Pensiun</label>
-                    <input type="text" value="{{ $tmtText }}" readonly tabindex="-1" class="{{ $fieldClass }}">
+                    <label class="{{ $labelClass }}">Nomor SK <span class="text-error">*</span></label>
+                    <input type="text" name="decree_number"
+                        placeholder="mis. 821/123/SK/2026"
+                        autocomplete="off"
+                        class="{{ $inputClass }}">
+                    <p class="{{ $errorClass }}" x-show="err('decree_number')" x-cloak x-text="err('decree_number')"></p>
+                </div>
+
+                {{-- Catatan --}}
+                <div>
+                    <label class="{{ $labelClass }}">Catatan</label>
+                    <textarea name="note" rows="3"
+                        placeholder="Opsional"
+                        class="{{ $inputClass }} resize-none"></textarea>
+                    <p class="{{ $errorClass }}" x-show="err('note')" x-cloak x-text="err('note')"></p>
                 </div>
 
                 <p class="flex items-start gap-2 rounded-xl bg-amber-50 px-3.5 py-3 text-xs leading-relaxed text-amber-800">
                     <i data-lucide="info" class="size-4 shrink-0 mt-px"></i>
-                    <span>Status pegawai akan diubah menjadi Pensiun terhitung mulai TMT di atas.</span>
+                    <span>Status pegawai akan diubah menjadi Pensiun terhitung mulai TMT di atas, dan dicatat pada riwayat status pegawai.</span>
                 </p>
             </div>
 
-            {{-- Footer --}}
-            <div class="shrink-0 border-t border-border bg-white px-4 sm:px-6 py-4 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2.5 sm:gap-3">
-                <button type="button" @click="close()" :disabled="submitting"
-                    class="w-full sm:w-auto flex items-center justify-center px-5 py-2.5 rounded-xl border border-border bg-white text-secondary text-sm font-semibold hover:bg-muted hover:text-foreground transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-60 disabled:cursor-not-allowed">
-                    Batal
+            {{-- ============================ FOOTER ============================ --}}
+            <div class="px-4 sm:px-6 py-4 border-t border-border bg-slate-50/50 flex flex-col-reverse sm:flex-row items-center sm:justify-end gap-2.5 sm:gap-3 shrink-0">
+                <button type="button" @click="close()" :disabled="saving"
+                    class="w-full sm:w-auto flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-xl border border-border bg-white text-secondary text-sm font-semibold hover:bg-muted hover:border-gray-300 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed">
+                    <i data-lucide="x-circle" class="size-4"></i>
+                    <span>Batal</span>
                 </button>
-                <button type="submit" :disabled="submitting"
-                    class="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary/90 shadow-sm shadow-primary/30 transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 disabled:opacity-70 disabled:cursor-wait">
-                    <i data-lucide="check" class="size-4"></i>
-                    <span x-text="submitting ? 'Memproses...' : 'Proses Pensiun'">Proses Pensiun</span>
+                <button type="submit" :disabled="saving"
+                    class="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary/90 shadow-sm shadow-primary/30 transition-all cursor-pointer disabled:opacity-70 disabled:cursor-wait">
+                    <span class="flex" x-show="!saving"><i data-lucide="check" class="size-4"></i></span>
+                    <span class="flex" x-show="saving" x-cloak><i data-lucide="loader-2" stroke-width="3" class="size-4 animate-spin"></i></span>
+                    <span x-text="saving ? 'Memproses...' : 'Proses Pensiun'">Proses Pensiun</span>
                 </button>
             </div>
         </form>

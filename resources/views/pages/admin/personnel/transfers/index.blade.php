@@ -20,7 +20,7 @@
     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
         <div>
             <h1 class="text-2xl md:text-3xl font-bold text-foreground mb-1">Mutasi Pegawai</h1>
-            <p class="text-sm text-secondary leading-relaxed">Catat pegawai yang pindah, mengundurkan diri, meninggal, atau diberhentikan — dan aktifkan kembali bila diperlukan.</p>
+            <p class="text-sm text-secondary leading-relaxed">Kelola perubahan status dan riwayat mutasi pegawai, termasuk perpindahan, pengunduran diri, pemberhentian, dan pengaktifan kembali.</p>
         </div>
 
         <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-3">

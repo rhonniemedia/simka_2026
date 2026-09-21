@@ -22,7 +22,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-    return view('pages.home.index');
+    return redirect()->route('admin.home');
 });
 
 Route::middleware('guest')->group(function () {
@@ -31,27 +31,6 @@ Route::middleware('guest')->group(function () {
 });
 
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout')->middleware('auth');
-
-Route::get('/dashboard', function () {
-    $username = Auth::user()->username;
-    $logoutRoute = route('logout');
-    $csrf = csrf_field();
-
-    return "
-        <div style='font-family: sans-serif; padding: 3rem;'>
-            <h1 style='font-size: 1.5rem; font-weight: bold; margin-bottom: 1rem; color: #1f2937;'>
-                Selamat datang di SIMKA, {$username}!
-            </h1>
-            
-            <form method='POST' action='{$logoutRoute}'>
-                {$csrf}
-                <button type='submit' style='background-color: #ef4444; color: white; font-weight: 600; padding: 0.6rem 1.2rem; border-radius: 0.5rem; border: none; cursor: pointer;'>
-                    Logout
-                </button>
-            </form>
-        </div>
-    ";
-})->middleware(['auth', 'app.access'])->name('dashboard');
 
 Route::prefix('admin')->name('admin.')->group(function () {
 

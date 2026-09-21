@@ -1,78 +1,93 @@
 {{-- File: resources/views/pages/admin/personnel/transfers/partials/_filter-modal.blade.php --}}
-<div x-show="filterModalOpen" x-cloak
-    class="fixed inset-0 z-[200] flex items-center justify-center p-4">
+@php
+// x-ui.select membutuhkan daftar [['value' => ..., 'label' => ...]].
+$yearSelectOptions = collect($yearOptions ?? [])
+->map(fn($y) => ['value' => (string) $y, 'label' => (string) $y])
+->values()
+->all();
 
-    {{-- Backdrop --}}
-    <div x-show="filterModalOpen" x-transition.opacity @click="filterModalOpen = false"
-        class="absolute inset-0 bg-black/50"></div>
+$statusSelectOptions = [
+['value' => 'transferred', 'label' => 'Pindah'],
+['value' => 'resigned', 'label' => 'Mengundurkan Diri'],
+['value' => 'retired', 'label' => 'Pensiun'],
+['value' => 'deceased', 'label' => 'Meninggal Dunia'],
+['value' => 'dismissed', 'label' => 'Diberhentikan'],
+];
+@endphp
 
-    {{-- Panel --}}
-    <div x-show="filterModalOpen"
-        x-transition:enter="transition ease-out duration-200"
-        x-transition:enter-start="opacity-0 scale-95"
-        x-transition:enter-end="opacity-100 scale-100"
-        class="relative bg-white w-full max-w-md rounded-2xl shadow-xl overflow-hidden">
+<x-ui.modal show="filterModalOpen" maxWidth="md">
 
-        {{-- HEADER --}}
-        <div class="flex items-center justify-between gap-3 px-5 py-4 border-b border-border bg-slate-50/50">
-            <div class="flex items-center gap-3 min-w-0">
-                <div class="size-10 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                    <i data-lucide="filter" class="size-4.5"></i>
-                </div>
-                <h3 class="font-bold text-foreground text-base">Filter Mutasi</h3>
+    {{-- Header --}}
+    <div class="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-border shrink-0 bg-gray-50/50">
+        <div class="flex items-center gap-3">
+            <div class="size-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                <i data-lucide="sliders-horizontal" class="size-4 text-primary"></i>
             </div>
-            <button type="button" @click="filterModalOpen = false"
-                class="size-8 flex items-center justify-center rounded-lg border border-border bg-white text-secondary hover:bg-error/10 hover:text-error hover:border-error/30 transition-colors cursor-pointer shrink-0">
-                <i data-lucide="x" class="size-4 pointer-events-none"></i>
-            </button>
+            <div>
+                <h3 class="font-bold text-foreground text-base sm:text-lg">Filter Mutasi</h3>
+                <p class="text-[11px] sm:text-xs text-secondary mt-0.5">Persempit daftar berdasarkan kriteria berikut</p>
+            </div>
+        </div>
+        <button type="button" @click="filterModalOpen = false" class="size-8 rounded-lg border border-border flex items-center justify-center hover:bg-muted transition-colors">
+            <i data-lucide="x" class="size-4 text-secondary"></i>
+        </button>
+    </div>
+
+    {{-- Form filter.
+         hx-include membawa isi kolom pencarian agar kata kunci tidak hilang saat filter diterapkan. --}}
+    <form id="mutation-filter-form"
+        hx-get="{{ route('admin.personnel.mutation.index') }}"
+        hx-include="[name='search']"
+        hx-target="#staff-container" hx-select="#staff-container" hx-swap="outerHTML"
+        hx-push-url="true"
+        @htmx:after-request="filterModalOpen = false"
+        class="flex flex-col flex-1 min-h-0">
+
+        <div class="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 space-y-3">
+            <p class="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-secondary">
+                <i data-lucide="arrow-right-left" class="size-3.5"></i>
+                Mutasi
+            </p>
+
+            <div class="grid grid-cols-1 gap-3 sm:gap-4">
+                <div>
+                    <label class="block text-sm text-foreground mb-2">Tahun</label>
+                    <x-ui.select
+                        name="year"
+                        :options="$yearSelectOptions"
+                        value="{{ $year ?? '' }}"
+                        placeholder="1 tahun terakhir (default)" />
+                </div>
+                <div>
+                    <label class="block text-sm text-foreground mb-2">Status</label>
+                    <x-ui.select
+                        name="filter_status"
+                        :options="$statusSelectOptions"
+                        value="{{ $filterStatus ?? '' }}"
+                        placeholder="Semua Status" />
+                </div>
+            </div>
         </div>
 
-        <form id="mutation-filter-form"
-            hx-get="{{ route('admin.personnel.mutation.index') }}"
-            hx-target="#staff-container" hx-select="#staff-container" hx-swap="outerHTML"
-            hx-push-url="true"
-            @htmx:after-request="filterModalOpen = false">
+        {{-- Footer --}}
+        <div class="px-4 sm:px-6 py-4 border-t border-border bg-gray-50/50 flex flex-col-reverse sm:flex-row items-center justify-between shrink-0 gap-3">
+            {{-- Reset: kosongkan semua x-ui.select lewat event, lalu kirim ulang filter. --}}
+            <button type="button"
+                @click="
+                    $dispatch('reset-filters');
+                    setTimeout(() => htmx.trigger(document.getElementById('mutation-filter-form'), 'submit'), 50);
+                "
+                class="flex items-center justify-center gap-1.5 w-full sm:w-auto px-4 py-2.5 sm:py-2 rounded-xl border border-border bg-white text-secondary hover:bg-muted transition-colors cursor-pointer text-sm">
+                <i data-lucide="rotate-ccw" class="size-3.5"></i>
+                Reset Filter
+            </button>
 
-            <div class="p-5 space-y-4">
-                <div>
-                    <label class="text-xs font-bold text-secondary uppercase tracking-wider">Tahun</label>
-                    <select name="year" class="mt-1.5 w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
-                        <option value="">1 tahun terakhir (default)</option>
-                        @foreach ($yearOptions as $y)
-                        <option value="{{ $y }}" @selected((string) $year===(string) $y)>{{ $y }}</option>
-                        @endforeach
-                    </select>
-                </div>
+            <button type="submit"
+                class="flex items-center justify-center gap-1.5 w-full sm:w-auto px-5 py-2.5 bg-primary text-white hover:bg-primary-dark shadow-md text-sm font-bold rounded-xl transition-all cursor-pointer">
+                <i data-lucide="check" class="size-4"></i>
+                Terapkan Filter
+            </button>
+        </div>
+    </form>
 
-                <div>
-                    <label class="text-xs font-bold text-secondary uppercase tracking-wider">Status</label>
-                    <select name="filter_status" class="mt-1.5 w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
-                        <option value="">Semua status</option>
-                        <option value="transferred" @selected($filterStatus==='transferred' )>Pindah</option>
-                        <option value="resigned" @selected($filterStatus==='resigned' )>Mengundurkan Diri</option>
-                        <option value="retired" @selected($filterStatus==='retired' )>Pensiun</option>
-                        <option value="deceased" @selected($filterStatus==='deceased' )>Meninggal Dunia</option>
-                        <option value="dismissed" @selected($filterStatus==='dismissed' )>Diberhentikan</option>
-                    </select>
-                </div>
-            </div>
-
-            <div class="px-5 py-4 border-t border-border bg-slate-50/50 flex items-center justify-between gap-3">
-                <button type="button"
-                    @click="
-                        $el.closest('form').querySelectorAll('select').forEach(el => el.selectedIndex = 0);
-                        htmx.trigger($el.closest('form'), 'submit');
-                    "
-                    class="px-5 py-2.5 rounded-xl border border-border bg-white text-secondary text-sm font-semibold hover:bg-muted hover:text-foreground transition-all cursor-pointer">
-                    Reset
-                </button>
-
-                <button type="submit"
-                    class="inline-flex items-center gap-2 px-6 py-2.5 bg-primary text-white text-sm font-bold rounded-xl hover:bg-primary/90 transition-all shadow-sm shadow-primary/30 cursor-pointer">
-                    <i data-lucide="check" class="size-4"></i>
-                    Terapkan
-                </button>
-            </div>
-        </form>
-    </div>
-</div>
+</x-ui.modal>
