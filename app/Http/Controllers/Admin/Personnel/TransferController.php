@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin\Personnel;
 
 use App\Http\Controllers\Controller;
 use App\Models\Data;
+use App\Models\EmploymentStatus;
 use App\Models\StaffStatusHistory;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -26,6 +27,9 @@ class TransferController extends Controller
     /** Status yang boleh diaktifkan kembali lewat tombol "Reaktivasi". */
     private const REACTIVATABLE_STATUSES = ['transferred', 'resigned'];
 
+    /** Status kepegawaian (slug) yang muncul di filter: PNS, PPPK, dan PPPK Paruh Waktu. */
+    private const INCLUDED_EMPLOYMENT_SLUGS = ['pns', 'pppk', 'pppkpw'];
+
     public const STATUS_LABELS = [
         'active' => 'Aktif',
         'transferred' => 'Pindah',
@@ -45,6 +49,7 @@ class TransferController extends Controller
     {
         $year = $request->input('year');
         $filterStatus = $request->input('filter_status');
+        $filterEmploymentStatus = $request->input('filter_employment_status');
 
         $query = Data::completed()
             ->with(['vault'])
@@ -64,7 +69,9 @@ class TransferController extends Controller
                     ->limit(1),
             ]);
 
-        if (!empty($year)) {
+        if ($year === 'all') {
+            // Tanpa batasan tahun sama sekali.
+        } elseif (!empty($year)) {
             $query->whereYear('status_effective_date', $year);
         } else {
             // Default: 1 tahun terakhir dari sekarang.
@@ -73,6 +80,10 @@ class TransferController extends Controller
 
         if (!empty($filterStatus)) {
             $query->where('status', $filterStatus);
+        }
+
+        if (!empty($filterEmploymentStatus)) {
+            $query->where('employment_id', $filterEmploymentStatus);
         }
 
         $staffList = $query->orderByDesc('status_effective_date')->paginate(10)->withQueryString();
@@ -88,13 +99,22 @@ class TransferController extends Controller
             ->whereNotNull('status_effective_date')
             ->min(DB::raw('YEAR(status_effective_date)'));
 
-        $yearOptions = range((int) now()->year, (int) ($earliestYear ?: now()->year));
+        $yearOptions = array_merge(
+            ['all'],
+            range((int) now()->year, (int) ($earliestYear ?: now()->year))
+        );
+
+        $employmentOptions = EmploymentStatus::whereIn('slug', self::INCLUDED_EMPLOYMENT_SLUGS)
+            ->orderBy('code')
+            ->get(['id', 'name']);
 
         return view('pages.admin.personnel.transfers.index', compact(
             'staffList',
             'year',
             'filterStatus',
-            'yearOptions'
+            'filterEmploymentStatus',
+            'yearOptions',
+            'employmentOptions'
         ));
     }
 

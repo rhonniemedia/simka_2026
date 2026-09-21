@@ -1,8 +1,11 @@
 {{-- File: resources/views/pages/admin/personnel/transfers/partials/_filter-modal.blade.php --}}
 @php
 // x-ui.select membutuhkan daftar [['value' => ..., 'label' => ...]].
+// 'all' diberi label khusus "Tampilkan Semua"; nilai lain (tahun) label = value-nya sendiri.
 $yearSelectOptions = collect($yearOptions ?? [])
-->map(fn($y) => ['value' => (string) $y, 'label' => (string) $y])
+->map(fn($y) => $y === 'all'
+? ['value' => 'all', 'label' => 'Tampilkan Semua']
+: ['value' => (string) $y, 'label' => (string) $y])
 ->values()
 ->all();
 
@@ -13,6 +16,11 @@ $statusSelectOptions = [
 ['value' => 'deceased', 'label' => 'Meninggal Dunia'],
 ['value' => 'dismissed', 'label' => 'Diberhentikan'],
 ];
+
+$employmentSelectOptions = collect($employmentOptions ?? [])
+->map(fn($e) => ['value' => (string) $e->id, 'label' => $e->name])
+->values()
+->all();
 @endphp
 
 <x-ui.modal show="filterModalOpen" maxWidth="md">
@@ -65,6 +73,14 @@ $statusSelectOptions = [
                         :options="$statusSelectOptions"
                         value="{{ $filterStatus ?? '' }}"
                         placeholder="Semua Status" />
+                </div>
+                <div>
+                    <label class="block text-sm text-foreground mb-2">Status Kepegawaian</label>
+                    <x-ui.select
+                        name="filter_employment_status"
+                        :options="$employmentSelectOptions"
+                        value="{{ $filterEmploymentStatus ?? '' }}"
+                        placeholder="Semua Status Kepegawaian" />
                 </div>
             </div>
         </div>
