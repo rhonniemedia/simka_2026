@@ -16,6 +16,7 @@ use App\Http\Controllers\Admin\Personnel\FamilyController;
 use App\Http\Controllers\Admin\Personnel\GradeHistoryController;
 use App\Http\Controllers\Admin\Personnel\PositionHistoryController;
 use App\Http\Controllers\Admin\Personnel\RetirementController;
+use App\Http\Controllers\Admin\Personnel\TransferController;
 use App\Http\Controllers\Auth\LoginController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -237,6 +238,16 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('/{staff_id}/edit/{history_id}', [PositionHistoryController::class, 'edit'])->name('edit');
             Route::put('/{staff_id}/update/{history_id}', [PositionHistoryController::class, 'update'])->name('update');
             Route::delete('/{staff_id}/destroy/{history_id}', [PositionHistoryController::class, 'destroy'])->name('destroy');
+        });
+
+        // 9. Mutasi (Perubahan Status Pegawai: pindah, mengundurkan diri,
+        //    meninggal, diberhentikan; sekaligus reaktivasi. Pensiun tidak
+        //    diubah dari sini, tetap lewat menu Pensiun di atas.)
+        Route::prefix('mutation')->name('mutation.')->group(function () {
+            Route::get('/', [TransferController::class, 'index'])->name('index');
+            Route::get('/create', [TransferController::class, 'create'])->name('create');
+            Route::get('/create-reaktivasi', [TransferController::class, 'createReactivation'])->name('create-reaktivasi');
+            Route::post('/store', [TransferController::class, 'store'])->name('store');
         });
     });
 });
