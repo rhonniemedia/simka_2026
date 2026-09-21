@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 
-class MasterController extends Controller
+class DataMasterController extends Controller
 {
     //
 }
