@@ -33,7 +33,7 @@
                 Dashboard
             </h3>
 
-            <a href="#" class="group cursor-pointer">
+            <a href="{{ route('dashboard') }}" class="group cursor-pointer">
                 <div class="flex items-center justify-between rounded-xl p-3 transition-all duration-300 {{ request()->routeIs('dashboard') ? 'bg-primary/10 hover:bg-primary/20' : 'hover:bg-muted' }}">
                     <div class="flex items-center gap-3">
                         <i

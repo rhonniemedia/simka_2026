@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\Documents\DocumentCategoryController;
 use App\Http\Controllers\Admin\Master\AsnPositionController;
 use App\Http\Controllers\Admin\Master\EducationLevelController;
@@ -31,6 +32,10 @@ Route::middleware('guest')->group(function () {
 });
 
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout')->middleware('auth');
+
+Route::get('/dashboard', [DashboardController::class, 'index'])
+    ->middleware(['auth', 'app.access'])
+    ->name('dashboard');
 
 Route::prefix('admin')->name('admin.')->group(function () {
 
