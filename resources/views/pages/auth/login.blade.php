@@ -58,10 +58,25 @@
     }">
 
         <!-- ═══ AKSEN BACKGROUND ═══ -->
+        <div class="absolute inset-0 pointer-events-none z-0 overflow-hidden" aria-hidden="true">
+            <div class="absolute -top-16 -right-20 size-64 rounded-full bg-[#7c1d4f] opacity-[0.08] blur-[70px]"></div>
+        </div>
         <div class="absolute inset-0 pointer-events-none z-0 flex flex-col justify-end" aria-hidden="true">
-            <!-- Kurva biru dongker di bawah -->
+            <!-- Kurva gradasi ungu tua kemerahan di bawah, dengan aksen geometris ringkas -->
             <svg class="w-full h-[40vh]" viewBox="0 0 100 50" preserveAspectRatio="none">
-                <path d="M0,25 Q50,45 100,5 L100,50 L0,50 Z" fill="#152c4f" />
+                <defs>
+                    <linearGradient id="curveGrad" x1="0" y1="0" x2="1" y2="1">
+                        <stop offset="0%" stop-color="#581c87" />
+                        <stop offset="55%" stop-color="#7c1d4f" />
+                        <stop offset="100%" stop-color="#9f1239" />
+                    </linearGradient>
+                </defs>
+                <path d="M0,25 Q50,45 100,5 L100,50 L0,50 Z" fill="url(#curveGrad)" />
+                <circle cx="14" cy="34" r="6" fill="none" stroke="#ffffff" stroke-width="0.3" opacity="0.5" />
+                <circle cx="82" cy="14" r="1.6" fill="#ffffff" opacity="0.8" />
+                <circle cx="90" cy="22" r="0.7" fill="#ffffff" opacity="0.7" />
+                <polygon points="70,38 76,38 73,44" fill="#f0abfc" opacity="0.8" />
+                <line x1="30" y1="48" x2="46" y2="32" stroke="#ffffff" stroke-width="0.25" opacity="0.3" />
             </svg>
         </div>
 
@@ -77,7 +92,7 @@
                 <!-- Ikon Topi Wisuda -->
                 <div class="flex justify-center mb-[clamp(12px,1.5dvh,24px)]">
                     <div class="size-[clamp(56px,9dvh,88px)] rounded-full bg-white border-[3px] border-[#152c4f]/10 shadow-md shadow-[#152c4f]/15 flex items-center justify-center relative">
-                        <div class="absolute inset-1 rounded-full bg-[#e31837] shadow-inner flex items-center justify-center">
+                        <div class="absolute inset-1 rounded-full bg-gradient-to-br from-[#581c87] via-[#7c1d4f] to-[#9f1239] shadow-inner flex items-center justify-center">
                             <i data-lucide="file-archive" class="size-[clamp(22px,3.2dvh,34px)] text-white"></i>
                         </div>
                     </div>
@@ -176,7 +191,7 @@
                     <button
                         type="submit"
                         :disabled="loading"
-                        class="w-full flex items-center justify-center gap-2 rounded-xl bg-[#e31837] text-white text-[15px] font-bold py-[clamp(13px,2dvh,18px)] mt-1 shadow-lg shadow-[#e31837]/30 transition-all hover:bg-[#c71530] disabled:opacity-70 disabled:cursor-not-allowed">
+                        class="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-[#581c87] via-[#7c1d4f] to-[#9f1239] text-white text-[15px] font-bold py-[clamp(13px,2dvh,18px)] mt-1 shadow-lg shadow-[#7c1d4f]/40 transition-all hover:brightness-110 disabled:opacity-70 disabled:cursor-not-allowed">
                         <i data-lucide="loader-2" class="size-4 animate-spin" x-show="loading" x-cloak></i>
                         <span x-text="loading ? 'Memproses...' : 'Masuk Sekarang'"></span>
                     </button>
@@ -216,173 +231,88 @@
          ══════════════════════════════════════════════ --}}
     <div class="hidden sm:block relative min-h-screen">
 
-        <!-- Background: ilustrasi perpustakaan bergaya karikatur, sedikit blur -->
-        <div class="fixed inset-0 overflow-hidden bg-[#f4efe4]">
-            <svg class="absolute inset-0 w-full h-full scale-110 blur-sm" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
-                <defs>
-                    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stop-color="#f4efe4" />
-                        <stop offset="100%" stop-color="#e7ddc7" />
-                    </linearGradient>
-                </defs>
-                <rect width="1600" height="900" fill="url(#sky)" />
+        <!-- Background: gradasi ungu-kemerahan bergaya geometris (lingkaran, segitiga, plus, garis diagonal) -->
+        <div class="fixed inset-0 bg-gradient-to-br from-[#1e0a3d] via-[#6d1b4d] to-[#9f1239] overflow-hidden">
+            <svg class="absolute inset-0 w-full h-full" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
 
-                <!-- Lantai -->
-                <rect x="0" y="740" width="1600" height="160" fill="#d8c9a3" />
-                <rect x="0" y="740" width="1600" height="10" fill="#c9b98d" />
+                <!-- Garis diagonal tipis pojok kiri atas -->
+                <g stroke="#ffffff" stroke-width="1" opacity="0.12">
+                    <line x1="-100" y1="260" x2="260" y2="-100" />
+                    <line x1="-70" y1="300" x2="300" y2="-70" />
+                    <line x1="-40" y1="340" x2="340" y2="-40" />
+                    <line x1="-10" y1="380" x2="380" y2="-10" />
+                    <line x1="20" y1="420" x2="420" y2="20" />
+                </g>
+                <line x1="60" y1="480" x2="480" y2="60" stroke="#e9d5ff" stroke-width="1.5" opacity="0.35" />
 
-                <!-- Rak buku kiri -->
-                <g>
-                    <rect x="40" y="140" width="420" height="620" rx="14" fill="#5c3d2e" />
-                    <rect x="60" y="160" width="380" height="150" rx="6" fill="#7a5340" />
-                    <rect x="60" y="330" width="380" height="150" rx="6" fill="#7a5340" />
-                    <rect x="60" y="500" width="380" height="150" rx="6" fill="#7a5340" />
-                    <!-- buku-buku warna-warni -->
-                    <g>
-                        <rect x="72" y="175" width="26" height="120" fill="#8f5a3c" />
-                        <rect x="100" y="180" width="22" height="115" fill="#6b8f71" />
-                        <rect x="124" y="172" width="24" height="123" fill="#c9a227" />
-                        <rect x="150" y="182" width="22" height="113" fill="#7d8fae" />
-                        <rect x="174" y="178" width="26" height="117" fill="#b5651d" />
-                        <rect x="202" y="184" width="20" height="111" fill="#5c7d8a" />
-                        <rect x="224" y="176" width="24" height="119" fill="#a8577e" />
-                        <rect x="250" y="180" width="22" height="115" fill="#6b8f71" />
-                        <rect x="274" y="174" width="26" height="121" fill="#1e3a5f" />
-                        <rect x="302" y="182" width="20" height="113" fill="#c9a227" />
-                        <rect x="324" y="177" width="24" height="118" fill="#7a5340" />
-                        <rect x="350" y="181" width="22" height="114" fill="#8f5a3c" />
-                        <rect x="374" y="175" width="26" height="120" fill="#5c7d8a" />
-                        <rect x="402" y="183" width="20" height="112" fill="#b5651d" />
-                    </g>
-                    <g>
-                        <rect x="72" y="345" width="24" height="120" fill="#1e3a5f" />
-                        <rect x="98" y="350" width="22" height="115" fill="#c9a227" />
-                        <rect x="122" y="342" width="26" height="123" fill="#7d8fae" />
-                        <rect x="150" y="352" width="20" height="113" fill="#a8577e" />
-                        <rect x="172" y="348" width="24" height="117" fill="#6b8f71" />
-                        <rect x="198" y="354" width="22" height="111" fill="#8f5a3c" />
-                        <rect x="222" y="346" width="26" height="119" fill="#5c7d8a" />
-                        <rect x="250" y="350" width="20" height="115" fill="#b5651d" />
-                        <rect x="272" y="344" width="24" height="121" fill="#c9a227" />
-                        <rect x="298" y="352" width="22" height="113" fill="#1e3a5f" />
-                        <rect x="322" y="347" width="26" height="118" fill="#6b8f71" />
-                        <rect x="350" y="351" width="20" height="114" fill="#7a5340" />
-                        <rect x="372" y="345" width="26" height="120" fill="#a8577e" />
-                        <rect x="400" y="353" width="20" height="112" fill="#5c7d8a" />
-                    </g>
-                    <g>
-                        <rect x="72" y="515" width="26" height="120" fill="#7d8fae" />
-                        <rect x="100" y="520" width="22" height="115" fill="#8f5a3c" />
-                        <rect x="124" y="512" width="24" height="123" fill="#c9a227" />
-                        <rect x="150" y="522" width="22" height="113" fill="#6b8f71" />
-                        <rect x="174" y="518" width="26" height="117" fill="#1e3a5f" />
-                        <rect x="202" y="524" width="20" height="111" fill="#a8577e" />
-                        <rect x="224" y="516" width="24" height="119" fill="#5c7d8a" />
-                        <rect x="250" y="520" width="22" height="115" fill="#b5651d" />
-                        <rect x="274" y="514" width="26" height="121" fill="#c9a227" />
-                        <rect x="302" y="522" width="20" height="113" fill="#7a5340" />
-                        <rect x="324" y="517" width="24" height="118" fill="#6b8f71" />
-                        <rect x="350" y="521" width="22" height="114" fill="#1e3a5f" />
-                        <rect x="374" y="515" width="26" height="120" fill="#8f5a3c" />
-                        <rect x="402" y="523" width="20" height="112" fill="#7d8fae" />
-                    </g>
+                <!-- Lingkaran outline besar -->
+                <circle cx="560" cy="330" r="130" fill="none" stroke="#ffffff" stroke-width="2" opacity="0.55" />
+
+                <!-- Kelompok lingkaran kecil kiri -->
+                <circle cx="290" cy="470" r="30" fill="#ffffff" opacity="0.9" />
+                <circle cx="345" cy="410" r="7" fill="#ffffff" opacity="0.85" />
+                <circle cx="235" cy="525" r="20" fill="none" stroke="#ffffff" stroke-width="2" opacity="0.6" />
+                <circle cx="200" cy="575" r="5" fill="#ffffff" opacity="0.7" />
+
+                <!-- Garis diagonal panjang tengah -->
+                <line x1="120" y1="700" x2="560" y2="330" stroke="#f0abfc" stroke-width="1.5" opacity="0.35" />
+
+                <!-- Kumpulan tanda plus, kiri bawah -->
+                <g fill="#ffffff" opacity="0.85">
+                    <path d="M180,760 h10 v3 h-10z M183,757 h3 v10 h-3z" />
+                    <path d="M220,790 h10 v3 h-10z M223,787 h3 v10 h-3z" />
+                    <path d="M160,800 h8 v2.5 h-8z M162.5,797.5 h2.5 v8 h-2.5z" />
                 </g>
 
-                <!-- Rak buku kanan -->
-                <g>
-                    <rect x="1140" y="180" width="420" height="580" rx="14" fill="#5c3d2e" />
-                    <rect x="1160" y="200" width="380" height="150" rx="6" fill="#7a5340" />
-                    <rect x="1160" y="370" width="380" height="150" rx="6" fill="#7a5340" />
-                    <rect x="1160" y="540" width="380" height="100" rx="6" fill="#7a5340" />
-                    <g>
-                        <rect x="1172" y="215" width="24" height="120" fill="#6b8f71" />
-                        <rect x="1198" y="220" width="22" height="115" fill="#c9a227" />
-                        <rect x="1222" y="212" width="26" height="123" fill="#a8577e" />
-                        <rect x="1250" y="222" width="20" height="113" fill="#5c7d8a" />
-                        <rect x="1272" y="218" width="24" height="117" fill="#1e3a5f" />
-                        <rect x="1298" y="224" width="22" height="111" fill="#8f5a3c" />
-                        <rect x="1322" y="216" width="26" height="119" fill="#7d8fae" />
-                        <rect x="1350" y="220" width="20" height="115" fill="#c9a227" />
-                        <rect x="1372" y="214" width="24" height="121" fill="#b5651d" />
-                        <rect x="1398" y="222" width="22" height="113" fill="#6b8f71" />
-                        <rect x="1422" y="217" width="26" height="118" fill="#1e3a5f" />
-                        <rect x="1450" y="221" width="20" height="114" fill="#7a5340" />
-                        <rect x="1474" y="215" width="26" height="120" fill="#5c7d8a" />
-                        <rect x="1502" y="223" width="20" height="112" fill="#a8577e" />
-                    </g>
-                    <g>
-                        <rect x="1172" y="385" width="24" height="120" fill="#c9a227" />
-                        <rect x="1198" y="390" width="22" height="115" fill="#1e3a5f" />
-                        <rect x="1222" y="382" width="26" height="123" fill="#6b8f71" />
-                        <rect x="1250" y="392" width="20" height="113" fill="#8f5a3c" />
-                        <rect x="1272" y="388" width="24" height="117" fill="#a8577e" />
-                        <rect x="1298" y="394" width="22" height="111" fill="#5c7d8a" />
-                        <rect x="1322" y="386" width="26" height="119" fill="#b5651d" />
-                        <rect x="1350" y="390" width="20" height="115" fill="#7d8fae" />
-                        <rect x="1372" y="384" width="24" height="121" fill="#1e3a5f" />
-                        <rect x="1398" y="392" width="22" height="113" fill="#c9a227" />
-                        <rect x="1422" y="387" width="26" height="118" fill="#7a5340" />
-                        <rect x="1450" y="391" width="20" height="114" fill="#6b8f71" />
-                        <rect x="1474" y="385" width="26" height="120" fill="#8f5a3c" />
-                        <rect x="1502" y="393" width="20" height="112" fill="#5c7d8a" />
-                    </g>
+                <!-- Segitiga -->
+                <polygon points="620,780 680,780 645,835" fill="#f0abfc" opacity="0.9" />
+                <polygon points="740,745 762,745 749,772" fill="#f0abfc" opacity="0.7" />
+                <polygon points="768,690 786,690 774,712" fill="#e9d5ff" opacity="0.5" />
+
+                <!-- Kumpulan tanda plus diagonal, tengah -->
+                <g fill="#e9d5ff" opacity="0.8">
+                    <path d="M800,660 h9 v2.5 h-9z M803.5,657.5 h2.5 v9 h-2.5z" />
+                    <path d="M825,630 h9 v2.5 h-9z M828.5,627.5 h2.5 v9 h-2.5z" />
+                    <path d="M850,600 h9 v2.5 h-9z M853.5,597.5 h2.5 v9 h-2.5z" />
+                    <path d="M840,655 h7 v2 h-7z M842.5,652.5 h2 v7 h-2z" />
+                    <path d="M865,625 h7 v2 h-7z M867.5,622.5 h2 v7 h-2z" />
                 </g>
 
-                <!-- Jendela lengkung di tengah belakang -->
-                <g opacity="0.9">
-                    <path d="M700 620 L700 320 Q700 210 800 210 Q900 210 900 320 L900 620 Z" fill="#fbf6ea" stroke="#c9a227" stroke-width="6" />
-                    <line x1="800" y1="210" x2="800" y2="620" stroke="#c9a227" stroke-width="4" />
-                    <line x1="700" y1="420" x2="900" y2="420" stroke="#c9a227" stroke-width="4" />
+                <!-- Segitiga besar solid kanan atas -->
+                <polygon points="1220,60 1330,60 1265,180" fill="#ffffff" opacity="0.85" />
+                <polygon points="1120,190 1160,190 1140,230" fill="#f0abfc" opacity="0.55" />
+
+                <!-- Garis diagonal panjang kanan -->
+                <line x1="1330" y1="470" x2="1600" y2="200" stroke="#ffffff" stroke-width="1.5" opacity="0.3" />
+
+                <!-- Kumpulan plus kanan atas -->
+                <g fill="#ffffff" opacity="0.85">
+                    <path d="M1360,300 h9 v2.5 h-9z M1363.5,297.5 h2.5 v9 h-2.5z" />
+                    <path d="M1385,330 h9 v2.5 h-9z M1388.5,327.5 h2.5 v9 h-2.5z" />
+                    <path d="M1400,370 h9 v2.5 h-9z M1403.5,367.5 h2.5 v9 h-2.5z" />
+                    <path d="M1415,410 h9 v2.5 h-9z M1418.5,407.5 h2.5 v9 h-2.5z" />
                 </g>
 
-                <!-- Meja baca -->
-                <rect x="620" y="640" width="360" height="26" rx="8" fill="#7a5340" />
-                <rect x="640" y="666" width="18" height="90" fill="#5c3d2e" />
-                <rect x="942" y="666" width="18" height="90" fill="#5c3d2e" />
+                <!-- Lingkaran besar outline kanan bawah dengan aksen -->
+                <circle cx="1440" cy="640" r="150" fill="none" stroke="#ffffff" stroke-width="2" opacity="0.55" />
+                <circle cx="1500" cy="600" r="9" fill="#ffffff" opacity="0.8" />
+                <circle cx="1530" cy="650" r="16" fill="none" stroke="#ffffff" stroke-width="2" opacity="0.6" />
+                <circle cx="1420" cy="700" r="28" fill="#ffffff" opacity="0.9" />
+                <circle cx="1360" cy="745" r="5" fill="#ffffff" opacity="0.7" />
 
-                <!-- Tumpukan buku dengan topi wisuda di atas meja -->
-                <g>
-                    <rect x="735" y="600" width="150" height="24" rx="4" fill="#1e3a5f" transform="rotate(-2 735 600)" />
-                    <rect x="742" y="578" width="140" height="24" rx="4" fill="#b5651d" transform="rotate(1.5 742 578)" />
-                    <rect x="738" y="556" width="145" height="24" rx="4" fill="#6b8f71" transform="rotate(-1 738 556)" />
-                    <!-- Buku terbuka -->
-                    <path d="M745 552 Q800 536 855 552 L855 540 Q800 524 745 540 Z" fill="#fbf6ea" stroke="#c9a227" stroke-width="2" />
-                    <!-- Topi wisuda -->
-                    <g transform="translate(800 520)">
-                        <ellipse cx="0" cy="6" rx="30" ry="10" fill="#1e3a5f" />
-                        <polygon points="-46,0 46,0 0,-24" fill="#16293f" />
-                        <circle cx="0" cy="-24" r="5" fill="#c9a227" />
-                        <line x1="0" y1="-19" x2="24" y2="8" stroke="#c9a227" stroke-width="3" />
-                        <circle cx="24" cy="10" r="5" fill="#c9a227" />
-                    </g>
+                <!-- Garis diagonal pojok kanan bawah -->
+                <g stroke="#ffffff" stroke-width="1" opacity="0.12">
+                    <line x1="1500" y1="900" x2="1900" y2="500" />
+                    <line x1="1540" y1="900" x2="1940" y2="500" />
+                    <line x1="1580" y1="900" x2="1980" y2="500" />
                 </g>
 
-                <!-- Burung hantu kecil bertengger, maskot edukasi -->
-                <g transform="translate(1020 560)">
-                    <ellipse cx="0" cy="20" rx="38" ry="46" fill="#7d8fae" />
-                    <circle cx="-14" cy="-6" r="16" fill="#fbf6ea" />
-                    <circle cx="14" cy="-6" r="16" fill="#fbf6ea" />
-                    <circle cx="-14" cy="-6" r="7" fill="#1e3a5f" />
-                    <circle cx="14" cy="-6" r="7" fill="#1e3a5f" />
-                    <polygon points="-6,6 6,6 0,16" fill="#c9a227" />
-                    <polygon points="-10,-26 -2,-26 -6,-40" fill="#7d8fae" />
-                    <polygon points="10,-26 2,-26 6,-40" fill="#7d8fae" />
-                </g>
-
-                <!-- Tanaman pot -->
-                <g transform="translate(560 660)">
-                    <path d="M-16 40 L16 40 L10 0 L-10 0 Z" fill="#b5651d" />
-                    <ellipse cx="0" cy="-20" rx="30" ry="34" fill="#6b8f71" />
-                    <ellipse cx="-18" cy="-4" rx="16" ry="22" fill="#5a7a60" />
-                    <ellipse cx="18" cy="-4" rx="16" ry="22" fill="#5a7a60" />
-                </g>
-
-                <!-- Bola lampu gantung -->
-                <circle cx="500" cy="230" r="20" fill="#c9a227" opacity="0.85" />
-                <line x1="500" y1="90" x2="500" y2="212" stroke="#8f5a3c" stroke-width="4" />
+                <!-- Lingkaran outline besar bawah, terpotong tepi -->
+                <circle cx="380" cy="1000" r="200" fill="none" stroke="#ffffff" stroke-width="2" opacity="0.5" />
             </svg>
         </div>
-        <div class="fixed inset-0 bg-gradient-to-b from-[#1e3a5f]/75 via-[#1e3a5f]/68 to-[#16293f]/80"></div>
+        <div class="fixed inset-0 bg-gradient-to-t from-black/15 via-transparent to-black/5"></div>
+
 
         <div class="relative z-10 min-h-screen flex flex-col items-center justify-center p-5">
             <div class="w-full max-w-sm bg-white rounded-2xl shadow-2xl p-8" x-data="{ 
@@ -407,13 +337,13 @@
                 <!-- Logo -->
                 <div class="flex justify-center mb-4">
                     <div class="size-20 rounded-full bg-white border-4 border-gray-100 shadow-sm flex items-center justify-center">
-                        <div class="size-14 rounded-full bg-gradient-to-br from-[#ff1443] to-[#c70d33] flex items-center justify-center">
+                        <div class="size-14 rounded-full bg-gradient-to-br from-[#581c87] via-[#7c1d4f] to-[#9f1239] flex items-center justify-center">
                             <i data-lucide="file-archive" class="size-7 text-white"></i>
                         </div>
                     </div>
                 </div>
 
-                <h2 class="text-center text-xl font-bold tracking-tight bg-gradient-to-br from-[#ff1443] to-[#c70d33] bg-clip-text text-transparent">SIMKA</h2>
+                <h2 class="text-center text-xl font-bold tracking-tight bg-gradient-to-br from-[#581c87] via-[#7c1d4f] to-[#9f1239] bg-clip-text text-transparent">SIMKA</h2>
                 <p class="text-center text-xs text-gray-400 mb-6">Sistem Informasi Kepegawaian dan Arsip</p>
 
                 <!-- Alert error umum -->
@@ -491,7 +421,7 @@
                     <button
                         type="submit"
                         :disabled="loading"
-                        class="w-full flex items-center justify-center gap-2 rounded-lg bg-gradient-to-br from-[#ff1443] via-[#f0103d] to-[#c70d33] text-white text-sm font-semibold py-2.5 shadow-md shadow-[#c70d33]/40 transition-all duration-300 ease-out hover:shadow-lg hover:shadow-[#c70d33]/50 hover:brightness-110 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.99] disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:brightness-100">
+                        class="w-full flex items-center justify-center gap-2 rounded-lg bg-gradient-to-br from-[#581c87] via-[#7c1d4f] to-[#9f1239] text-white text-sm font-semibold py-2.5 shadow-md shadow-[#7c1d4f]/40 transition-all duration-300 ease-out hover:shadow-lg hover:shadow-[#7c1d4f]/50 hover:brightness-110 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.99] disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:brightness-100">
                         <i data-lucide="loader-2" class="size-4 animate-spin" x-show="loading" x-cloak></i>
                         <span x-text="loading ? 'Memproses...' : 'Login'"></span>
                     </button>

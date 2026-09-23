@@ -27,15 +27,15 @@ Route::get('/', function () {
 });
 
 Route::middleware('guest')->group(function () {
-    Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
-    Route::post('/login', [LoginController::class, 'authenticate']);
+    Route::get('/auth/login', [LoginController::class, 'showLoginForm'])->name('login');
+    Route::post('/auth/login', [LoginController::class, 'authenticate']);
 });
 
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout')->middleware('auth');
 
-Route::get('/dashboard', [DashboardController::class, 'index'])
+Route::get('/admin/dashboard', [DashboardController::class, 'index'])
     ->middleware(['auth', 'app.access'])
-    ->name('dashboard');
+    ->name('admin.home');
 
 Route::prefix('admin')->name('admin.')->group(function () {
 

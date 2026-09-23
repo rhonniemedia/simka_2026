@@ -35,7 +35,7 @@
             </button>
 
             <div x-show="open" x-collapse class="flex flex-col gap-1">
-                <a href="{{ route('dashboard') }}" class="group cursor-pointer">
+                <a href="{{ route('admin.home') }}" class="group cursor-pointer">
                     <div class="flex items-center justify-between rounded-xl p-3 transition-all duration-300 {{ request()->routeIs('dashboard') ? 'bg-primary/10 hover:bg-primary/20' : 'hover:bg-muted' }}">
                         <div class="flex items-center gap-3">
                             <i
@@ -285,9 +285,12 @@
                 <p class="text-xs text-secondary mt-0.5">Pintar 2026</p>
             </div>
 
-            <div class="size-11 bg-primary/10 rounded-xl flex items-center justify-center flex-shrink-0 cursor-pointer hover:bg-primary/20 transition-all">
-                <i data-lucide="circle-power" class="size-6 text-primary"></i>
-            </div>
+            <form action="{{ route('logout') }}" method="POST">
+                @csrf
+                <button type="submit" title="Keluar" class="size-11 bg-primary/10 rounded-xl flex items-center justify-center flex-shrink-0 cursor-pointer hover:bg-primary/20 transition-all">
+                    <i data-lucide="ArrowUpRightFromSquare" class="size-6 text-primary"></i>
+                </button>
+            </form>
         </div>
     </div>
 
