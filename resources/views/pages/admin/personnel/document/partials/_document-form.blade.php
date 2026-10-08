@@ -70,17 +70,17 @@ $verificationOptions = [
 
                 <div>
                     <label class="block text-sm font-medium text-foreground mb-1.5">Nama Dokumen <span class="text-error">*</span></label>
-                    <input type="text" name="document_name" value="{{ old('document_name', $item?->document_name ?? '') }}" required placeholder="Contoh: SK Pengangkatan CPNS" class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                    <input type="text" name="document_name" value="{{ old('document_name', $item?->document_name ?? '') }}" required placeholder="Contoh: SK Pengangkatan CPNS" class="w-full h-11 rounded-xl border border-border px-3.5 py-0 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
                 </div>
 
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-foreground mb-1.5">Nomor Dokumen</label>
-                        <input type="text" name="document_number" value="{{ old('document_number', $item?->document_number ?? '') }}" placeholder="Opsional" class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                        <input type="text" name="document_number" value="{{ old('document_number', $item?->document_number ?? '') }}" placeholder="Opsional" class="w-full h-11 rounded-xl border border-border px-3.5 py-0 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-foreground mb-1.5">Tanggal Dokumen</label>
-                        <input type="date" name="document_date" value="{{ old('document_date', $item?->document_date?->format('Y-m-d') ?? '') }}" class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                        <input type="date" name="document_date" value="{{ old('document_date', $item?->document_date?->format('Y-m-d') ?? '') }}" class="w-full h-11 rounded-xl border border-border px-3.5 py-0 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
                     </div>
                 </div>
 
@@ -99,7 +99,7 @@ $verificationOptions = [
                         @if(!$isEdit) <span class="text-error">*</span> @endif
                     </label>
                     <input type="file" name="file" accept=".pdf,.jpg,.jpeg,.png" {{ $isEdit ? '' : 'required' }}
-                        class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-primary/10 file:text-primary file:text-xs file:font-semibold focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                        class="w-full h-11 rounded-xl border border-border pl-1.5 pr-3.5 py-0 text-sm leading-[2.5rem] text-secondary file:mr-3 file:h-8 file:px-3 file:my-0 file:rounded-lg file:border-0 file:bg-primary/10 file:text-primary file:text-xs file:font-semibold file:cursor-pointer focus:ring-2 focus:ring-primary/20 focus:border-primary">
                     <p class="text-[11px] text-secondary mt-1">Format PDF/JPG/PNG, maksimal 10MB.</p>
 
                     @if($isEdit && $item->original_filename)
