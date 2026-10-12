@@ -128,7 +128,7 @@
                 </h1>
                 <div class="w-10 h-[3px] rounded-full bg-[#a3195b] mt-[clamp(4px,0.6dvh,10px)] mb-[clamp(6px,0.8dvh,12px)]"></div>
                 <p class="text-slate-600 text-[clamp(12.5px,1.7dvh,15px)] font-medium mt-0 max-w-[230px] leading-snug">
-                    Platform Informasi Kesiswaan Terintegrasi
+                    Sistem Informasi Kepegawaian dan Arsip
                 </p>
             </div>
 
@@ -300,7 +300,15 @@
                 </div>
 
                 <h2 class="text-center text-xl font-bold tracking-tight bg-gradient-to-br from-[#a3195b] to-[#be123c] bg-clip-text text-transparent">SIMKA</h2>
-                <p class="text-center text-xs text-gray-400 mb-6">Platform Informasi Kesiswaan Terintegrasi</p>
+                <p class="text-center text-xs text-gray-400 mb-6">Sistem Informasi Kepegawaian dan Arsip</p>
+
+                <!-- Alert sesi habis (hanya muncul jika tidak ada error umum / belum mencoba login) -->
+                @if (request('reason') === 'timeout' && $errors->isEmpty())
+                <div class="mb-5 flex items-start gap-2.5 rounded-lg bg-red-50 border border-red-100 px-3.5 py-2.5 text-red-700 text-xs">
+                    <i data-lucide="alert-circle" class="size-4 shrink-0 mt-0.5"></i>
+                    <span>Sesi Anda berakhir karena tidak ada aktivitas. Silakan login kembali.</span>
+                </div>
+                @endif
 
                 <!-- Alert error umum -->
                 @if ($errors->any())
@@ -324,7 +332,7 @@
                     <div>
                         <label for="login_id" class="block text-xs font-medium text-gray-600 mb-1.5">Username / NIP / Email</label>
                         <div class="relative">
-                            <i data-lucide="user" class="size-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
+                            <i data-lucide="user" class="size-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
                             <input
                                 x-model="loginId"
                                 @input="loginIdError = false"
@@ -334,7 +342,7 @@
                                 autofocus
                                 autocomplete="username"
                                 placeholder="Masukkan identitas..."
-                                class="w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm text-gray-900 placeholder:text-gray-400 placeholder:text-sm focus:outline-none focus:ring-2 focus:ring-[#1e3a5f]/30 focus:border-[#1e3a5f] transition"
+                                class="w-full pl-9 pr-3 py-2 rounded-lg border text-xs text-gray-900 placeholder:text-gray-400 placeholder:text-xs focus:outline-none focus:ring-2 focus:ring-[#1e3a5f]/30 focus:border-[#1e3a5f] transition"
                                 :class="loginIdError ? 'border-red-300' : 'border-gray-200'" />
                         </div>
                         <p x-show="loginIdError" x-cloak class="text-xs text-red-600 pt-1">Username/email/nip harus diisi!</p>
@@ -362,12 +370,8 @@
                         <p x-show="passwordError" x-cloak class="text-xs text-red-600 pt-1">Password harus diisi!</p>
                     </div>
 
-                    <!-- Ingat saya + lupa password -->
-                    <div class="flex items-center justify-between pt-4 pb-5 text-xs">
-                        <label class="flex items-center gap-2 cursor-pointer select-none text-gray-500">
-                            <input type="checkbox" name="remember" class="size-3.5 rounded border-gray-300 text-[#1e3a5f] focus:ring-[#1e3a5f]/30" />
-                            Biarkan tetap masuk
-                        </label>
+                    <!-- Lupa password -->
+                    <div class="flex items-center justify-end pt-4 pb-5 text-xs">
                         <a href="{{ Route::has('password.request') ? route('password.request') : '#' }}" class="font-medium text-[#000000] hover:underline">
                             Lupa Password?
                         </a>

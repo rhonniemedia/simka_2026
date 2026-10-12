@@ -31,7 +31,7 @@
     <!-- Loader -->
     <div id="loader">
         <div class="logo-badge"><i class="fa-solid fa-graduation-cap text-white text-xl"></i></div>
-        <p style="margin-top:14px; font-weight:700; font-size:0.9rem; color:var(--foreground);">SPMB - SMK Negeri 1 Rejang Lebong</p>
+        <p style="margin-top:14px; font-weight:700; font-size:0.9rem; color:var(--foreground);">SIMKA - SMK Negeri 1 Rejang Lebong</p>
         <div class="loader-bar">
             <div class="loader-fill"></div>
         </div>

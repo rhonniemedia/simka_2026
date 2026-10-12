@@ -45,35 +45,33 @@ class LoginController extends Controller
         if ($user && Hash::check($password, $user->password)) {
 
             // 3. Verifikasi Akses Aplikasi & Role
-            $appIdSekarang = config('app.core_id');
+            $appId = (string) config('app.core_id');
 
-            // Ambil data role spesifik pengguna untuk aplikasi ini
-            $roleAplikasi = $user->roles()->wherePivot('app_id', $appIdSekarang)->first();
-
-            // Jika tidak ada data di tabel pivot (tidak punya akses sama sekali)
-            if (!$roleAplikasi) {
+            // Tidak punya role apa pun di aplikasi ini
+            if (! $user->hasAccessToApp($appId)) {
                 return back()->withErrors([
                     'login_id' => 'Akun Anda valid, tetapi tidak memiliki otoritas untuk mengakses aplikasi ini.',
-                ])->withInput($request->only('login_id', 'remember')); // <--- Tambahkan withInput di sini
+                ])->withInput($request->only('login_id'));
             }
 
-            // Jika punya akses, tapi role-nya hanya sebagai 'user'
-            if ($roleAplikasi->name === 'user') {
+            // Punya akses, tetapi hanya sebagai 'user' (bukan admin/superadmin).
+            // Aturannya sama dengan middleware app.access (hasAdminAccessToApp).
+            if (! $user->hasAdminAccessToApp($appId)) {
                 // Tampilkan halaman dilarang akses tanpa membuat session login
                 return view('pages.auth.forbidden');
             }
 
-            // 4. Eksekusi Login (Hanya jika role adalah admin atau superadmin)
-            Auth::login($user, $request->boolean('remember'));
+            // 4. Eksekusi Login
+            Auth::login($user);
             $request->session()->regenerate();
 
-            // Arahkan ke dashboard admin
+            // Kembali ke halaman terakhir (url.intended) atau ke dashboard admin
             return redirect()->intended(route('admin.home'));
         }
 
         return back()->withErrors([
             'login_id' => 'Kredensial yang diberikan tidak cocok dengan data kami.',
-        ])->withInput($request->only('login_id', 'remember')); // <--- Tambahkan withInput di sini juga  ]);
+        ])->withInput($request->only('login_id'));
     }
 
     public function logout(Request $request)

@@ -28,7 +28,7 @@
     <div class="flex flex-col p-5 pb-28 gap-2 overflow-y-auto flex-1 scrollbar-hide">
 
         <!-- Dashboard -->
-        <div x-data="{ open: {{ request()->routeIs('dashboard') ? 'true' : 'false' }} }" class="flex flex-col gap-1">
+        <div x-data="{ open: {{ request()->routeIs('admin.home', 'dashboard') ? 'true' : 'false' }} }" class="flex flex-col gap-1">
             <button @click="open = !open" class="flex items-center justify-between w-full px-3 mb-2 font-bold text-sm text-foreground focus:outline-none cursor-pointer">
                 <span>Dashboard</span>
                 <i data-lucide="chevron-down" class="size-4 text-secondary transition-transform duration-300" :class="open ? 'rotate-180' : ''"></i>
@@ -36,14 +36,14 @@
 
             <div x-show="open" x-collapse class="flex flex-col gap-1">
                 <a href="{{ route('admin.home') }}" class="group cursor-pointer">
-                    <div class="flex items-center justify-between rounded-xl p-3 transition-all duration-300 {{ request()->routeIs('dashboard') ? 'bg-primary/10 hover:bg-primary/20' : 'hover:bg-muted' }}">
+                    <div class="flex items-center justify-between rounded-xl p-3 transition-all duration-300 {{ request()->routeIs('admin.home') ? 'bg-primary/10 hover:bg-primary/20' : 'hover:bg-muted' }}">
                         <div class="flex items-center gap-3">
                             <i
-                                data-lucide="layout-dashboard"
-                                class="size-5 transition-all duration-300 {{ request()->routeIs('dashboard') ? 'text-primary' : 'text-secondary group-hover:text-foreground' }}">
+                                data-lucide="square-dashed-mouse-pointer"
+                                class="size-5 transition-all duration-300 {{ request()->routeIs('admin.home') ? 'text-primary' : 'text-secondary group-hover:text-foreground' }}">
                             </i>
 
-                            <span class="font-medium text-sm transition-all duration-300 {{ request()->routeIs('dashboard') ? 'text-primary font-semibold' : 'text-secondary group-hover:text-foreground' }}">
+                            <span class="font-medium text-sm transition-all duration-300 {{ request()->routeIs('admin.home') ? 'text-primary font-semibold' : 'text-secondary group-hover:text-foreground' }}">
                                 Beranda
                             </span>
                         </div>
@@ -66,7 +66,7 @@
                     <div class="flex items-center justify-between rounded-xl p-3 transition-all duration-300 {{ request()->routeIs('admin.master.*') ? 'bg-primary/10 hover:bg-primary/20' : 'hover:bg-muted' }}">
                         <div class="flex items-center gap-3">
                             <i
-                                data-lucide="database"
+                                data-lucide="layout-grid"
                                 class="size-5 transition-all duration-300 {{ request()->routeIs('admin.master.*') ? 'text-primary' : 'text-secondary group-hover:text-foreground' }}">
                             </i>
 
@@ -109,7 +109,7 @@
                     <div class="flex items-center justify-between rounded-xl p-3 transition-all duration-300 {{ request()->routeIs('admin.personnel.documents.*') ? 'bg-primary/10 hover:bg-primary/20' : 'hover:bg-muted' }}">
                         <div class="flex items-center gap-3">
                             <i
-                                data-lucide="folder-open"
+                                data-lucide="file-lock"
                                 class="size-5 transition-all duration-300 {{ request()->routeIs('admin.personnel.documents.*') ? 'text-primary' : 'text-secondary group-hover:text-foreground' }}">
                             </i>
 
@@ -141,7 +141,7 @@
                     <div class="flex items-center justify-between rounded-xl p-3 transition-all duration-300 {{ request()->routeIs('admin.personnel.family.*') ? 'bg-primary/10 hover:bg-primary/20' : 'hover:bg-muted' }}">
                         <div class="flex items-center gap-3">
                             <i
-                                data-lucide="users-round"
+                                data-lucide="heart-handshake"
                                 class="size-5 transition-all duration-300 {{ request()->routeIs('admin.personnel.family.*') ? 'text-primary' : 'text-secondary group-hover:text-foreground' }}">
                             </i>
 
@@ -168,7 +168,7 @@
                     <div class="flex items-center justify-between rounded-xl p-3 transition-all duration-300 {{ request()->routeIs('admin.personnel.positions.*') ? 'bg-primary/10 hover:bg-primary/20' : 'hover:bg-muted' }}">
                         <div class="flex items-center gap-3">
                             <i
-                                data-lucide="briefcase-business"
+                                data-lucide="flame"
                                 class="size-5 transition-all duration-300 {{ request()->routeIs('admin.personnel.positions.*') ? 'text-primary' : 'text-secondary group-hover:text-foreground' }}">
                             </i>
 
@@ -200,7 +200,7 @@
                     <div class="flex items-center justify-between rounded-xl p-3 transition-all duration-300 {{ request()->routeIs('admin.personnel.promotions.*') ? 'bg-primary/10 hover:bg-primary/20' : 'hover:bg-muted' }}">
                         <div class="flex items-center gap-3">
                             <i
-                                data-lucide="user-cog"
+                                data-lucide="user-star"
                                 class="size-5 transition-all duration-300 {{ request()->routeIs('admin.personnel.promotions.*') ? 'text-primary' : 'text-secondary group-hover:text-foreground' }}">
                             </i>
 
@@ -232,7 +232,7 @@
                     <div class="flex items-center justify-between rounded-xl p-3 transition-all duration-300 {{ request()->routeIs('admin.personnel.retirement.*') ? 'bg-primary/10 hover:bg-primary/20' : 'hover:bg-muted' }}">
                         <div class="flex items-center gap-3">
                             <i
-                                data-lucide="user-minus"
+                                data-lucide="circle-star"
                                 class="size-5 transition-all duration-300 {{ request()->routeIs('admin.personnel.retirement.*') ? 'text-primary' : 'text-secondary group-hover:text-foreground' }}">
                             </i>
 
@@ -256,7 +256,7 @@
             <div x-show="open" x-collapse class="flex flex-col gap-1">
                 <a href="#" class="group cursor-pointer">
                     <div class="flex items-center rounded-xl p-3 gap-3 transition-all duration-300 hover:bg-muted">
-                        <i data-lucide="users-round" class="size-5 text-secondary transition-all duration-300 group-hover:text-foreground"></i>
+                        <i data-lucide="layout-list" class="size-5 text-secondary transition-all duration-300 group-hover:text-foreground"></i>
                         <span class="text-sm font-medium text-secondary transition-all duration-300 group-hover:text-foreground">
                             Daftar Pengguna
                         </span>
@@ -265,7 +265,7 @@
 
                 <a href="#" class="group cursor-pointer">
                     <div class="flex items-center rounded-xl p-3 gap-3 transition-all duration-300 hover:bg-muted">
-                        <i data-lucide="user-cog" class="size-5 text-secondary transition-all duration-300 group-hover:text-foreground"></i>
+                        <i data-lucide="user-round-pen" class="size-5 text-secondary transition-all duration-300 group-hover:text-foreground"></i>
                         <span class="text-sm font-medium text-secondary transition-all duration-300 group-hover:text-foreground">
                             Profil Saya
                         </span>

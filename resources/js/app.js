@@ -1,6 +1,7 @@
 import Alpine from 'alpinejs'
 import collapse from '@alpinejs/collapse'
 import htmx from 'htmx.org' // 1. Import sebagai objek modul
+import './idle-timeout';
 
 // 2. Expose ke global window agar bisa diakses Alpine.js & inline script
 window.htmx = htmx

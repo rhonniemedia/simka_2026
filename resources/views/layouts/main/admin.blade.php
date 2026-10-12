@@ -48,6 +48,7 @@
 
     {{-- Panggil komponen loading overlay --}}
     <x-ui.loading-overlay />
+    <x-ui.idle-timeout />
 
     <!-- Toast -->
     <div id="toast" class="fixed bottom-6 right-6 z-[400] flex items-center gap-3 px-4 py-3 rounded-xl text-white text-sm font-semibold shadow-xl transition-all duration-300 translate-y-20 opacity-0 pointer-events-none">

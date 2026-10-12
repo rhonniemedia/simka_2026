@@ -45,4 +45,12 @@ class User extends Authenticatable
             ->wherePivot('app_id', $appId)
             ->exists();
     }
+
+    public function hasAdminAccessToApp(string $appId): bool
+    {
+        return $this->roles()
+            ->wherePivot('app_id', $appId)
+            ->where($this->roles()->getRelated()->qualifyColumn('name'), '!=', 'user')
+            ->exists();
+    }
 }

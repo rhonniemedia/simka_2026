@@ -19,6 +19,8 @@ use App\Http\Controllers\Admin\Personnel\PositionHistoryController;
 use App\Http\Controllers\Admin\Personnel\RetirementController;
 use App\Http\Controllers\Admin\Personnel\TransferController;
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\SessionController;
+use App\Http\Middleware\RememberIntendedUrl;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
@@ -26,18 +28,24 @@ Route::get('/', function () {
     return redirect()->route('admin.home');
 });
 
-Route::middleware('guest')->group(function () {
+Route::middleware(['guest', RememberIntendedUrl::class])->group(function () {
     Route::get('/auth/login', [LoginController::class, 'showLoginForm'])->name('login');
     Route::post('/auth/login', [LoginController::class, 'authenticate']);
 });
 
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout')->middleware('auth');
 
+// Dipanggil otomatis oleh idle-timeout.js untuk memperpanjang sesi
+Route::post('/session/keep-alive', [SessionController::class, 'keepAlive'])
+    ->middleware(['auth', 'app.access', 'throttle:30,1'])
+    ->name('session.keep-alive');
+
 Route::get('/admin/dashboard', [DashboardController::class, 'index'])
     ->middleware(['auth', 'app.access'])
     ->name('admin.home');
 
-Route::prefix('admin')->name('admin.')->group(function () {
+// Seluruh route admin wajib login + lolos pengecekan akses aplikasi.
+Route::prefix('admin')->name('admin.')->middleware(['auth', 'app.access'])->group(function () {
 
     // --- TAMBAHKAN BLOK MASTER INI ---
     Route::prefix('master')->name('master.')->group(function () {
