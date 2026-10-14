@@ -9,6 +9,7 @@ use App\Models\StaffStatusHistory;
 use App\Services\Personnel\RetirementList;
 use DateTimeImmutable;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
@@ -16,6 +17,9 @@ class DashboardController extends Controller
 {
     /** Status kepegawaian (slug) yang dihitung: PNS, PPPK, dan PPPK Paruh Waktu. Samakan dengan modul Mutasi & Pensiun. */
     private const INCLUDED_EMPLOYMENT_SLUGS = ['pns', 'pppk', 'pppkpw'];
+
+    /** Jumlah baris pada tiap daftar tunggu di dashboard. */
+    private const WAITLIST_LIMIT = 5;
 
     public function index(Request $request)
     {
@@ -25,7 +29,12 @@ class DashboardController extends Controller
 
         $mutationThisYearCount = StaffStatusHistory::whereYear('effective_date', now()->year)->count();
 
-        $retirementSoonCount = $this->countRetirementSoon();
+        // Satu kali hitung untuk kartu "Segera Pensiun" sekaligus daftar tunggu pensiun.
+        $retirementCandidates = $this->retirementCandidates();
+        $retirementSoonCount  = $retirementCandidates->count();
+        $retirementWaitlist   = $retirementCandidates->take(self::WAITLIST_LIMIT)->values();
+
+        $periodicWaitlist = $this->periodicWaitlist();
 
         $employmentBreakdown = Data::completed()
             ->where('staff_data.status', 'active')
@@ -47,18 +56,28 @@ class DashboardController extends Controller
             'activePositionCount',
             'mutationThisYearCount',
             'retirementSoonCount',
+            'retirementWaitlist',
+            'periodicWaitlist',
             'employmentBreakdown',
             'recentActivities'
         ));
     }
 
     /**
-     * Jumlah pegawai dengan status pensiun 'reached' (sudah lewat batas usia,
-     * belum diproses) atau 'soon' (segera pensiun). Perhitungan dilakukan
-     * sama seperti RetirementController::buildRows(), karena umur dihitung
-     * di PHP dari tanggal lahir yang terenkripsi (tidak bisa lewat SQL).
+     * Pegawai dengan status pensiun 'reached' (sudah lewat batas usia, belum
+     * diproses) atau 'soon' (segera pensiun). Perhitungan sama seperti
+     * RetirementController::buildRows(), karena umur dihitung di PHP dari
+     * tanggal lahir yang terenkripsi (tidak bisa lewat SQL).
+     *
+     * Sudah terurut seperti halaman Pensiun (RetirementList::sort): yang sudah
+     * melewati batas usia di paling atas, lalu batas usia terdekat.
+     *
+     * Tiap item: ->staff (model Data) dan ->due_date (TMT pensiun; jika belum
+     * ada, pakai tanggal batas usia).
+     *
+     * @return Collection<int, object>
      */
-    private function countRetirementSoon(): int
+    private function retirementCandidates(): Collection
     {
         $staffList = Data::completed()
             ->whereIn('staff_data.status', ['active', 'retired'])
@@ -67,7 +86,7 @@ class DashboardController extends Controller
             ->get();
 
         if ($staffList->isEmpty()) {
-            return 0;
+            return collect();
         }
 
         $activePositions = AsnPositionHistory::with('asnPosition')
@@ -79,7 +98,7 @@ class DashboardController extends Controller
             ->keyBy('staff_id');
 
         $today = new DateTimeImmutable('today');
-        $count = 0;
+        $rows = [];
 
         foreach ($staffList as $staff) {
             $row = RetirementList::makeRow(
@@ -89,12 +108,31 @@ class DashboardController extends Controller
                 $today
             );
 
-            if (in_array($row['calc']['state'], ['reached', 'soon'], true)) {
-                $count++;
+            if (! in_array($row['calc']['state'], ['reached', 'soon'], true)) {
+                continue;
             }
+
+            $rows[] = $row;
         }
 
-        return $count;
+        return collect(RetirementList::sort($rows))->map(fn(array $row) => (object) [
+            'staff'    => $row['staff'],
+            'due_date' => $row['calc']['tmt'] ?? $row['calc']['limit_date'] ?? null,
+        ]);
+    }
+
+    /**
+     * Daftar tunggu kenaikan gaji berkala.
+     * TODO: isi sesuai tabel/model berkala di proyek Anda. Selama masih kosong,
+     * dashboard menampilkan keadaan kosong "Belum ada pegawai dalam daftar tunggu berkala".
+     *
+     * Tiap item harus punya: ->staff (model Data) dan ->due_date (tanggal jatuh tempo).
+     *
+     * @return Collection<int, object>
+     */
+    private function periodicWaitlist(): Collection
+    {
+        return collect();
     }
 
     private function readDob(Data $staff): ?string
