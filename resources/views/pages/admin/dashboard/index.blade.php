@@ -53,10 +53,7 @@ if ($days < 0) return ['Terlewat ' . abs($days) . ' hari', $red];
     'tile' => 'bg-blue-50 text-blue-600',
     'dateLabel'=> 'Jatuh tempo',
     'items' => $periodicWaitlist ?? collect(),
-    // Ganti nama route jika berbeda di proyek Anda
-    'url' => \Illuminate\Support\Facades\Route::has('admin.personnel.periodic.index')
-    ? route('admin.personnel.periodic.index')
-    : '#',
+    'url' => route('admin.personnel.periodic-salary.index'),
     'empty' => 'Belum ada pegawai dalam daftar tunggu berkala',
     ],
     ];
@@ -108,26 +105,88 @@ if ($days < 0) return ['Terlewat ' . abs($days) . ' hari', $red];
         {{-- 2. KARTU STATISTIK --}}
         @php
         $stats = [
-        ['label' => 'Pegawai Aktif', 'value' => $activeStaffCount, 'icon' => 'users', 'tile' => 'bg-emerald-50 text-emerald-600', 'url' => route('admin.personnel.data.index')],
-        ['label' => 'Jabatan ASN Aktif', 'value' => $activePositionCount, 'icon' => 'briefcase-business', 'tile' => 'bg-blue-50 text-blue-600', 'url' => route('admin.personnel.positions.index')],
-        ['label' => 'Mutasi Tahun ' . now()->year, 'value' => $mutationThisYearCount, 'icon' => 'arrow-right-left', 'tile' => 'bg-amber-50 text-amber-600', 'url' => route('admin.personnel.mutation.index')],
-        ['label' => 'Segera Pensiun', 'value' => $retirementSoonCount, 'icon' => 'user-minus', 'tile' => 'bg-red-50 text-red-600', 'url' => route('admin.personnel.retirement.index')],
+        [
+        'label' => 'Pegawai Aktif',
+        'caption' => 'Terdaftar & aktif bekerja',
+        'value' => $activeStaffCount,
+        'icon' => 'users',
+        'url' => route('admin.personnel.data.index'),
+        'bar' => 'from-emerald-400 to-teal-500',
+        'iconBg' => 'from-emerald-500 to-teal-600 shadow-emerald-500/30',
+        'glow' => 'bg-emerald-400/20',
+        'hover' => 'hover:border-emerald-300 hover:shadow-emerald-500/10',
+        'link' => 'text-emerald-600 bg-emerald-50',
+        ],
+        [
+        'label' => 'Jabatan ASN Aktif',
+        'caption' => 'Posisi struktural & fungsional',
+        'value' => $activePositionCount,
+        'icon' => 'briefcase-business',
+        'url' => route('admin.personnel.positions.index'),
+        'bar' => 'from-sky-400 to-indigo-500',
+        'iconBg' => 'from-sky-500 to-indigo-600 shadow-indigo-500/30',
+        'glow' => 'bg-sky-400/20',
+        'hover' => 'hover:border-sky-300 hover:shadow-sky-500/10',
+        'link' => 'text-indigo-600 bg-indigo-50',
+        ],
+        [
+        'label' => 'Mutasi Tahun ' . now()->year,
+        'caption' => 'Perpindahan tahun berjalan',
+        'value' => $mutationThisYearCount,
+        'icon' => 'arrow-right-left',
+        'url' => route('admin.personnel.mutation.index'),
+        'bar' => 'from-amber-400 to-orange-500',
+        'iconBg' => 'from-amber-400 to-orange-500 shadow-orange-500/30',
+        'glow' => 'bg-amber-400/20',
+        'hover' => 'hover:border-amber-300 hover:shadow-amber-500/10',
+        'link' => 'text-orange-600 bg-orange-50',
+        ],
+        [
+        'label' => 'Segera Pensiun',
+        'caption' => 'Perlu perencanaan pengganti',
+        'value' => $retirementSoonCount,
+        'icon' => 'user-minus',
+        'url' => route('admin.personnel.retirement.index'),
+        'bar' => 'from-rose-400 to-red-500',
+        'iconBg' => 'from-rose-500 to-red-600 shadow-red-500/30',
+        'glow' => 'bg-rose-400/20',
+        'hover' => 'hover:border-rose-300 hover:shadow-rose-500/10',
+        'link' => 'text-red-600 bg-red-50',
+        ],
         ];
         @endphp
 
         <section class="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5">
             @foreach ($stats as $stat)
             <a href="{{ $stat['url'] }}"
-                class="group flex flex-col gap-4 rounded-2xl border border-border bg-white p-5 transition-all duration-300 hover:border-primary/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
-                <div class="flex items-center justify-between">
-                    <span class="size-11 rounded-xl {{ $stat['tile'] }} flex items-center justify-center shrink-0">
-                        <i data-lucide="{{ $stat['icon'] }}" class="size-5"></i>
+                class="group relative isolate flex flex-col gap-5 overflow-hidden rounded-2xl border border-border bg-white p-5 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl {{ $stat['hover'] }} focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
+
+                {{-- Strip aksen atas --}}
+                <span class="absolute inset-x-0 top-0 h-1 bg-gradient-to-r {{ $stat['bar'] }}"></span>
+
+                {{-- Glow dekoratif --}}
+                <span class="pointer-events-none absolute -right-10 -top-10 -z-10 size-32 rounded-full blur-2xl transition-transform duration-500 group-hover:scale-150 {{ $stat['glow'] }}"></span>
+
+                {{-- Ikon besar transparan sebagai watermark --}}
+                <i data-lucide="{{ $stat['icon'] }}"
+                    class="pointer-events-none absolute -bottom-4 -right-4 -z-10 size-24 text-foreground/[0.04] transition-transform duration-500 group-hover:-rotate-6 group-hover:scale-110"></i>
+
+                <div class="flex items-start justify-between">
+                    <span class="size-12 rounded-2xl bg-gradient-to-br {{ $stat['iconBg'] }} text-white shadow-lg flex items-center justify-center shrink-0 transition-transform duration-300 group-hover:scale-105">
+                        <i data-lucide="{{ $stat['icon'] }}" class="size-6"></i>
                     </span>
-                    <i data-lucide="arrow-up-right" class="size-4 text-secondary opacity-0 -translate-x-1 translate-y-1 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0 group-hover:translate-y-0"></i>
+
+                    <span class="size-8 rounded-full flex items-center justify-center opacity-0 -translate-x-1 translate-y-1 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0 group-hover:translate-y-0 {{ $stat['link'] }}">
+                        <i data-lucide="arrow-up-right" class="size-4"></i>
+                    </span>
                 </div>
+
                 <div>
-                    <p class="text-3xl md:text-[32px] font-bold leading-none tracking-tight text-foreground tabular-nums">{{ number_format($stat['value'], 0, ',', '.') }}</p>
-                    <p class="mt-2 text-sm font-medium text-secondary">{{ $stat['label'] }}</p>
+                    <p class="text-3xl md:text-[34px] font-extrabold leading-none tracking-tight text-foreground tabular-nums">
+                        {{ number_format($stat['value'], 0, ',', '.') }}
+                    </p>
+                    <p class="mt-2.5 text-sm font-semibold text-foreground">{{ $stat['label'] }}</p>
+                    <p class="mt-0.5 text-xs text-secondary">{{ $stat['caption'] }}</p>
                 </div>
             </a>
             @endforeach
@@ -243,6 +302,7 @@ if ($days < 0) return ['Terlewat ' . abs($days) . ' hari', $red];
                     ['Jabatan ASN', 'briefcase-business', route('admin.personnel.positions.index')],
                     ['Mutasi', 'arrow-right-left', route('admin.personnel.mutation.index')],
                     ['Pensiun', 'user-minus', route('admin.personnel.retirement.index')],
+                    ['Gaji Berkala', 'calendar-clock', route('admin.personnel.periodic-salary.index')],
                     ];
                     @endphp
 

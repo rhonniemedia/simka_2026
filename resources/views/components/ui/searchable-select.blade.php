@@ -21,7 +21,23 @@ $hasError = $errors->has($name);
         
         get filteredOptions() {
             if (this.search === '') return this.options;
-            return this.options.filter(opt => opt.label.toLowerCase().includes(this.search.toLowerCase()));
+            const q = this.search.toLowerCase();
+            // Cari di label maupun nama grup (opsional)
+            return this.options.filter(opt =>
+                opt.label.toLowerCase().includes(q) ||
+                String(opt.group || '').toLowerCase().includes(q)
+            );
+        },
+        // Kelompokkan hasil filter berdasarkan key 'group' (urutan kemunculan dipertahankan).
+        // Opsi tanpa 'group' masuk ke grup kosong dan ditampilkan tanpa judul.
+        get groupedOptions() {
+            const map = new Map();
+            this.filteredOptions.forEach(opt => {
+                const g = opt.group || '';
+                if (!map.has(g)) map.set(g, []);
+                map.get(g).push(opt);
+            });
+            return Array.from(map, ([name, items]) => ({ name, items }));
         },
         selectOption(option) {
             this.selectedId = option.value;
@@ -109,11 +125,36 @@ $hasError = $errors->has($name);
             class="fixed z-[9999] bg-white border shadow-lg border-border rounded-xl overflow-hidden">
 
             <div class="max-h-52 overflow-y-auto">
-                <template x-for="option in filteredOptions" :key="option.value">
-                    <div @click="selectOption(option)"
-                        class="px-3 py-1.5 text-sm transition-colors cursor-pointer hover:bg-muted border-b border-border/50 last:border-0"
-                        :class="{'bg-primary/5 text-primary font-semibold': String(selectedId) === String(option.value)}">
-                        <span x-text="option.label"></span>
+                <template x-for="grp in groupedOptions" :key="grp.name">
+                    <div :class="grp.name ? 'pb-1.5' : ''">
+                        {{-- Judul grup (hanya tampil jika opsi punya key 'group') --}}
+                        <div x-show="grp.name"
+                            class="sticky top-0 z-10 flex items-center gap-2 px-3.5 pt-2.5 pb-1.5 bg-white/95 backdrop-blur-sm">
+                            <span class="size-1.5 shrink-0 rounded-full bg-primary/60"></span>
+                            <span class="text-[10.5px] font-bold uppercase tracking-[0.08em] text-secondary" x-text="grp.name"></span>
+                            <span class="h-px flex-1 bg-border/70"></span>
+                            <span class="text-[10px] font-semibold tabular-nums text-secondary/70" x-text="grp.items.length"></span>
+                        </div>
+
+                        <template x-for="option in grp.items" :key="option.value">
+                            <div @click="selectOption(option)"
+                                class="flex items-center justify-between gap-2 text-sm transition-colors cursor-pointer"
+                                :class="[
+                                    grp.name
+                                        ? 'mx-1.5 rounded-lg px-3 py-1.5 hover:bg-primary/5'
+                                        : 'px-3 py-1.5 hover:bg-muted border-b border-border/50 last:border-0',
+                                    String(selectedId) === String(option.value)
+                                        ? (grp.name ? 'bg-primary/10 text-primary font-semibold' : 'bg-primary/5 text-primary font-semibold')
+                                        : ''
+                                ]">
+                                <span x-text="option.label"></span>
+                                <svg x-show="grp.name && String(selectedId) === String(option.value)"
+                                    class="size-3.5 shrink-0 text-primary" viewBox="0 0 24 24" fill="none"
+                                    stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M20 6 9 17l-5-5" />
+                                </svg>
+                            </div>
+                        </template>
                     </div>
                 </template>
 

@@ -8,6 +8,17 @@ $actionUrl = $isEdit
 $method = $isEdit ? 'hx-put' : 'hx-post';
 
 $gradeIdValue = old('grade_id', $history->grade_id ?? '');
+
+// Opsi untuk searchable-select, dikelompokkan per golongan dari kode pangkat
+// (mis. "III/a" -> grup "Golongan III"). Kode tanpa "/" tidak diberi grup.
+$gradeSelectOptions = collect($grades)->map(function ($grade) {
+$code = trim((string) $grade->grade_code);
+return [
+'value' => (string) $grade->id,
+'label' => $grade->grade_name . ' (' . $code . ')',
+'group' => str_contains($code, '/') ? 'Golongan ' . trim(explode('/', $code)[0]) : null,
+];
+})->values()->all();
 $effectiveDateValue = old('effective_date', !empty($history->effective_date)
 ? \Carbon\Carbon::parse($history->effective_date)->format('Y-m-d')
 : '');
@@ -81,15 +92,11 @@ $positionAtTimeValue = old('position_at_time', $history->position_at_time ?? '')
                     {{-- Golongan --}}
                     <div class="md:col-span-2">
                         <label class="block text-sm font-medium text-foreground mb-1.5">Pangkat / Golongan <span class="text-error">*</span></label>
-                        <select name="grade_id" required
-                            class="w-full rounded-xl border {{ $errors->has('grade_id') ? 'border-error' : 'border-border' }} px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white">
-                            <option value="" disabled {{ $gradeIdValue ? '' : 'selected' }}>Pilih Golongan</option>
-                            @foreach ($grades as $grade)
-                            <option value="{{ $grade->id }}" {{ (string) $gradeIdValue === (string) $grade->id ? 'selected' : '' }}>
-                                {{ $grade->grade_name }} ({{ $grade->grade_code }})
-                            </option>
-                            @endforeach
-                        </select>
+                        <x-ui.searchable-select
+                            name="grade_id"
+                            :options="$gradeSelectOptions"
+                            :value="$gradeIdValue"
+                            placeholder="Cari pangkat / golongan..." />
                         @error('grade_id')
                         <p class="text-xs text-error mt-1">{{ $message }}</p>
                         @enderror

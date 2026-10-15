@@ -4,6 +4,24 @@ $isEdit = $history->exists;
 $actionUrl = $isEdit
 ? route('admin.personnel.positions.update', [$staff->id, $history->id])
 : route('admin.personnel.positions.store', $staff->id);
+
+// Opsi untuk searchable-select, dikelompokkan lewat key 'group'.
+// Urut per jenis jabatan, lalu nama.
+$positionTypeLabels = [
+'fungsional_keahlian' => 'Fungsional Keahlian',
+'fungsional_keterampilan' => 'Fungsional Keterampilan',
+'pelaksana' => 'Pelaksana',
+];
+$positionSelectOptions = [];
+foreach ($positionTypeLabels as $type => $typeLabel) {
+foreach ($positionOptions->where('position_type', $type)->sortBy('name') as $p) {
+$positionSelectOptions[] = [
+'value' => (string) $p->id,
+'label' => $p->name,
+'group' => $typeLabel,
+];
+}
+}
 @endphp
 
 <div id="modal-container"
@@ -76,19 +94,13 @@ $actionUrl = $isEdit
                     {{-- Jabatan ASN --}}
                     <div>
                         <label class="text-xs font-bold text-secondary uppercase tracking-wider">Jabatan ASN <span class="text-error">*</span></label>
-                        <select name="staff_asn_position_id" class="mt-1.5 w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
-                            <option value="">— Pilih jabatan —</option>
-                            @foreach (['fungsional_keahlian' => 'Fungsional Keahlian', 'fungsional_keterampilan' => 'Fungsional Keterampilan', 'pelaksana' => 'Pelaksana'] as $type => $label)
-                            @php $group = $positionOptions->where('position_type', $type); @endphp
-                            @if ($group->isNotEmpty())
-                            <optgroup label="{{ $label }}">
-                                @foreach ($group as $p)
-                                <option value="{{ $p->id }}" @selected(old('staff_asn_position_id', $history->staff_asn_position_id) == $p->id)>{{ $p->name }}</option>
-                                @endforeach
-                            </optgroup>
-                            @endif
-                            @endforeach
-                        </select>
+                        <div class="mt-1.5">
+                            <x-ui.searchable-select
+                                name="staff_asn_position_id"
+                                :options="$positionSelectOptions"
+                                :value="$history->staff_asn_position_id"
+                                placeholder="Cari jabatan..." />
+                        </div>
                         <p class="text-xs text-error font-medium mt-1" x-show="err('staff_asn_position_id')" x-cloak x-text="err('staff_asn_position_id')"></p>
                     </div>
 
