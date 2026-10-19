@@ -83,12 +83,12 @@
 
         {{-- Wrapper scroll horizontal: tabel tidak menjebol layout di layar sempit --}}
         <div class="w-full min-w-0 overflow-x-auto">
-            @include('pages.admin.karier.mutasi.partials._table', compact('staffList'))
+            @include('pages.admin.career.transfers.partials._table', compact('staffList'))
         </div>
 
     </div>
 
-    @include('pages.admin.karier.mutasi.partials._filter-modal', [
+    @include('pages.admin.career.transfers.partials._filter-modal', [
     'year' => $year ?? '',
     'filterStatus' => $filterStatus ?? '',
     'yearOptions' => $yearOptions ?? [],

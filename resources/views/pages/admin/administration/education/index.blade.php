@@ -131,11 +131,11 @@
             </div>
         </div>
 
-        @include('pages.admin.administrasi.pendidikan.partials._table', compact('staff'))
+        @include('pages.admin.administration.education.partials._table', compact('staff'))
 
     </div>
 
-    @include('pages.admin.administrasi.pendidikan.partials._filter-modal', [
+    @include('pages.admin.administration.education.partials._filter-modal', [
     'filterEmploymentStatus' => $filterEmploymentStatus ?? '',
     'filterPersonnel' => $filterPersonnel ?? '',
     'filterPosition' => $filterPosition ?? '',

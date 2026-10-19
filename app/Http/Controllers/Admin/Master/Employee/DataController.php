@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Admin\Master\DataPegawai;
+namespace App\Http\Controllers\Admin\Master\Employee;
 
 use App\Enums\Staff\Gender;
 use App\Enums\Staff\Religion;
@@ -42,9 +42,9 @@ class DataController extends Controller
     /** Draft yang tidak disentuh selama N hari dibuang otomatis. */
     private const STALE_DRAFT_DAYS = 7;
 
-    private const FORM_VIEW = 'pages.admin.master.data-pegawai.partials._edit-personal';
-    private const DETAIL_PERSONAL_VIEW = 'pages.admin.master.data-pegawai.partials._detail-personal';
-    private const DETAIL_EMPLOYMENT_VIEW = 'pages.admin.master.data-pegawai.partials._detail-employment';
+    private const FORM_VIEW = 'pages.admin.master.employees.partials._edit-personal';
+    private const DETAIL_PERSONAL_VIEW = 'pages.admin.master.employees.partials._detail-personal';
+    private const DETAIL_EMPLOYMENT_VIEW = 'pages.admin.master.employees.partials._detail-employment';
 
     /** Kolom staff_data yang diisi pada tiap step. */
     private const STAFF_FIELDS = [
@@ -130,11 +130,11 @@ class DataController extends Controller
 
         // 7. View parsial jika request datang dari HTMX
         if ($request->header('HX-Request')) {
-            return view('pages.admin.master.data-pegawai.partials._table', compact('staff'));
+            return view('pages.admin.master.employees.partials._table', compact('staff'));
         }
 
         // 8. Halaman utama penuh
-        return view('pages.admin.master.data-pegawai.index', array_merge(
+        return view('pages.admin.master.employees.index', array_merge(
             compact(
                 'staff',
                 'search',
@@ -235,7 +235,7 @@ class DataController extends Controller
     {
         $staff = Data::findOrFail($id);
 
-        return view('pages.admin.master.data-pegawai.partials._edit-photo-modal', compact('staff'));
+        return view('pages.admin.master.employees.partials._edit-photo-modal', compact('staff'));
     }
 
     private function renderForm(?Data $staff)
@@ -751,7 +751,7 @@ class DataController extends Controller
     private function tableWithStatsOob(Request $request): string
     {
         $table = $this->index($request)->render();
-        $statsOob = view('pages.admin.master.data-pegawai.partials._stats-cards', array_merge(
+        $statsOob = view('pages.admin.master.employees.partials._stats-cards', array_merge(
             $this->getStats(),
             ['isOob' => true]
         ))->render();

@@ -43,10 +43,10 @@ class FamilyController extends Controller
         $staffs = $query->paginate(10)->withQueryString();
 
         if ($request->header('HX-Request')) {
-            return view('pages.admin.administrasi.keluarga.partials._table', compact('staffs'));
+            return view('pages.admin.administration.family.partials._table', compact('staffs'));
         }
 
-        return view('pages.admin.administrasi.keluarga.index', compact('staffs', 'search'));
+        return view('pages.admin.administration.family.index', compact('staffs', 'search'));
     }
 
     public function show(Request $request, $id)
@@ -63,10 +63,10 @@ class FamilyController extends Controller
             ->paginate(10);
 
         if ($request->header('HX-Request')) {
-            return view('pages.admin.administrasi.keluarga.show.partials._table', compact('staff', 'families'));
+            return view('pages.admin.administration.family.show.partials._table', compact('staff', 'families'));
         }
 
-        return view('pages.admin.administrasi.keluarga.show.index', compact('staff', 'families'));
+        return view('pages.admin.administration.family.show.index', compact('staff', 'families'));
     }
 
     public function create(Request $request, $id)
@@ -80,8 +80,8 @@ class FamilyController extends Controller
         // muat ulang isi form (#family-modal-content), JANGAN shell modal
         // penuh (lihat catatan di _modal-form.blade.php).
         $view = $request->boolean('refresh')
-            ? 'pages.admin.administrasi.keluarga.show.partials._modal-form-content'
-            : 'pages.admin.administrasi.keluarga.show.partials._modal-form';
+            ? 'pages.admin.administration.family.show.partials._modal-form-content'
+            : 'pages.admin.administration.family.show.partials._modal-form';
 
         return view($view, [
             'staff'                => $staff,
@@ -138,7 +138,7 @@ class FamilyController extends Controller
             ->contains(fn(FamilyRelation $relation) => $relation->staff_id === $staff->id)
             : false;
 
-        return view('pages.admin.administrasi.keluarga.show.partials._nik-check-result', [
+        return view('pages.admin.administration.family.show.partials._nik-check-result', [
             'staff'                    => $staff,
             'relation'                 => $relation,
             'existing'                 => $existing,
@@ -203,8 +203,8 @@ class FamilyController extends Controller
         [$prefill, $linkToFamilyMemberId] = $this->resolvePrefillFromRequest($request);
 
         $view = $request->boolean('refresh')
-            ? 'pages.admin.administrasi.keluarga.show.partials._modal-form-content'
-            : 'pages.admin.administrasi.keluarga.show.partials._modal-form';
+            ? 'pages.admin.administration.family.show.partials._modal-form-content'
+            : 'pages.admin.administration.family.show.partials._modal-form';
 
         return view($view, [
             'staff'                => $staff,

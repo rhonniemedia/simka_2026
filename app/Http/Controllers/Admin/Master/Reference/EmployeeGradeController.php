@@ -1,18 +1,18 @@
 <?php
 
-namespace App\Http\Controllers\Admin\Master\DataUtama;
+namespace App\Http\Controllers\Admin\Master\Reference;
 
 use App\Http\Controllers\Controller;
 use App\Models\Grade;
 use Illuminate\Http\Request;
 
-class GradeController extends Controller
+class EmployeeGradeController extends Controller
 {
     public function index(Request $request)
     {
         if (!$request->header('HX-Request')) {
             // Kirim identitas tab langsung dari Controller
-            return view('pages.admin.master.data-utama.index', [
+            return view('pages.admin.master.references.index', [
                 'activeTab' => 'grades',
                 'fetchUrl'  => $request->fullUrl()
             ]);
@@ -20,13 +20,13 @@ class GradeController extends Controller
         // Menggunakan paginate(10) untuk membatasi 10 baris per halaman
         $grades = Grade::orderByRaw('CAST(level AS UNSIGNED) ASC')
             ->paginate(10);
-        return view('pages.admin.master.data-utama.golongan-pangkat.grades', compact('grades'));
+        return view('pages.admin.master.references.grade.grades', compact('grades'));
     }
 
     public function create()
     {
         $item = null;
-        return view('pages.admin.master.data-utama.golongan-pangkat.partials._grade-form', compact('item'));
+        return view('pages.admin.master.references.grade.partials._grade-form', compact('item'));
     }
 
     public function store(Request $request)
@@ -40,7 +40,7 @@ class GradeController extends Controller
     public function edit($id)
     {
         $item = Grade::findOrFail($id);
-        return view('pages.admin.master.data-utama.golongan-pangkat.partials._grade-form', compact('item'));
+        return view('pages.admin.master.references.grade.partials._grade-form', compact('item'));
     }
 
     public function update(Request $request, $id)

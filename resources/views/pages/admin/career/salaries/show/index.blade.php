@@ -94,7 +94,7 @@
         </div>
 
         {{-- Memanggil partial _table.blade.php yang ada di folder show/partials --}}
-        @include('pages.admin.karier.berkala.show.partials._table', compact('staff', 'histories'))
+        @include('pages.admin.career.salaries.show.partials._table', compact('staff', 'histories'))
     </div>
 </div>
 @endsection

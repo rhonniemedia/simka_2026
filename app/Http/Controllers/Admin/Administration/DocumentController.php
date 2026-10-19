@@ -38,7 +38,7 @@ class DocumentController extends Controller
 
         $categoryOptions = DocumentCategory::orderBy('name')->pluck('name', 'id');
 
-        return view('pages.admin.administrasi.dokumen.index', [
+        return view('pages.admin.administration.documents.index', [
             'documents'           => $documents,
             'search'              => $search,
             'filterCategory'      => $filterCategory,
@@ -51,14 +51,14 @@ class DocumentController extends Controller
 
     public function create()
     {
-        return view('pages.admin.administrasi.dokumen.partials._document-form', $this->formOptions());
+        return view('pages.admin.administration.documents.partials._document-form', $this->formOptions());
     }
 
     public function edit($id)
     {
         $item = Document::findOrFail($id);
 
-        return view('pages.admin.administrasi.dokumen.partials._document-form', array_merge(
+        return view('pages.admin.administration.documents.partials._document-form', array_merge(
             $this->formOptions(),
             ['item' => $item]
         ));

@@ -91,7 +91,7 @@
         <div class="mb-5">
             <h2 class="text-lg font-bold text-foreground">Daftar Riwayat Pendidikan</h2>
         </div>
-        @include('pages.admin.personnel.education.show.partials._table', compact('staff', 'educations'))
+        @include('pages.admin.administration.education.show.partials._table', compact('staff', 'educations'))
     </div>
 </div>
 @endsection

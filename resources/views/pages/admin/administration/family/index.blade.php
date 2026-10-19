@@ -82,7 +82,7 @@
             </div>
         </div>
 
-        @include('pages.admin.administrasi.keluarga.partials._table', compact('staffs'))
+        @include('pages.admin.administration.family.partials._table', compact('staffs'))
 
     </div>
 

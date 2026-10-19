@@ -66,7 +66,7 @@
             <h2 class="text-lg font-bold text-foreground">Daftar Anggota Keluarga</h2>
         </div>
 
-        @include('pages.admin.personnel.family.show.partials._table', compact('staff', 'families'))
+        @include('pages.admin.administration.family.show.partials._table', compact('staff', 'families'))
     </div>
 </div>
 @endsection

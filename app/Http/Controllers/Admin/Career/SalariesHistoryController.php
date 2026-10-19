@@ -10,7 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
-class PeriodicSalaryHistoryController extends Controller
+class SalariesHistoryController extends Controller
 {
     public function index(Request $request)
     {
@@ -50,10 +50,10 @@ class PeriodicSalaryHistoryController extends Controller
         });
 
         if ($request->header('HX-Request')) {
-            return view('pages.admin.karier.berkala.partials._table', compact('histories'));
+            return view('pages.admin.career.salaries.partials._table', compact('histories'));
         }
 
-        return view('pages.admin.karier.berkala.index', compact('histories'));
+        return view('pages.admin.career.salaries.index', compact('histories'));
     }
 
     public function show(Request $request, $id)
@@ -94,10 +94,10 @@ class PeriodicSalaryHistoryController extends Controller
         });
 
         if ($request->header('HX-Request')) {
-            return view('pages.admin.karier.berkala.show.partials._table', compact('staff', 'histories'));
+            return view('pages.admin.career.salaries.show.partials._table', compact('staff', 'histories'));
         }
 
-        return view('pages.admin.karier.berkala.show.index', compact('staff', 'histories'));
+        return view('pages.admin.career.salaries.show.index', compact('staff', 'histories'));
     }
 
     public function create($id)
@@ -106,7 +106,7 @@ class PeriodicSalaryHistoryController extends Controller
 
         // FIX: sebelumnya menunjuk ke 'modals._modal-form' (path yang tidak ada / salah),
         // padahal file aslinya ada di 'show/partials/_modal-form.blade.php'.
-        return view('pages.admin.karier.berkala.show.partials._modal-form', compact('staff'));
+        return view('pages.admin.career.salaries.show.partials._modal-form', compact('staff'));
     }
 
     public function store(Request $request, $id)
@@ -157,7 +157,7 @@ class PeriodicSalaryHistoryController extends Controller
         $history = PeriodicSalaryHistory::where('staff_id', $staff_id)->findOrFail($history_id);
 
         // FIX: sama seperti create(), path view diperbaiki.
-        return view('pages.admin.karier.berkala.show.partials._modal-form', compact('staff', 'history'));
+        return view('pages.admin.career.salaries.show.partials._modal-form', compact('staff', 'history'));
     }
 
     public function update(Request $request, $staff_id, $history_id)
@@ -262,7 +262,7 @@ class PeriodicSalaryHistoryController extends Controller
             $request->flash();
 
             return response()
-                ->view('pages.admin.karier.berkala.show.partials._modal-form', [
+                ->view('pages.admin.career.salaries.show.partials._modal-form', [
                     'staff'   => $staff,
                     'history' => $history,
                     'errors'  => $e->validator->errors(),

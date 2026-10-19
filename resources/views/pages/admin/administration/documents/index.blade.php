@@ -115,11 +115,11 @@
             </div>
         </div>
 
-        @include('pages.admin.administrasi.dokumen.partials._table', compact('documents'))
+        @include('pages.admin.administration.documents.partials._table', compact('documents'))
 
     </div>
 
-    @include('pages.admin.administrasi.dokumen.partials._filter-modal', [
+    @include('pages.admin.administration.documents.partials._filter-modal', [
     'filterCategory' => $filterCategory ?? '',
     'filterVerification' => $filterVerification ?? '',
     'filterDateFrom' => $filterDateFrom ?? '',

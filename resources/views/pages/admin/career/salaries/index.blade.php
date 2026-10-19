@@ -129,11 +129,11 @@
             </div>
         </div>
 
-        @include('pages.admin.karier.berkala.partials._table', compact('histories'))
+        @include('pages.admin.career.salaries.partials._table', compact('histories'))
 
     </div>
 
-    @include('pages.admin.karier.berkala.partials._filter-modal', [
+    @include('pages.admin.career.salaries.partials._filter-modal', [
     'filterVerificationStatus' => $filterVerificationStatus ?? '',
     'filterYear' => $filterYear ?? '',
     ])

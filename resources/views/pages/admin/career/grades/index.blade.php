@@ -85,7 +85,7 @@
             </div>
         </div>
 
-        @include('pages.admin.karier.kepangkatan.partials._table', compact('histories'))
+        @include('pages.admin.career.grades.partials._table', compact('histories'))
 
     </div>
 

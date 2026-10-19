@@ -22,9 +22,9 @@ class RetirementController extends Controller
 {
     private const PER_PAGE = 10;
 
-    private const INDEX_VIEW = 'pages.admin.karier.pensiun.index';
-    private const TABLE_VIEW = 'pages.admin.karier.pensiun.partials._table';
-    private const FORM_MODAL_VIEW = 'pages.admin.karier.pensiun.partials._modal-form';
+    private const INDEX_VIEW = 'pages.admin.career.retirements.index';
+    private const TABLE_VIEW = 'pages.admin.career.retirements.partials._table';
+    private const FORM_MODAL_VIEW = 'pages.admin.career.retirements.partials._modal-form';
 
     /** Status kepegawaian (slug) yang tidak ikut dihitung pensiun. */
     private const EXCLUDED_EMPLOYMENT_SLUGS = ['honorer'];

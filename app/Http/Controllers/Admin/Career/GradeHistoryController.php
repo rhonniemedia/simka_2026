@@ -32,10 +32,10 @@ class GradeHistoryController extends Controller
 
         // Jika request dari HTMX (pencarian/pagination), kembalikan partial table saja
         if ($request->header('HX-Request')) {
-            return view('pages.admin.karier.kepangkatan.partials._table', compact('histories'));
+            return view('pages.admin.career.grades.partials._table', compact('histories'));
         }
 
-        return view('pages.admin.karier.kepangkatan.index', compact('histories', 'search'));
+        return view('pages.admin.career.grades.index', compact('histories', 'search'));
     }
 
     public function show(Request $request, $id)
@@ -51,11 +51,11 @@ class GradeHistoryController extends Controller
 
         // 3. Jika request dari HTMX, kembalikan partial tabel show-nya
         if ($request->header('HX-Request')) {
-            return view('pages.admin.karier.kepangkatan.show.partials._table', compact('staff', 'histories'));
+            return view('pages.admin.career.grades.show.partials._table', compact('staff', 'histories'));
         }
 
         // 4. Kembalikan view utama show
-        return view('pages.admin.karier.kepangkatan.show.index', compact('staff', 'histories'));
+        return view('pages.admin.career.grades.show.index', compact('staff', 'histories'));
     }
 
     public function create($id)
@@ -63,7 +63,7 @@ class GradeHistoryController extends Controller
         $staff = Data::findOrFail($id);
         $grades = Grade::orderBy('grade_code')->get();
 
-        return view('pages.admin.karier.kepangkatan.show.partials._modal-form', compact('staff', 'grades'));
+        return view('pages.admin.career.grades.show.partials._modal-form', compact('staff', 'grades'));
     }
 
     public function store(Request $request, $id)
@@ -121,7 +121,7 @@ class GradeHistoryController extends Controller
         $history = GradeHistory::where('staff_id', $staff_id)->findOrFail($history_id);
         $grades = Grade::orderBy('grade_code')->get();
 
-        return view('pages.admin.karier.kepangkatan.show.partials._modal-form', compact('staff', 'history', 'grades'));
+        return view('pages.admin.career.grades.show.partials._modal-form', compact('staff', 'history', 'grades'));
     }
 
     public function update(Request $request, $staff_id, $history_id)
@@ -229,7 +229,7 @@ class GradeHistoryController extends Controller
             $request->flash();
 
             return response()
-                ->view('pages.admin.karier.kepangkatan.show.partials._modal-form', [
+                ->view('pages.admin.career.grades.show.partials._modal-form', [
                     'staff'   => $staff,
                     'history' => $history,
                     'grades'  => Grade::orderBy('grade_code')->get(),

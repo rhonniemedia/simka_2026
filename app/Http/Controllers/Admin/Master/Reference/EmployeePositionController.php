@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Admin\Master\DataUtama;
+namespace App\Http\Controllers\Admin\Master\Reference;
 
 use App\Http\Controllers\Controller;
 use App\Models\AsnPosition;
@@ -8,13 +8,13 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
-class AsnPositionController extends Controller
+class EmployeePositionController extends Controller
 {
     public function index(Request $request)
     {
         if (!$request->header('HX-Request')) {
             // Kirim identitas tab langsung dari Controller
-            return view('pages.admin.master.data-utama.index', [
+            return view('pages.admin.master.references.index', [
                 'activeTab' => 'asn_positions',
                 'fetchUrl'  => $request->fullUrl()
             ]);
@@ -23,13 +23,13 @@ class AsnPositionController extends Controller
         // Menerapkan paginasi 10 data per halaman
         $asnPositions = AsnPosition::latest()->paginate(10);
 
-        return view('pages.admin.master.data-utama.jabatan-pegawai.asn-positions', compact('asnPositions'));
+        return view('pages.admin.master.references.position.position', compact('asnPositions'));
     }
 
     public function create()
     {
         $item = null;
-        return view('pages.admin.master.data-utama.jabatan-pegawai.partials._asn-position-form', compact('item'));
+        return view('pages.admin.master.references.position.partials._position-form', compact('item'));
     }
 
     public function store(Request $request)
@@ -48,7 +48,7 @@ class AsnPositionController extends Controller
     public function edit($id)
     {
         $item = AsnPosition::findOrFail($id);
-        return view('pages.admin.master.data-utama.jabatan-pegawai.partials._asn-position-form', compact('item'));
+        return view('pages.admin.master.references.position.partials._position-form', compact('item'));
     }
 
     public function update(Request $request, $id)

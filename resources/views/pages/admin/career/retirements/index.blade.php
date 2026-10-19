@@ -110,11 +110,11 @@
             </div>
         </div>
 
-        @include('pages.admin.karier.pensiun.partials._table', ['rows' => $rows])
+        @include('pages.admin.career.retirements.partials._table', ['rows' => $rows])
 
     </div>
 
-    @include('pages.admin.karier.pensiun.partials._filter-modal', [
+    @include('pages.admin.career.retirements.partials._filter-modal', [
     'filterRetirementStatus' => $filterRetirementStatus ?? '',
     'filterEmploymentStatus' => $filterEmploymentStatus ?? '',
     'filterPositionType' => $filterPositionType ?? '',

@@ -65,7 +65,7 @@
             <h2 class="text-lg font-bold text-foreground">Daftar Riwayat Kepangkatan (Golongan)</h2>
         </div>
 
-        @include('pages.admin.karier.kepangkatan.show.partials._table', compact('staff', 'histories'))
+        @include('pages.admin.career.grades.show.partials._table', compact('staff', 'histories'))
     </div>
 </div>
 @endsection

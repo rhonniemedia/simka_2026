@@ -1,32 +1,36 @@
 <?php
 
-namespace App\Http\Controllers\Admin\Master\DataUtama;
+namespace App\Http\Controllers\Admin\Master\Reference;
 
 use App\Http\Controllers\Controller;
-use App\Models\EmploymentStatus;
+use App\Models\PersonnelType;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
-class EmploymentStatusController extends Controller
+class EmployeeTypeController extends Controller
 {
     public function index(Request $request)
     {
         if (!$request->header('HX-Request')) {
             // Kirim identitas tab langsung dari Controller
-            return view('pages.admin.master.data-utama.index', [
-                'activeTab' => 'employment_statuses',
+            return view('pages.admin.master.references.index', [
+                'activeTab' => 'personnel_types',
                 'fetchUrl'  => $request->fullUrl()
             ]);
         }
 
-        $employmentStatuses = EmploymentStatus::orderBy('code')->get();
-        return view('pages.admin.master.data-utama.status-pegawai.employment-statuses', compact('employmentStatuses'));
+        // Mengambil data jenis personel, diurutkan berdasarkan code
+        $personnelTypes = PersonnelType::orderBy('code')->get();
+
+        // Merender view partial (tanpa layout utama)
+        return view('pages.admin.master.references.type.personnel-types', compact('personnelTypes'));
     }
 
     public function create()
     {
         $item = null;
-        return view('pages.admin.master.data-utama.status-pegawai.partials._employment-status-form', compact('item'));
+
+        return view('pages.admin.master.references.type.partials._personnel-type-form', compact('item'));
     }
 
     public function store(Request $request)
@@ -34,33 +38,34 @@ class EmploymentStatusController extends Controller
         $validated = $this->validated($request);
         $validated['slug'] = $this->generateUniqueSlug($validated['name']);
 
-        EmploymentStatus::create($validated);
+        PersonnelType::create($validated);
 
-        return $this->respondWithSuccess('Status Kepegawaian berhasil ditambahkan.');
+        return $this->respondWithSuccess('Jenis personel berhasil ditambahkan.');
     }
 
     public function edit($id)
     {
-        $item = EmploymentStatus::findOrFail($id);
-        return view('pages.admin.master.data-utama.status-pegawai.partials._employment-status-form', compact('item'));
+        $item = PersonnelType::findOrFail($id);
+
+        return view('pages.admin.master.references.type.partials._personnel-type-form', compact('item'));
     }
 
     public function update(Request $request, $id)
     {
-        $item = EmploymentStatus::findOrFail($id);
+        $item = PersonnelType::findOrFail($id);
         $validated = $this->validated($request, $id);
 
         $item->update($validated);
 
-        return $this->respondWithSuccess('Status Kepegawaian berhasil diperbarui.');
+        return $this->respondWithSuccess('Jenis personel berhasil diperbarui.');
     }
 
     public function destroy($id)
     {
-        $item = EmploymentStatus::findOrFail($id);
+        $item = PersonnelType::findOrFail($id);
         $item->delete();
 
-        return $this->respondWithSuccess('Status Kepegawaian berhasil dihapus.');
+        return $this->respondWithSuccess('Jenis personel berhasil dihapus.');
     }
 
     /*
@@ -72,7 +77,7 @@ class EmploymentStatusController extends Controller
     private function validated(Request $request, ?string $ignoreId = null): array
     {
         return $request->validate([
-            'code'  => 'required|string|max:50|unique:staff_employment_statuses,code' . ($ignoreId ? ",{$ignoreId}" : ''),
+            'code'  => 'required|string|max:50|unique:staff_personnel_types,code' . ($ignoreId ? ",{$ignoreId}" : ''),
             'name'  => 'required|string|max:255',
             'alias' => 'nullable|string|max:255',
         ]);
@@ -81,10 +86,10 @@ class EmploymentStatusController extends Controller
     private function generateUniqueSlug(string $name): string
     {
         $base = Str::slug($name);
-        $slug = $base !== '' ? $base : 'status-kepegawaian';
+        $slug = $base !== '' ? $base : 'jenis-personel';
         $i = 1;
 
-        while (EmploymentStatus::where('slug', $slug)->exists()) {
+        while (PersonnelType::where('slug', $slug)->exists()) {
             $i++;
             $slug = "{$base}-{$i}";
         }
@@ -92,12 +97,18 @@ class EmploymentStatusController extends Controller
         return $slug;
     }
 
+    /**
+     * Container tabel (lihat personnel-types.blade.php) sudah pasang
+     * hx-trigger="refreshPersonnelTypes from:body" pada dirinya sendiri -
+     * jadi cukup kirim event ini lewat HX-Trigger, container akan
+     * refresh sendiri tanpa perlu kita render ulang tabelnya manual.
+     */
     private function respondWithSuccess(string $message)
     {
         return response('')
             ->header('HX-Trigger', json_encode([
                 'close-modal' => true,
-                'refreshEmploymentStatuses' => true, // Memicu refresh tabel status
+                'refreshPersonnelTypes' => true,
                 'showAlert' => [
                     'icon'  => 'success',
                     'title' => 'Berhasil!',

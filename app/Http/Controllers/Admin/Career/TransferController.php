@@ -15,8 +15,8 @@ use Illuminate\Validation\ValidationException;
 
 class TransferController extends Controller
 {
-    private const TABLE_VIEW = 'pages.admin.karier.mutasi.partials._table';
-    private const FORM_VIEW = 'pages.admin.karier.mutasi.partials._form-modal';
+    private const TABLE_VIEW = 'pages.admin.career.transfers.partials._table';
+    private const FORM_VIEW = 'pages.admin.career.transfers.partials._form-modal';
 
     /** Semua status "keluar" (selain aktif) yang tampil di daftar ini. Pensiun tetap ikut ditampilkan (read-only), meski perubahannya lewat menu Pensiun sendiri. */
     private const OUT_STATUSES = ['transferred', 'resigned', 'retired', 'deceased', 'dismissed'];
@@ -108,7 +108,7 @@ class TransferController extends Controller
             ->orderBy('code')
             ->get(['id', 'name']);
 
-        return view('pages.admin.karier.mutasi.index', compact(
+        return view('pages.admin.career.transfers.index', compact(
             'staffList',
             'year',
             'filterStatus',

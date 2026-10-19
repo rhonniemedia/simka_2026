@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Admin\Master\DataUtama;
+namespace App\Http\Controllers\Admin\Master\Reference;
 
 use App\Http\Controllers\Controller;
 use App\Models\DocumentCategory;
@@ -8,13 +8,13 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
-class DocumentCategoryController extends Controller
+class EmployeeDocumentController extends Controller
 {
     public function index(Request $request)
     {
         if (!$request->header('HX-Request')) {
             // Kirim identitas tab langsung dari Controller
-            return view('pages.admin.master.data-utama.index', [
+            return view('pages.admin.master.references.index', [
                 'activeTab' => 'document_categories',
                 'fetchUrl'  => $request->fullUrl()
             ]);
@@ -25,13 +25,13 @@ class DocumentCategoryController extends Controller
             ->latest()
             ->paginate(10);
 
-        return view('pages.admin.master.data-utama.kategori-dokumen.document-categories', compact('documentCategories'));
+        return view('pages.admin.master.references.document.document-categories', compact('documentCategories'));
     }
 
     public function create()
     {
         $item = null;
-        return view('pages.admin.master.data-utama.kategori-dokumen.partials._document-category-form', compact('item'));
+        return view('pages.admin.master.references.document.partials._document-category-form', compact('item'));
     }
 
     public function store(Request $request)
@@ -50,7 +50,7 @@ class DocumentCategoryController extends Controller
     public function edit($id)
     {
         $item = DocumentCategory::findOrFail($id);
-        return view('pages.admin.master.data-utama.kategori-dokumen.partials._document-category-form', compact('item'));
+        return view('pages.admin.master.references.document.partials._document-category-form', compact('item'));
     }
 
     public function update(Request $request, $id)

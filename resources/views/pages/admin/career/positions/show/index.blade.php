@@ -91,7 +91,7 @@
         <div class="mb-5">
             <h2 class="text-lg font-bold text-foreground">Daftar Riwayat Jabatan ASN</h2>
         </div>
-        @include('pages.admin.karier.jabatan.show.partials._table', compact('staff', 'histories'))
+        @include('pages.admin.career.positions.show.partials._table', compact('staff', 'histories'))
     </div>
 </div>
 

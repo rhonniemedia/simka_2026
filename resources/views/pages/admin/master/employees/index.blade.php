@@ -64,7 +64,7 @@
     </div>
 
     {{-- Stats Cards --}}
-    @include('pages.admin.master.data-pegawai.partials._stats-cards', [
+    @include('pages.admin.master.employees.partials._stats-cards', [
     'totalStats' => $totalStats ?? 0,
     'activeStats' => $activeStats ?? 0,
     'inactiveStats' => $inactiveStats ?? 0,
@@ -150,11 +150,11 @@
             </div>
         </div>
 
-        @include('pages.admin.master.data-pegawai.partials._table', compact('staff'))
+        @include('pages.admin.master.employees.partials._table', compact('staff'))
 
     </div>
 
-    @include('pages.admin.master.data-pegawai.partials._filter-modal', [
+    @include('pages.admin.master.employees.partials._filter-modal', [
     'filterEmploymentStatus' => $filterEmploymentStatus ?? '',
     'filterPersonnel' => $filterPersonnel ?? '',
     'filterPosition' => $filterPosition ?? '',

@@ -10,7 +10,7 @@ use App\Models\PersonnelType;
 use App\Models\Position;
 use Illuminate\Http\Request;
 
-class EducationHistoryController extends Controller
+class EducationController extends Controller
 {
     public function index(Request $request)
     {
@@ -75,11 +75,11 @@ class EducationHistoryController extends Controller
 
         // 7. Render view parsial jika request datang dari HTMX
         if ($request->header('HX-Request')) {
-            return view('pages.admin.administrasi.pendidikan.partials._table', compact('staff'));
+            return view('pages.admin.administration.education.partials._table', compact('staff'));
         }
 
         // 8. Render halaman utama penuh
-        return view('pages.admin.administrasi.pendidikan.index', array_merge(
+        return view('pages.admin.administration.education.index', array_merge(
             compact(
                 'staff',
                 'search',
@@ -124,7 +124,7 @@ class EducationHistoryController extends Controller
 
         if ($request->header('HX-Request')) {
             $table = $this->index($request)->render();
-            $statsOob = view('pages.admin.administrasi.pendidikan.partials._stats-cards', array_merge(
+            $statsOob = view('pages.admin.administration.education.partials._stats-cards', array_merge(
                 $this->getStats(),
                 ['isOob' => true]
             ))->render();
@@ -146,19 +146,19 @@ class EducationHistoryController extends Controller
     {
         // Mengubah cakupan detail untuk memuat riwayat pendidikan
         $staff = Data::with(['vault', 'educationHistories.level'])->findOrFail($id);
-        return view('pages.admin.administrasi.pendidikan.modals._detail-personal', compact('staff'));
+        return view('pages.admin.administration.education.modals._detail-personal', compact('staff'));
     }
 
     public function detailEmployment($id)
     {
         $staff = Data::with(['personnelType', 'position'])->findOrFail($id);
-        return view('pages.admin.administrasi.pendidikan.modals._detail-employment', compact('staff'));
+        return view('pages.admin.administration.education.modals._detail-employment', compact('staff'));
     }
 
     public function editPersonal($id)
     {
         $staff = Data::with(['vault', 'educationHistories'])->findOrFail($id);
-        return view('pages.admin.administrasi.pendidikan.modals._edit-personal', compact('staff'));
+        return view('pages.admin.administration.education.modals._edit-personal', compact('staff'));
     }
 
     public function show(Request $request, $id)
@@ -178,10 +178,10 @@ class EducationHistoryController extends Controller
         // tabelnya saja -- JANGAN kembalikan halaman penuh, karena akan
         // di-swap ke dalam <div id="education-container"> di client.
         if ($request->header('HX-Request')) {
-            return view('pages.admin.administrasi.pendidikan.show.partials._table', compact('staff', 'educations'));
+            return view('pages.admin.administration.education.show.partials._table', compact('staff', 'educations'));
         }
 
-        return view('pages.admin.administrasi.pendidikan.show.index', compact('staff', 'educations'));
+        return view('pages.admin.administration.education.show.index', compact('staff', 'educations'));
     }
 
     public function create($id)
@@ -189,7 +189,7 @@ class EducationHistoryController extends Controller
         $staff = Data::findOrFail($id);
         $levels = EducationLevel::orderByRaw('CAST(level AS UNSIGNED) ASC')->get();
 
-        return view('pages.admin.administrasi.pendidikan.show.partials._modal-form', compact('staff', 'levels'));
+        return view('pages.admin.administration.education.show.partials._modal-form', compact('staff', 'levels'));
     }
 
     public function store(Request $request, $id)
@@ -237,7 +237,7 @@ class EducationHistoryController extends Controller
         $education = $staff->educations()->findOrFail($edu_id);
         $levels = EducationLevel::orderByRaw('CAST(level AS UNSIGNED) ASC')->get();
 
-        return view('pages.admin.administrasi.pendidikan.show.partials._modal-form', compact('staff', 'education', 'levels'));
+        return view('pages.admin.administration.education.show.partials._modal-form', compact('staff', 'education', 'levels'));
     }
 
     public function update(Request $request, $staff_id, $edu_id)

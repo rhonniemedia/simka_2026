@@ -1,18 +1,18 @@
 <?php
 
-namespace App\Http\Controllers\Admin\Master\DataUtama;
+namespace App\Http\Controllers\Admin\Master\Reference;
 
 use App\Http\Controllers\Controller;
 use App\Models\EducationLevel;
 use Illuminate\Http\Request;
 
-class EducationLevelController extends Controller
+class EmployeeEducationController extends Controller
 {
     public function index(Request $request)
     {
         if (!$request->header('HX-Request')) {
             // Kirim identitas tab langsung dari Controller
-            return view('pages.admin.master.data-utama.index', [
+            return view('pages.admin.master.references.index', [
                 'activeTab' => 'education_levels',
                 'fetchUrl'  => $request->fullUrl()
             ]);
@@ -22,13 +22,13 @@ class EducationLevelController extends Controller
         $educationLevels = EducationLevel::orderByRaw('CAST(level AS UNSIGNED) ASC')
             ->paginate(10);
 
-        return view('pages.admin.master.data-utama.tingkat-pendidikan.education-levels', compact('educationLevels'));
+        return view('pages.admin.master.references.education.education-levels', compact('educationLevels'));
     }
 
     public function create()
     {
         $item = null;
-        return view('pages.admin.master.data-utama.tingkat-pendidikan.partials._education-level-form', compact('item'));
+        return view('pages.admin.master.references.education.partials._education-level-form', compact('item'));
     }
 
     public function store(Request $request)
@@ -42,7 +42,7 @@ class EducationLevelController extends Controller
     public function edit($id)
     {
         $item = EducationLevel::findOrFail($id);
-        return view('pages.admin.master.data-utama.tingkat-pendidikan.partials._education-level-form', compact('item'));
+        return view('pages.admin.master.references.education.partials._education-level-form', compact('item'));
     }
 
     public function update(Request $request, $id)

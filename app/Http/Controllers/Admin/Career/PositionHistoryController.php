@@ -14,10 +14,10 @@ use Illuminate\Validation\ValidationException;
 
 class PositionHistoryController extends Controller
 {
-    private const INDEX_TABLE_VIEW = 'pages.admin.karier.jabatan.partials._table';
+    private const INDEX_TABLE_VIEW = 'pages.admin.career.positions.partials._table';
 
-    private const SHOW_TABLE_VIEW = 'pages.admin.karier.jabatan.show.partials._table';
-    private const FORM_MODAL_VIEW = 'pages.admin.karier.jabatan.show.partials._modal-form';
+    private const SHOW_TABLE_VIEW = 'pages.admin.career.positions.show.partials._table';
+    private const FORM_MODAL_VIEW = 'pages.admin.career.positions.show.partials._modal-form';
 
     /*
     |--------------------------------------------------------------------
@@ -69,7 +69,7 @@ class PositionHistoryController extends Controller
 
         $employmentOptions = \App\Models\EmploymentStatus::orderBy('name')->get();
 
-        return view('pages.admin.karier.jabatan.index', compact(
+        return view('pages.admin.career.positions.index', compact(
             'staffList',
             'search',
             'filterEmploymentStatus',
@@ -104,7 +104,7 @@ class PositionHistoryController extends Controller
             ->where('is_active', true)
             ->first();
 
-        return view('pages.admin.karier.jabatan.show.index', compact('staff', 'histories', 'activePosition'));
+        return view('pages.admin.career.positions.show.index', compact('staff', 'histories', 'activePosition'));
     }
 
     /*

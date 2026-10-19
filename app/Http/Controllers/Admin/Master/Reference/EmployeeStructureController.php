@@ -1,18 +1,18 @@
 <?php
 
-namespace App\Http\Controllers\Admin\Master\DataUtama;
+namespace App\Http\Controllers\Admin\Master\Reference;
 
 use App\Http\Controllers\Controller;
 use App\Models\Position;
 use Illuminate\Http\Request;
 
-class PositionController extends Controller
+class EmployeeStructureController extends Controller
 {
     public function index(Request $request)
     {
         if (!$request->header('HX-Request')) {
             // Kirim identitas tab langsung dari Controller
-            return view('pages.admin.master.data-utama.index', [
+            return view('pages.admin.master.references.index', [
                 'activeTab' => 'positions',
                 'fetchUrl'  => $request->fullUrl()
             ]);
@@ -22,13 +22,13 @@ class PositionController extends Controller
         $positions = Position::orderByRaw('CAST(code AS UNSIGNED) ASC')
             ->paginate(10);
 
-        return view('pages.admin.master.data-utama.jabatan-organisasi.positions', compact('positions'));
+        return view('pages.admin.master.references.structure.structure', compact('positions'));
     }
 
     public function create()
     {
         $item = null;
-        return view('pages.admin.master.data-utama.jabatan-organisasi.partials._position-form', compact('item'));
+        return view('pages.admin.master.references.structure.partials._structure-form', compact('item'));
     }
 
     public function store(Request $request)
@@ -42,7 +42,7 @@ class PositionController extends Controller
     public function edit($id)
     {
         $item = Position::findOrFail($id);
-        return view('pages.admin.master.data-utama.jabatan-organisasi.partials._position-form', compact('item'));
+        return view('pages.admin.master.references.structure.partials._structure-form', compact('item'));
     }
 
     public function update(Request $request, $id)

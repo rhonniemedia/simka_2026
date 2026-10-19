@@ -104,11 +104,11 @@
             </div>
         </div>
 
-        @include('pages.admin.karier.jabatan.partials._table', compact('staffList'))
+        @include('pages.admin.career.positions.partials._table', compact('staffList'))
 
     </div>
 
-    @include('pages.admin.karier.jabatan.partials._filter-modal', [
+    @include('pages.admin.career.positions.partials._filter-modal', [
     'filterEmploymentStatus' => $filterEmploymentStatus ?? '',
     'filterActiveOnly' => $filterActiveOnly ?? false,
     'employmentOptions' => $employmentOptions ?? [],
