@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Admin\Karier\Pensiun;
+namespace App\Http\Controllers\Admin\Career;
 
 use App\Http\Controllers\Controller;
 use App\Models\AsnPositionHistory;

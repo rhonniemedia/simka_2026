@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Controllers\Admin\Dashboard\Beranda\DashboardController;
+use App\Http\Controllers\Admin\Dashboard\DashboardController;
 use App\Http\Controllers\Admin\Master\DataUtama\MasterController;
 use App\Http\Controllers\Admin\Master\DataUtama\DocumentCategoryController;
 use App\Http\Controllers\Admin\Master\DataUtama\AsnPositionController;
@@ -10,14 +10,14 @@ use App\Http\Controllers\Admin\Master\DataUtama\GradeController;
 use App\Http\Controllers\Admin\Master\DataUtama\PersonnelTypeController;
 use App\Http\Controllers\Admin\Master\DataUtama\PositionController;
 use App\Http\Controllers\Admin\Master\DataPegawai\DataController;
-use App\Http\Controllers\Admin\Administrasi\Dokumen\DocumentController;
-use App\Http\Controllers\Admin\Administrasi\Pendidikan\EducationHistoryController;
-use App\Http\Controllers\Admin\Administrasi\Keluarga\FamilyController;
-use App\Http\Controllers\Admin\Karier\Jabatan\PositionHistoryController;
-use App\Http\Controllers\Admin\Karier\Berkala\PeriodicSalaryHistoryController;
-use App\Http\Controllers\Admin\Karier\Kepangkatan\GradeHistoryController;
-use App\Http\Controllers\Admin\Karier\Mutasi\TransferController;
-use App\Http\Controllers\Admin\Karier\Pensiun\RetirementController;
+use App\Http\Controllers\Admin\Administration\DocumentController;
+use App\Http\Controllers\Admin\Administration\EducationHistoryController;
+use App\Http\Controllers\Admin\Administration\FamilyController;
+use App\Http\Controllers\Admin\Career\PositionHistoryController;
+use App\Http\Controllers\Admin\Career\PeriodicSalaryHistoryController;
+use App\Http\Controllers\Admin\Career\GradeHistoryController;
+use App\Http\Controllers\Admin\Career\TransferController;
+use App\Http\Controllers\Admin\Career\RetirementController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\SessionController;
 use App\Http\Middleware\RememberIntendedUrl;

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Admin\Dashboard\Beranda;
+namespace App\Http\Controllers\Admin\Dashboard;
 
 use App\Http\Controllers\Controller;
 use App\Models\AsnPositionHistory;
@@ -62,7 +62,7 @@ class DashboardController extends Controller
             ->limit(8)
             ->get();
 
-        return view('pages.admin.dashboard.beranda.index', compact(
+        return view('pages.admin.dashboard.home.index', compact(
             'activeStaffCount',
             'activePositionCount',
             'mutationThisYearCount',

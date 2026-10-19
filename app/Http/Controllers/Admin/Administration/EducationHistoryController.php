@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Admin\Administrasi\Pendidikan;
+namespace App\Http\Controllers\Admin\Administration;
 
 use App\Http\Controllers\Controller;
 use App\Models\Data;

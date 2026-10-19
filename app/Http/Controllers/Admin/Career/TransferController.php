@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Admin\Karier\Mutasi;
+namespace App\Http\Controllers\Admin\Career;
 
 use App\Http\Controllers\Controller;
 use App\Models\Data;

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Admin\Administrasi\Keluarga;
+namespace App\Http\Controllers\Admin\Administration;
 
 use App\Enums\Staff\FamilyRelation as FamilyRelationEnum;
 use App\Enums\Staff\Gender;
