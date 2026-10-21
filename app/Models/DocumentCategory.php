@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\DocumentGroup;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -16,4 +17,13 @@ class DocumentCategory extends Model
     protected $keyType = 'string';
 
     protected $guarded = ['id'];
+
+    protected function casts(): array
+    {
+        return [
+            'group'     => DocumentGroup::class,
+            'is_active' => 'boolean',
+            'requires_document_number' => 'boolean',
+        ];
+    }
 }
