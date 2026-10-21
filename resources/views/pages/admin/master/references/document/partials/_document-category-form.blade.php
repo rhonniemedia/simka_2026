@@ -6,21 +6,20 @@ $actionUrl = $isEdit
 : route('admin.master.document-categories.store');
 $method = $isEdit ? 'hx-put' : 'hx-post';
 
-// Opsi Enum dari database
-$groups = [
-'akta' => 'Akta',
-'ijazah' => 'Ijazah',
-'kartu_identitas' => 'Kartu Identitas',
-'pak' => 'PAK',
-'sertifikat' => 'Sertifikat',
-'sk_berkala' => 'SK Berkala',
-'sk_fungsional' => 'SK Fungsional',
-'sk_pangkat' => 'SK Pangkat',
-'sk_pengangkatan' => 'SK Pengangkatan',
-'skp' => 'SKP',
-'spmt' => 'SPMT',
-'lainnya' => 'Lainnya',
+// Opsi grup diambil dari PHP Enum (satu sumber kebenaran: app/Enums/DocumentGroup.php)
+$groups = \App\Enums\Staff\DocumentGroup::options();
+$selectedGroup = old('group', $item?->group?->value ?? 'lainnya');
+
+// Opsi "ditautkan ke data": nilai = morph alias (harus sama dengan Relation::enforceMorphMap)
+$linkedOptions = [
+'staff_education' => 'Riwayat Pendidikan',
+'staff_family' => 'Keluarga',
+'staff_asn_position_history' => 'Riwayat Jabatan',
+'staff_periodic_salary_history' => 'Riwayat Gaji Berkala',
+'staff_grade_history' => 'Riwayat Kepangkatan',
+'staff_status_history' => 'Riwayat Mutasi/Pensiun',
 ];
+$selectedLinked = old('linked_table', $item->linked_table ?? '');
 
 $requiresDocNumber = old('requires_document_number', $item->requires_document_number ?? false);
 $isActive = old('is_active', $isEdit ? $item->is_active : true);
@@ -58,29 +57,45 @@ $isActive = old('is_active', $isEdit ? $item->is_active : true);
 
             <div class="p-4 sm:p-6 space-y-4">
 
+                {{-- Nama Kategori --}}
                 <div>
                     <label class="block text-sm font-medium text-foreground mb-1.5">Nama Kategori <span class="text-error">*</span></label>
-                    <input type="text" name="name" value="{{ old('name', $item->name ?? '') }}" required placeholder="Contoh: Ijazah S1" class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                    <input type="text" name="name" value="{{ old('name', $item->name ?? '') }}" required placeholder="Contoh: Ijazah" class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
                 </div>
 
+                {{-- Kode Kategori --}}
+                <div>
+                    <label class="block text-sm font-medium text-foreground mb-1.5">Kode Kategori <span class="text-secondary font-normal">(unik, dipakai sistem)</span></label>
+                    <input type="text" name="code" value="{{ old('code', $item->code ?? '') }}" placeholder="Contoh: sk_pangkat" class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm font-mono focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                    <p class="text-[11px] text-secondary mt-1">Huruf kecil, angka, dan garis bawah. Jangan diubah jika kategori sudah dipakai di kode aplikasi.</p>
+                </div>
+
+                {{-- Grup Dokumen --}}
                 <div>
                     <label class="block text-sm font-medium text-foreground mb-1.5">Grup Dokumen <span class="text-error">*</span></label>
                     <select name="group" required class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white">
                         <option value="">Pilih Grup Dokumen...</option>
                         @foreach($groups as $key => $label)
-                        <option value="{{ $key }}" {{ (old('group', $item->group ?? 'lainnya') == $key) ? 'selected' : '' }}>
+                        <option value="{{ $key }}" @selected($selectedGroup===$key)>
                             {{ $label }}
                         </option>
                         @endforeach
                     </select>
                 </div>
 
+                {{-- Ditautkan ke Data --}}
                 <div>
-                    <label class="block text-sm font-medium text-foreground mb-1.5">Nama Tabel Terkait <span class="text-secondary font-normal">(opsional, untuk keperluan sistem)</span></label>
-                    <input type="text" name="linked_table" value="{{ old('linked_table', $item->linked_table ?? '') }}" placeholder="Contoh: staff_certifications" class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
-                    <p class="text-[11px] text-secondary mt-1">Biarkan kosong jika kategori ini tidak terhubung ke tabel data lain.</p>
+                    <label class="block text-sm font-medium text-foreground mb-1.5">Ditautkan ke Data <span class="text-secondary font-normal">(opsional)</span></label>
+                    <select name="linked_table" class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white">
+                        <option value="">Mandiri (tidak ditautkan)</option>
+                        @foreach($linkedOptions as $alias => $label)
+                        <option value="{{ $alias }}" @selected($selectedLinked===$alias)>{{ $label }}</option>
+                        @endforeach
+                    </select>
+                    <p class="text-[11px] text-secondary mt-1">Pilih "Mandiri" untuk dokumen yang berdiri sendiri (SK CPNS, SKP, sertifikat).</p>
                 </div>
 
+                {{-- Wajib Nomor Dokumen --}}
                 <div class="flex items-start gap-3 rounded-xl border border-border p-3.5">
                     <input type="checkbox" id="requires_document_number" name="requires_document_number" value="1"
                         {{ $requiresDocNumber ? 'checked' : '' }}
@@ -91,6 +106,7 @@ $isActive = old('is_active', $isEdit ? $item->is_active : true);
                     </label>
                 </div>
 
+                {{-- Aktif --}}
                 <div class="flex items-start gap-3 rounded-xl border border-border p-3.5">
                     <input type="checkbox" id="is_active" name="is_active" value="1"
                         {{ $isActive ? 'checked' : '' }}

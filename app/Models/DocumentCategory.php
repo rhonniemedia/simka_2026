@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Enums\DocumentGroup;
+use App\Enums\Staff\DocumentGroup;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;

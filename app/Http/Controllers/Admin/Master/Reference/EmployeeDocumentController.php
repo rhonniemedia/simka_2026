@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin\Master\Reference;
 
+use App\Enums\Staff\DocumentGroup;
 use App\Http\Controllers\Controller;
 use App\Models\DocumentCategory;
 use Illuminate\Http\Request;
@@ -95,26 +96,15 @@ class EmployeeDocumentController extends Controller
         }
 
         $validated = $request->validate([
-            'name'                     => ['required', 'string', 'max:255', $nameRule],
-            'group'                    => ['required', Rule::in([
-                'akta',
-                'ijazah',
-                'kartu_identitas',
-                'pak',
-                'sertifikat',
-                'sk_berkala',
-                'sk_fungsional',
-                'sk_pangkat',
-                'sk_pengangkatan',
-                'skp',
-                'spmt',
-                'lainnya',
-            ])],
+            'name'  => ['required', 'string', 'max:255', $nameRule],
+            'code'  => ['nullable', 'string', 'max:50', 'alpha_dash', Rule::unique(DocumentCategory::class, 'code')->ignore($id)],
+            'group' => ['required', Rule::enum(DocumentGroup::class)],
             'linked_table'             => ['nullable', 'string', 'max:255'],
             'requires_document_number' => ['sometimes', 'boolean'],
             'is_active'                => ['sometimes', 'boolean'],
         ], [
             'name.unique' => 'Nama kategori dokumen ini sudah terdaftar, gunakan nama lain.',
+            'code.unique' => 'Kode kategori ini sudah dipakai.',
         ]);
 
         // Checkbox yang tidak dicentang tidak ikut dikirim browser, jadi

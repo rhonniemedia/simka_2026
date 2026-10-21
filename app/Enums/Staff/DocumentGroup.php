@@ -1,7 +1,7 @@
 <?php
 // app/Enums/DocumentGroup.php
 
-namespace App\Enums;
+namespace App\Enums\Staff;
 
 enum DocumentGroup: string
 {

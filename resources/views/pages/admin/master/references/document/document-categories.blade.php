@@ -34,25 +34,12 @@
     ['bg' => 'bg-sky-100', 'text' => 'text-sky-700'],
     ];
 
-    // Closure lokal (bukan `function namaFungsi(){}` global) supaya tidak
-    // ada risiko "Cannot redeclare function" kalau partial master data lain
-    // memakai nama fungsi yang sama.
-    $groupLabels = [
-    'akta' => 'Akta',
-    'ijazah' => 'Ijazah',
-    'kartu_identitas' => 'Kartu Identitas',
-    'pak' => 'PAK',
-    'sertifikat' => 'Sertifikat',
-    'sk_berkala' => 'SK Berkala',
-    'sk_fungsional' => 'SK Fungsional',
-    'sk_pangkat' => 'SK Pangkat',
-    'sk_pengangkatan' => 'SK Pengangkatan',
-    'skp' => 'SKP',
-    'spmt' => 'SPMT',
-    'lainnya' => 'Lainnya',
-    ];
-
-    $formatGroup = fn ($group) => $groupLabels[$group] ?? $group;
+    // Label grup diambil dari enum (app/Enums/Staff/DocumentGroup.php).
+    // Closure lokal (bukan function global) supaya tidak ada risiko
+    // "Cannot redeclare function" dengan partial master data lain.
+    $formatGroup = fn ($group) => $group instanceof \App\Enums\Staff\DocumentGroup
+    ? $group->label()
+    : ($group ?: '-');
     @endphp
 
     {{-- ============ DESKTOP TABLE ============ --}}
@@ -62,7 +49,7 @@
                 <tr class="border-b border-border">
                     <th class="w-[45%] px-4 py-3 text-sm font-bold text-secondary tracking-wider">
                         Nama Kategori
-                        <div class="text-[11px] font-normal normal-case">Nama | Grup</div>
+                        <div class="text-[11px] font-normal normal-case">Nama | Grup | Kode</div>
                     </th>
                     <th class="w-[45%] px-4 py-3 text-sm font-bold text-secondary tracking-wider">
                         Pengaturan
@@ -94,8 +81,11 @@
                                     <span class="inline-block size-1.5 rounded-full bg-emerald-500 shrink-0"></span>
                                     Grup: <span class="font-medium text-foreground">{{ $formatGroup($item->group) }}</span>
                                 </div>
+                                @if($item->code)
+                                <div class="text-[11px] text-secondary mt-0.5 font-mono">Kode: {{ $item->code }}</div>
+                                @endif
                                 @if($item->linked_table)
-                                <div class="text-[11px] text-secondary mt-0.5">Tabel: {{ $item->linked_table }}</div>
+                                <div class="text-[11px] text-secondary mt-0.5">Tertaut: {{ $item->linked_table }}</div>
                                 @endif
                             </div>
                         </div>
@@ -163,6 +153,9 @@
                     &bull; Wajib Nomor
                     @endif
                 </div>
+                @if($item->code)
+                <div class="text-[11px] text-secondary mt-0.5 font-mono truncate">{{ $item->code }}</div>
+                @endif
             </div>
             <div class="flex items-center gap-1.5 shrink-0">
                 <button type="button" hx-get="{{ route('admin.master.document-categories.edit', $item->id) }}" hx-target="#modal-container" hx-swap="innerHTML" class="size-8 flex items-center justify-center rounded-lg border border-border bg-white text-secondary hover:text-blue-600 hover:border-blue-600 transition-colors">
