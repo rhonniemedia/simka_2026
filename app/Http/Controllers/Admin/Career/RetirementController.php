@@ -145,11 +145,7 @@ class RetirementController extends Controller
                 'created_by' => Auth::id(),
             ]);
 
-            $staff->update([
-                'status' => RetirementList::RETIRED_STATUS,
-                'status_effective_date' => $tmt->format('Y-m-d'),
-                'updated_by' => Auth::id(),
-            ]);
+            $staff->update(['updated_by' => Auth::id()]);
 
             return ['ok' => true, 'name' => $staff->name, 'tmt' => $tmt];
         });

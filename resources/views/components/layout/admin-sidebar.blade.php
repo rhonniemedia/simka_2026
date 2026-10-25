@@ -247,28 +247,42 @@
 
 
         <!-- Pengguna -->
-        <div x-data="{ open: false }" class="flex flex-col gap-1 mt-4">
+        <div x-data="{ open: {{ request()->routeIs('admin.users.*', 'admin.profile.*') ? 'true' : 'false' }} }" class="flex flex-col gap-1 mt-4">
             <button @click="open = !open" class="flex items-center justify-between w-full px-3 mb-2 font-bold text-sm text-foreground focus:outline-none cursor-pointer">
                 <span>Pengguna</span>
                 <i data-lucide="chevron-down" class="size-4 text-secondary transition-transform duration-300" :class="open ? 'rotate-180' : ''"></i>
             </button>
 
             <div x-show="open" x-collapse class="flex flex-col gap-1">
-                <a href="#" class="group cursor-pointer">
-                    <div class="flex items-center rounded-xl p-3 gap-3 transition-all duration-300 hover:bg-muted">
-                        <i data-lucide="layout-list" class="size-5 text-secondary transition-all duration-300 group-hover:text-foreground"></i>
-                        <span class="text-sm font-medium text-secondary transition-all duration-300 group-hover:text-foreground">
-                            Daftar Pengguna
-                        </span>
+                <!-- Daftar Pengguna -->
+                <a href="{{ route('admin.users.index') }}" class="group cursor-pointer">
+                    <div class="flex items-center justify-between rounded-xl p-3 transition-all duration-300 {{ request()->routeIs('admin.users.*') ? 'bg-primary/10 hover:bg-primary/20' : 'hover:bg-muted' }}">
+                        <div class="flex items-center gap-3">
+                            <i
+                                data-lucide="layout-list"
+                                class="size-5 transition-all duration-300 {{ request()->routeIs('admin.users.*') ? 'text-primary' : 'text-secondary group-hover:text-foreground' }}">
+                            </i>
+
+                            <span class="font-medium text-sm transition-all duration-300 {{ request()->routeIs('admin.users.*') ? 'text-primary font-semibold' : 'text-secondary group-hover:text-foreground' }}">
+                                Daftar Pengguna
+                            </span>
+                        </div>
                     </div>
                 </a>
 
-                <a href="#" class="group cursor-pointer">
-                    <div class="flex items-center rounded-xl p-3 gap-3 transition-all duration-300 hover:bg-muted">
-                        <i data-lucide="user-round-pen" class="size-5 text-secondary transition-all duration-300 group-hover:text-foreground"></i>
-                        <span class="text-sm font-medium text-secondary transition-all duration-300 group-hover:text-foreground">
-                            Profil Saya
-                        </span>
+                <!-- Profil Saya -->
+                <a href="{{ route('admin.profile.index') }}" class="group cursor-pointer">
+                    <div class="flex items-center justify-between rounded-xl p-3 transition-all duration-300 {{ request()->routeIs('admin.profile.*') ? 'bg-primary/10 hover:bg-primary/20' : 'hover:bg-muted' }}">
+                        <div class="flex items-center gap-3">
+                            <i
+                                data-lucide="user-round-pen"
+                                class="size-5 transition-all duration-300 {{ request()->routeIs('admin.profile.*') ? 'text-primary' : 'text-secondary group-hover:text-foreground' }}">
+                            </i>
+
+                            <span class="font-medium text-sm transition-all duration-300 {{ request()->routeIs('admin.profile.*') ? 'text-primary font-semibold' : 'text-secondary group-hover:text-foreground' }}">
+                                Profil Saya
+                            </span>
+                        </div>
                     </div>
                 </a>
             </div>
@@ -282,7 +296,7 @@
         <div class="flex items-center justify-between border-t bg-white border-border p-5 gap-3">
             <div class="min-w-0">
                 <p class="font-semibold text-foreground text-sm">Admin</p>
-                <p class="text-xs text-secondary mt-0.5">Pintar 2026</p>
+                <p class="text-xs text-secondary mt-0.5">SIMKA 2026</p>
             </div>
 
             <form action="{{ route('logout') }}" method="POST">

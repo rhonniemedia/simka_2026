@@ -464,7 +464,11 @@ $err = fn(string $field) => new \Illuminate\Support\HtmlString(
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-foreground mb-1.5">Tanggal Masuk / TMT Status <span class="text-error">*</span></label>
-                            <input type="date" name="status_effective_date" value="{{ old('status_effective_date', $statusEffectiveDateValue) }}" required placeholder="YYYY-MM-DD" class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                            @php $tmtLocked = (bool) $staff?->isStatusLocked(); @endphp
+                            <input type="date" name="status_effective_date" value="{{ old('status_effective_date', $statusEffectiveDateValue) }}" required @readonly($tmtLocked) placeholder="YYYY-MM-DD" class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary {{ $tmtLocked ? 'bg-muted/50 text-secondary cursor-not-allowed' : '' }}">
+                            @if ($tmtLocked)
+                            <p class="text-[11px] text-secondary mt-1">Dikunci karena status pegawai &quot;{{ \App\Http\Controllers\Admin\Career\TransferController::STATUS_LABELS[$staff->status] ?? $staff->status }}&quot;. Perubahan status dan TMT dilakukan lewat menu Mutasi/Pensiun agar tercatat di riwayat.</p>
+                            @endif
                             {{ $err('status_effective_date') }}
                         </div>
                         <div class="md:col-span-2">

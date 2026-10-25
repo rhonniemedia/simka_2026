@@ -214,10 +214,7 @@ class TransferController extends Controller
                 'created_by' => Auth::id(),
             ]);
 
-            $staff->status = $validated['to_status'];
-            $staff->status_effective_date = $validated['effective_date'];
-            $staff->updated_by = Auth::id();
-            $staff->save();
+            $staff->update(['updated_by' => Auth::id()]);
         });
 
         return $this->respondWithSuccess($request, 'Status pegawai berhasil diperbarui.');
@@ -267,10 +264,7 @@ class TransferController extends Controller
                 'created_by' => Auth::id(),
             ]);
 
-            $staff->status = 'active';
-            $staff->status_effective_date = $validated['effective_date'];
-            $staff->updated_by = Auth::id();
-            $staff->save();
+            $staff->update(['updated_by' => Auth::id()]);
         });
 
         return $this->respondWithSuccess($request, 'Pegawai berhasil diaktifkan kembali.');

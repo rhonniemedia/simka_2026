@@ -402,6 +402,10 @@ class DataController extends Controller
 
         DB::transaction(function () use ($staff, $step, $validated, $isFinalStep, $userId) {
             $staffData = $this->staffAttributesFor($step, $validated);
+            // TMT pegawai non-aktif tidak boleh diubah dari form ini (lihat riwayat status)
+            if ($staff->isStatusLocked()) {
+                unset($staffData['status_effective_date']);
+            }
             $vaultData = $this->vaultAttributesFor($step, $validated);
 
             if ($isFinalStep) {

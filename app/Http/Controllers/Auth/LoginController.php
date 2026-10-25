@@ -44,6 +44,13 @@ class LoginController extends Controller
         // 2. Verifikasi Password
         if ($user && Hash::check($password, $user->password)) {
 
+            // Akun nonaktif (users.status bersifat global antar aplikasi)
+            if ($user->status !== 'active') {
+                return back()->withErrors([
+                    'login_id' => 'Akun Anda tidak aktif. Silakan hubungi administrator.',
+                ])->withInput($request->only('login_id'));
+            }
+
             // 3. Verifikasi Akses Aplikasi & Role
             $appId = (string) config('app.core_id');
 

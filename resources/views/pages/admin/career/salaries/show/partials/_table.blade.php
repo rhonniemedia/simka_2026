@@ -35,6 +35,7 @@
                 $tglSK = $history->decree_date ? \Carbon\Carbon::parse($history->decree_date)->translatedFormat('d F Y') : '-';
 
                 $isLatest = $loop->first;
+                $sk = $history->documents->first(fn ($d) => $d->category?->code === 'sk_berkala');
                 @endphp
 
                 <tr id="row-salary-{{ $history->id }}" class="group transition-colors hover:bg-muted/40 {{ $isLatest ? 'bg-primary/5' : '' }}">
@@ -71,10 +72,14 @@
                     {{-- Kolom 2: Surat Keputusan --}}
                     <td class="px-5 py-4 min-w-[200px]">
                         <div class="flex items-center gap-1.5 text-sm font-medium text-foreground whitespace-nowrap">
-                            <i data-lucide="file-text" class="size-3.5 text-secondary/50"></i>
-                            {{ $history->decree_number ?? '-' }}
+                            @if ($sk)
+                            <i data-lucide="file-text" class="size-4 text-emerald-600 shrink-0" title="Berkas SK tersedia"></i>
+                            @else
+                            <i data-lucide="file-x" class="size-4 text-amber-500 shrink-0" title="SK belum diunggah"></i>
+                            @endif
+                            <span>{{ $history->decree_number ?? '-' }}</span>
                         </div>
-                        <div class="text-xs text-secondary whitespace-nowrap mt-1 pl-5">
+                        <div class="text-xs text-secondary whitespace-nowrap mt-1 pl-5.5">
                             Tgl. {{ $tglSK }}
                         </div>
                     </td>
@@ -126,11 +131,11 @@
                                 <p class="px-4 pt-1 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-secondary">Aksi KGB</p>
 
                                 {{-- Tombol Lihat SK (hanya tampil jika ada file) --}}
-                                @if ($history->decree_file_id)
-                                <button type="button" @click="open = false"
+                                @if ($sk)
+                                <a href="{{ route('admin.personnel.documents.preview', $sk->id) }}" target="_blank" rel="noopener" @click="open = false"
                                     class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer text-left w-[calc(100%-1rem)]">
                                     <i data-lucide="file-text" class="size-4 pointer-events-none"></i> Lihat SK
-                                </button>
+                                </a>
                                 @endif
 
                                 <button type="button" @click="open = false"
@@ -189,6 +194,7 @@
         $tahunBerkala = $history->effective_date ? \Carbon\Carbon::parse($history->effective_date)->format('Y') : '-';
         $tglSK = $history->decree_date ? \Carbon\Carbon::parse($history->decree_date)->translatedFormat('d F Y') : '-';
         $isLatest = $loop->first;
+        $sk = $history->documents->first(fn ($d) => $d->category?->code === 'sk_berkala');
         @endphp
 
         <div id="card-salary-{{ $history->id }}" class="px-5 py-4 active:bg-muted/40 transition-colors {{ $isLatest ? 'bg-primary/5' : '' }}">
@@ -222,8 +228,12 @@
                 {{-- Baris Surat Keputusan --}}
                 <div class="flex items-center justify-between gap-3 py-2.5">
                     <p class="text-secondary flex items-center gap-1.5 shrink-0">
-                        <i data-lucide="file-text" class="size-3.5 text-secondary/50"></i>
-                        Surat Keputusan
+                        @if ($sk)
+                        <i data-lucide="file-text" class="size-4 text-emerald-600 shrink-0" title="Berkas SK tersedia"></i>
+                        @else
+                        <i data-lucide="file-x" class="size-4 text-amber-500 shrink-0" title="SK belum diunggah"></i>
+                        @endif
+                        Nomor SK
                     </p>
                     <div class="text-right min-w-0 flex-1">
                         <p class="font-medium text-foreground truncate">{{ $history->decree_number ?? '-' }}</p>
@@ -246,12 +256,12 @@
 
             {{-- Tombol Aksi Mobile (Sejajar di bawah) --}}
             <div class="mt-3 flex items-center justify-end gap-2 border-t border-border pt-3">
-                @if ($history->decree_file_id)
-                <button type="button"
-                    class="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-blue-200 bg-blue-50 text-xs font-medium text-blue-600 hover:bg-blue-100 transition-colors cursor-pointer shadow-sm" title="Lihat Dokumen">
+                @if ($sk)
+                <a href="{{ route('admin.personnel.documents.preview', $sk->id) }}" target="_blank" rel="noopener"
+                    class="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-blue-200 bg-blue-50 text-xs font-medium text-blue-600 hover:bg-blue-100 transition-colors cursor-pointer shadow-sm">
                     <i data-lucide="file-text" class="size-3.5"></i>
                     Lihat
-                </button>
+                </a>
                 @endif
 
                 <button type="button"

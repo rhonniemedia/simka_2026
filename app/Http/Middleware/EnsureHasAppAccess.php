@@ -22,7 +22,9 @@ class EnsureHasAppAccess
         /** @var \App\Models\User|null $user */
         $user = Auth::user();
 
-        if ($user?->hasAdminAccessToApp((string) $appId)) {
+        $isActive = $user?->status === 'active';
+
+        if ($isActive && $user->hasAdminAccessToApp((string) $appId)) {
             return $next($request);
         }
 
@@ -30,7 +32,9 @@ class EnsureHasAppAccess
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        $message = 'Anda tidak memiliki otoritas untuk mengakses aplikasi ini.';
+        $message = $user && ! $isActive
+            ? 'Akun Anda tidak aktif. Silakan hubungi administrator.'
+            : 'Anda tidak memiliki otoritas untuk mengakses aplikasi ini.';
 
         // Request AJAX/fetch (mis. keep-alive idle timeout): jangan redirect
         if ($request->expectsJson()) {

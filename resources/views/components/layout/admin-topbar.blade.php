@@ -1,3 +1,12 @@
+@php
+$authUser = auth()->user();
+$authStaff = $authUser?->staff;
+$authName = $authStaff->name ?? $authUser?->username ?? 'Pengguna';
+$authInitials = collect(preg_split('/\s+/', trim($authName)))->filter()->take(2)
+->map(fn ($w) => mb_strtoupper(mb_substr($w, 0, 1)))->implode('');
+$authPhoto = $authStaff?->photo ? asset('storage/' . $authStaff->photo) : null;
+$authRole = $authUser?->roles()->wherePivot('app_id', config('app.core_id'))->value('user_roles.name');
+@endphp
 <div class="flex items-center justify-between w-full h-[90px] shrink-0 border-b border-border bg-white px-5 md:px-8 sticky top-0 z-50">
 
     <button
@@ -33,7 +42,11 @@
             <div
                 class="size-11 rounded-full bg-primary flex items-center justify-center ring-2 ring-border cursor-pointer shrink-0 overflow-hidden"
                 @click="openProfile = !openProfile">
-                <span class="text-white font-black text-sm">RS</span>
+                @if ($authPhoto)
+                <img src="{{ $authPhoto }}" alt="{{ $authName }}" class="size-full object-cover">
+                @else
+                <span class="text-white font-black text-sm">{{ $authInitials }}</span>
+                @endif
             </div>
 
             <div
@@ -51,19 +64,23 @@
                     {{-- Info user di atas (Dummy) --}}
                     <div class="flex items-center gap-3 px-2 py-2 mb-1">
                         <div class="size-9 rounded-full bg-primary flex items-center justify-center shrink-0 overflow-hidden">
-                            <span class="text-white font-black text-xs">RS</span>
+                            @if ($authPhoto)
+                            <img src="{{ $authPhoto }}" alt="{{ $authName }}" class="size-full object-cover">
+                            @else
+                            <span class="text-white font-black text-xs">{{ $authInitials }}</span>
+                            @endif
                         </div>
                         <div class="min-w-0">
-                            <p class="font-bold text-sm text-foreground truncate">Roni Saputra</p>
-                            <p class="text-xs text-secondary capitalize">Administrator</p>
+                            <p class="font-bold text-sm text-foreground truncate">{{ $authName }}</p>
+                            <p class="text-xs text-secondary capitalize">{{ $authRole ?? '-' }}</p>
                         </div>
                     </div>
 
                     <hr class="my-1 border-border" />
 
-                    <a href="#"
+                    <a href="{{ route('admin.profile.index') }}"
                         class="flex items-center gap-2 px-2 py-2 rounded-md text-sm text-secondary hover:bg-muted hover:text-primary transition-colors">
-                        <i data-lucide="user" class="size-4"></i> My Profile
+                        <i data-lucide="user" class="size-4"></i> Profil Saya
                     </a>
 
                     <a href="#"
@@ -73,11 +90,14 @@
 
                     <hr class="my-1 border-border" />
 
-                    <a href="#"
-                        class="flex items-center gap-2 px-2 py-2 rounded-md text-sm text-error hover:bg-error/10 transition-colors">
-                        <i data-lucide="log-out" class="size-4"></i>
-                        <span>Sign Out</span>
-                    </a>
+                    <form action="{{ route('logout') }}" method="POST">
+                        @csrf
+                        <button type="submit"
+                            class="flex w-full items-center gap-2 px-2 py-2 rounded-md text-sm text-error hover:bg-error/10 transition-colors cursor-pointer">
+                            <i data-lucide="log-out" class="size-4"></i>
+                            <span>Keluar</span>
+                        </button>
+                    </form>
 
                 </div>
             </div>

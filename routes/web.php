@@ -10,6 +10,8 @@ use App\Http\Controllers\Admin\Master\Reference\EmployeeGradeController;
 use App\Http\Controllers\Admin\Master\Reference\EmployeeTypeController;
 use App\Http\Controllers\Admin\Master\Reference\EmployeeStructureController;
 use App\Http\Controllers\Admin\Master\Employee\DataController;
+use App\Http\Controllers\Admin\User\ListController;
+use App\Http\Controllers\Admin\User\ProfileController;
 use App\Http\Controllers\Admin\Administration\DocumentController;
 use App\Http\Controllers\Admin\Administration\EducationController;
 use App\Http\Controllers\Admin\Administration\FamilyController;
@@ -111,6 +113,34 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'app.access'])->grou
         Route::delete('/document-categories/{id}', [EmployeeDocumentController::class, 'destroy'])->name('document-categories.destroy');
     });
     // ---------------------------------
+
+    // Daftar Pengguna (akun, role, status, kata sandi)
+    Route::prefix('users')->name('users.')->group(function () {
+        Route::get('/', [ListController::class, 'index'])->name('index');
+        Route::get('/create', [ListController::class, 'create'])->name('create');
+        Route::post('/', [ListController::class, 'store'])->name('store');
+        Route::get('/{user}/edit', [ListController::class, 'edit'])->name('edit');
+        Route::put('/{user}', [ListController::class, 'update'])->name('update');
+        Route::delete('/{user}/access', [ListController::class, 'revokeAccess'])->name('revoke-access');
+
+        Route::get('/{user}/edit-role', [ListController::class, 'editRole'])->name('edit-role');
+        Route::put('/{user}/edit-role', [ListController::class, 'updateRole'])->name('edit-role.update');
+
+        Route::get('/{user}/edit-password', [ListController::class, 'editPassword'])->name('edit-password');
+        Route::put('/{user}/edit-password', [ListController::class, 'updatePassword'])->name('edit-password.update');
+    });
+
+    // Profil Saya (akun yang sedang login)
+    Route::prefix('profile')->name('profile.')->group(function () {
+        Route::get('/', [ProfileController::class, 'index'])->name('index');
+        Route::post('/photo', [ProfileController::class, 'uploadPhoto'])->name('upload-photo');
+
+        Route::get('/edit-data', [ProfileController::class, 'editData'])->name('edit-data');
+        Route::put('/edit-data', [ProfileController::class, 'updateData'])->name('update-data');
+
+        Route::get('/edit-password', [ProfileController::class, 'editPassword'])->name('edit-password');
+        Route::put('/edit-password', [ProfileController::class, 'updatePassword'])->name('update-password');
+    });
 
     // Grup Utama: Pegawai (Kepegawaian)
     Route::prefix('personnel')->name('personnel.')->group(function () {

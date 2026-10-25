@@ -99,7 +99,7 @@ class EmployeeDocumentController extends Controller
             'name'  => ['required', 'string', 'max:255', $nameRule],
             'code'  => ['nullable', 'string', 'max:50', 'alpha_dash', Rule::unique(DocumentCategory::class, 'code')->ignore($id)],
             'group' => ['required', Rule::enum(DocumentGroup::class)],
-            'linked_table'             => ['nullable', 'string', 'max:255'],
+            'linked_table' => ['nullable', Rule::in(array_keys(DocumentCategory::LINKABLE_TABLES))],
             'requires_document_number' => ['sometimes', 'boolean'],
             'is_active'                => ['sometimes', 'boolean'],
         ], [

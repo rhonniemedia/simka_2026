@@ -219,11 +219,11 @@ if ($days < 0) return ['Terlewat ' . abs($days) . ' hari', $red];
                             <p class="truncate text-sm font-semibold text-foreground">{{ $activity->staff?->name ?? 'Pegawai tidak ditemukan' }}</p>
                             <div class="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
                                 <span class="rounded-md bg-muted px-2 py-0.5 text-secondary">
-                                    {{ \App\Http\Controllers\Admin\Personnel\TransferController::STATUS_LABELS[$activity->from_status] ?? $activity->from_status }}
+                                    {{ \App\Http\Controllers\Admin\Career\TransferController::STATUS_LABELS[$activity->from_status] ?? $activity->from_status }}
                                 </span>
                                 <i data-lucide="arrow-right" class="size-3 text-secondary"></i>
                                 <span class="rounded-md bg-primary/10 px-2 py-0.5 font-semibold text-primary">
-                                    {{ \App\Http\Controllers\Admin\Personnel\TransferController::STATUS_LABELS[$activity->to_status] ?? $activity->to_status }}
+                                    {{ \App\Http\Controllers\Admin\Career\TransferController::STATUS_LABELS[$activity->to_status] ?? $activity->to_status }}
                                 </span>
                             </div>
                         </div>

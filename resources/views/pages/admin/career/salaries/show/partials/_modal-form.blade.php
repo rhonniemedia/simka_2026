@@ -5,7 +5,9 @@ $modalTitle = $isEdit ? 'Edit Gaji Berkala' : 'Tambah Gaji Berkala';
 $actionUrl = $isEdit
 ? route('admin.personnel.periodic-salary.update', [$staff->id, $history->id])
 : route('admin.personnel.periodic-salary.store', $staff->id);
-$method = $isEdit ? 'hx-put' : 'hx-post';
+// Selalu hx-post: PHP tidak mem-parsing body multipart pada request PUT,
+// jadi untuk edit method di-spoof lewat @method('PUT') di dalam form.
+$method = 'hx-post';
 
 $effectiveDateValue = old('effective_date', !empty($history->effective_date)
 ? \Carbon\Carbon::parse($history->effective_date)->format('Y-m-d')
@@ -15,6 +17,11 @@ $decreeDateValue = old('decree_date', !empty($history->decree_date)
 : '');
 $decreeNumberValue = old('decree_number', $history->decree_number ?? '');
 $baseSalaryValue = old('base_salary', $history->base_salary ?? '');
+
+// Berkas SK berkala yang sudah terunggah (hanya saat edit)
+$existingSk = $isEdit
+? $history->documents()->whereHas('category', fn ($c) => $c->where('code', 'sk_berkala'))->latest()->first()
+: null;
 @endphp
 
 <div x-data="{ open: false }"
@@ -45,13 +52,22 @@ $baseSalaryValue = old('base_salary', $history->base_salary ?? '');
         {{-- Form HTMX --}}
         <form id="periodic-salary-form"
             {!! $method !!}="{{ $actionUrl }}"
+            hx-encoding="multipart/form-data"
             hx-target="#periodic-salary-container"
             hx-swap="outerHTML"
-            x-data="{ saving: false }"
+            x-data="{ 
+                saving: false, 
+                fileError: '',
+                effective_date: '{{ $effectiveDateValue }}',
+                decree_date: '{{ $decreeDateValue }}'
+            }"
             @htmx:before-request="saving = true"
             @htmx:after-request="saving = false"
             class="flex flex-col flex-1 min-h-0">
             @csrf
+            @if ($isEdit)
+            @method('PUT')
+            @endif
 
             <div x-data="{ showUI: false }" x-init="setTimeout(() => showUI = true, 50)" class="block p-4 sm:p-7 overflow-y-auto max-h-[calc(100vh-10rem)] sm:max-h-[70vh]">
 
@@ -75,7 +91,7 @@ $baseSalaryValue = old('base_salary', $history->base_salary ?? '');
                     {{-- Periode TMT --}}
                     <div class="md:col-span-2">
                         <label class="block text-sm font-medium text-foreground mb-1.5">TMT Berkala (Terhitung Mulai Tanggal) <span class="text-error">*</span></label>
-                        <input type="date" name="effective_date" value="{{ $effectiveDateValue }}" required
+                        <input type="date" name="effective_date" x-model="effective_date" required
                             class="w-full rounded-xl border {{ $errors->has('effective_date') ? 'border-error' : 'border-border' }} px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
                         @error('effective_date')
                         <p class="text-xs text-error mt-1">{{ $message }}</p>
@@ -92,8 +108,8 @@ $baseSalaryValue = old('base_salary', $history->base_salary ?? '');
                         @enderror
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-foreground mb-1.5">Tanggal SK</label>
-                        <input type="date" name="decree_date" value="{{ $decreeDateValue }}"
+                        <label class="block text-sm font-medium text-foreground mb-1.5">Tanggal SK <span class="text-error">*</span></label>
+                        <input type="date" name="decree_date" x-model="decree_date" required
                             class="w-full rounded-xl border {{ $errors->has('decree_date') ? 'border-error' : 'border-border' }} px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
                         @error('decree_date')
                         <p class="text-xs text-error mt-1">{{ $message }}</p>
@@ -117,6 +133,32 @@ $baseSalaryValue = old('base_salary', $history->base_salary ?? '');
                             <i data-lucide="shield-check" class="size-3 text-emerald-500"></i> Disimpan secara aman di dalam *database*.
                         </p>
                     </div>
+
+                    {{-- Berkas SK --}}
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-foreground mb-1.5">Berkas SK Berkala <span class="text-secondary font-normal">(PDF, maksimal 1 MB)</span></label>
+                        @if ($existingSk)
+                        <p class="text-xs text-secondary mb-2 flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                            <i data-lucide="paperclip" class="size-3.5 shrink-0"></i>
+                            <span>Berkas saat ini:</span>
+                            <a href="{{ route('admin.personnel.documents.preview', $existingSk->id) }}" target="_blank" rel="noopener" class="text-blue-600 hover:underline break-all">{{ $existingSk->original_filename ?? 'Lihat berkas' }}</a>
+                            <span>- unggah berkas baru untuk menggantinya.</span>
+                        </p>
+                        @endif
+                        <input type="file" name="file" accept="application/pdf,.pdf" x-ref="sk"
+                            @change="fileError = ''; const f = $event.target.files[0]; if (f && f.type !== 'application/pdf') { fileError = 'Format berkas harus PDF.'; } else if (f && f.size > 1048576) { fileError = 'Ukuran berkas maksimal 1 MB.'; }"
+                            class="w-full rounded-xl border {{ $errors->has('file') ? 'border-error' : 'border-border' }} px-3.5 py-2 text-sm bg-white file:mr-3 file:rounded-lg file:border-0 file:bg-primary/10 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-primary hover:file:bg-primary/15 cursor-pointer">
+                        <p x-show="fileError" x-cloak class="text-xs text-error mt-1">
+                            <span x-text="fileError"></span>
+                            Pilih berkas lain, atau
+                            <button type="button" class="underline font-medium cursor-pointer" @click="$refs.sk.value = ''; fileError = ''">hapus pilihan</button>
+                            untuk menyimpan tanpa berkas.
+                        </p>
+                        @error('file')
+                        <p class="text-xs text-error mt-1">{{ $message }}</p>
+                        @enderror
+                        <p class="text-[11px] text-secondary mt-1">Nomor SK wajib diisi jika mengunggah berkas.</p>
+                    </div>
                 </div>
             </div>
 
@@ -127,7 +169,7 @@ $baseSalaryValue = old('base_salary', $history->base_salary ?? '');
                     <i data-lucide="undo-2" class="size-4"></i>
                     <span>Batal</span>
                 </button>
-                <button type="submit" :disabled="saving"
+                <button type="submit" :disabled="saving || fileError !== '' || !effective_date || !decree_date"
                     class="w-full sm:w-auto flex items-center justify-center min-w-[140px] px-5 py-2.5 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary/90 shadow-sm shadow-primary/30 transition-all cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed">
                     <div x-show="!saving" class="flex items-center gap-1.5">
                         <i data-lucide="save" class="size-4"></i>

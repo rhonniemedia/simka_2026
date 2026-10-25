@@ -51,7 +51,7 @@
                     <td class="px-5 py-4 min-w-[200px]">
                         <span class="inline-flex items-center gap-1.5 rounded-full {{ $badge['bg'] }} {{ $badge['text'] }} px-2.5 py-1 text-xs font-semibold">
                             <span class="size-1.5 rounded-full {{ $badge['dot'] }}"></span>
-                            {{ \App\Http\Controllers\Admin\Personnel\TransferController::STATUS_LABELS[$staff->status] ?? $staff->status }}
+                            {{ \App\Http\Controllers\Admin\Career\TransferController::STATUS_LABELS[$staff->status] ?? $staff->status }}
                         </span>
                         <p class="text-xs text-secondary mt-1.5">
                             {{ $staff->latest_decree_number ?? '-' }}
@@ -98,7 +98,7 @@
                 </div>
                 <span class="shrink-0 inline-flex items-center gap-1.5 rounded-full {{ $badge['bg'] }} {{ $badge['text'] }} px-2.5 py-1 text-[11px] font-semibold">
                     <span class="size-1.5 rounded-full {{ $badge['dot'] }}"></span>
-                    {{ \App\Http\Controllers\Admin\Personnel\TransferController::STATUS_LABELS[$staff->status] ?? $staff->status }}
+                    {{ \App\Http\Controllers\Admin\Career\TransferController::STATUS_LABELS[$staff->status] ?? $staff->status }}
                 </span>
             </div>
 

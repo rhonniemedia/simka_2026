@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\Staff\FamilyRelation as FamilyRelationEnum;
+use App\Models\Concerns\HasStaffDocuments;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -23,7 +24,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class FamilyRelation extends Model
 {
-    use HasFactory, HasUuids;
+    use HasFactory, HasUuids, HasStaffDocuments;
 
     protected $table = 'staff_family_relations';
 
@@ -66,6 +67,18 @@ class FamilyRelation extends Model
     public function updatedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'updated_by');
+    }
+
+    public function documentLabel(): string
+    {
+        $role = match ($this->relationship) {
+            'husband' => 'Suami',
+            'wife'    => 'Istri',
+            'child'   => 'Anak',
+            default   => 'Keluarga',
+        };
+
+        return $role . ': ' . ($this->familyMember?->name ?? '-');
     }
 
     /*

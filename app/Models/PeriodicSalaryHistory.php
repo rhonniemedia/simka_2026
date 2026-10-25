@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasStaffDocuments;
 use Illuminate\Database\Eloquent\Casts\Attribute; // Tambahkan ini
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -10,7 +11,7 @@ use Illuminate\Support\Facades\Crypt; // Tambahkan ini
 
 class PeriodicSalaryHistory extends Model
 {
-    use HasFactory, HasUuids;
+    use HasFactory, HasUuids, HasStaffDocuments;
 
     protected $table = 'staff_periodic_salary_histories';
 
@@ -49,5 +50,12 @@ class PeriodicSalaryHistory extends Model
                 'base_salary_encrypted' => !empty($value) ? Crypt::encryptString($value) : null
             ],
         );
+    }
+
+    public function documentLabel(): string
+    {
+        $label = 'Gaji Berkala - TMT ' . $this->formatDocDate($this->effective_date);
+
+        return $this->decree_number ? $label . ' (SK ' . $this->decree_number . ')' : $label;
     }
 }

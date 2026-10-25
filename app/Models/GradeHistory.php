@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasStaffDocuments;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -9,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class GradeHistory extends Model
 {
-    use HasFactory, HasUuids;
+    use HasFactory, HasUuids, HasStaffDocuments;
 
     protected $table = 'staff_grade_histories';
 
@@ -58,5 +59,15 @@ class GradeHistory extends Model
     public function updater(): BelongsTo
     {
         return $this->belongsTo(User::class, 'updated_by');
+    }
+
+    public function documentLabel(): string
+    {
+        return sprintf(
+            'Pangkat %s (%s) - TMT %s',
+            $this->grade?->grade_name ?? '-',
+            $this->grade?->grade_code ?? '-',
+            $this->formatDocDate($this->effective_date)
+        );
     }
 }

@@ -177,4 +177,46 @@ class Data extends Model
     {
         return $this->hasMany(PeriodicSalaryHistory::class, 'staff_id');
     }
+
+    // Relasi ke Riwayat Status: mutasi, pensiun, dst. (1-to-many)
+    public function statusHistories()
+    {
+        return $this->hasMany(StaffStatusHistory::class, 'staff_id');
+    }
+
+    /**
+     * Hitung ulang status terkini dari riwayat terbaru (selain yang ditolak).
+     * Jika tidak ada riwayat yang tersisa, status dikembalikan ke $fallbackStatus
+     * (status sebelum peristiwa yang dihapus/ditolak), bukan di-reset ke 'active'.
+     */
+    public function syncStatusFromHistories(?string $fallbackStatus = null, $fallbackDate = null): void
+    {
+        $latest = $this->statusHistories()
+            ->where('verification_status', '!=', 'rejected')
+            ->orderByDesc('effective_date')
+            ->orderByDesc('created_at')
+            ->first();
+
+        if ($latest) {
+            $this->update([
+                'status'                => $latest->to_status,
+                'status_effective_date' => $latest->effective_date,
+            ]);
+        } elseif ($fallbackStatus) {
+            $this->update([
+                'status'                => $fallbackStatus,
+                // TMT lama dipulihkan; jika tidak diketahui, biarkan nilai sekarang
+                'status_effective_date' => $fallbackDate ?? $this->status_effective_date,
+            ]);
+        }
+    }
+
+    /**
+     * Status & TMT pegawai non-aktif dikelola lewat riwayat (menu Mutasi/Pensiun),
+     * bukan lewat form edit data pegawai.
+     */
+    public function isStatusLocked(): bool
+    {
+        return $this->status !== 'active';
+    }
 }

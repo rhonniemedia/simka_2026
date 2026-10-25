@@ -10,15 +10,9 @@ $method = $isEdit ? 'hx-put' : 'hx-post';
 $groups = \App\Enums\Staff\DocumentGroup::options();
 $selectedGroup = old('group', $item?->group?->value ?? 'lainnya');
 
-// Opsi "ditautkan ke data": nilai = morph alias (harus sama dengan Relation::enforceMorphMap)
-$linkedOptions = [
-'staff_education' => 'Riwayat Pendidikan',
-'staff_family' => 'Keluarga',
-'staff_asn_position_history' => 'Riwayat Jabatan',
-'staff_periodic_salary_history' => 'Riwayat Gaji Berkala',
-'staff_grade_history' => 'Riwayat Kepangkatan',
-'staff_status_history' => 'Riwayat Mutasi/Pensiun',
-];
+// Opsi "ditautkan ke data": nilai = nama tabel. Daftar ada di satu tempat
+// (DocumentCategory::LINKABLE_TABLES), dipakai juga oleh validasi di controller.
+$linkedOptions = \App\Models\DocumentCategory::LINKABLE_TABLES;
 $selectedLinked = old('linked_table', $item->linked_table ?? '');
 
 $requiresDocNumber = old('requires_document_number', $item->requires_document_number ?? false);

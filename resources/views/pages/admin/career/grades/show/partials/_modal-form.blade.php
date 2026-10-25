@@ -5,7 +5,9 @@ $modalTitle = $isEdit ? 'Edit Kepangkatan' : 'Tambah Kepangkatan';
 $actionUrl = $isEdit
 ? route('admin.personnel.promotions.update', [$staff->id, $history->id])
 : route('admin.personnel.promotions.store', $staff->id);
-$method = $isEdit ? 'hx-put' : 'hx-post';
+// Selalu hx-post: PHP tidak mem-parsing body multipart pada request PUT,
+// jadi untuk edit method di-spoof lewat @method('PUT') di dalam form.
+$method = 'hx-post';
 
 $gradeIdValue = old('grade_id', $history->grade_id ?? '');
 
@@ -19,6 +21,7 @@ return [
 'group' => str_contains($code, '/') ? 'Golongan ' . trim(explode('/', $code)[0]) : null,
 ];
 })->values()->all();
+
 $effectiveDateValue = old('effective_date', !empty($history->effective_date)
 ? \Carbon\Carbon::parse($history->effective_date)->format('Y-m-d')
 : '');
@@ -27,11 +30,16 @@ $decreeDateValue = old('decree_date', !empty($history->decree_date)
 : '');
 $decreeNumberValue = old('decree_number', $history->decree_number ?? '');
 $servicePeriodYearsValue = old('service_period_years', $history->service_period_years ?? '');
+$servicePeriodMonthsValue = old('service_period_months', $history->service_period_months ?? '');
 $approvalReferenceValue = old('approval_reference', $history->approval_reference ?? '');
 $approvalDateValue = old('approval_date', !empty($history->approval_date)
 ? \Carbon\Carbon::parse($history->approval_date)->format('Y-m-d')
 : '');
-$positionAtTimeValue = old('position_at_time', $history->position_at_time ?? '');
+
+// Berkas SK pangkat yang sudah terunggah (hanya saat edit)
+$existingSk = $isEdit
+? $history->documents()->whereHas('category', fn ($c) => $c->where('code', 'sk_pangkat'))->latest()->first()
+: null;
 @endphp
 
 <div x-data="{ open: false }"
@@ -59,32 +67,23 @@ $positionAtTimeValue = old('position_at_time', $history->position_at_time ?? '')
             </button>
         </div>
 
-        {{-- Form HTMX --}}
+        {{-- Form HTMX (novalidate: validasi ditangani server, error tampil di bawah tiap field) --}}
         <form id="grade-history-form"
             {!! $method !!}="{{ $actionUrl }}"
+            hx-encoding="multipart/form-data"
             hx-target="#promotions-container"
             hx-swap="outerHTML"
+            novalidate
             x-data="{ saving: false }"
             @htmx:before-request="saving = true"
             @htmx:after-request="saving = false"
             class="flex flex-col flex-1 min-h-0">
             @csrf
+            @if ($isEdit)
+            @method('PUT')
+            @endif
 
             <div x-data="{ showUI: false }" x-init="setTimeout(() => showUI = true, 50)" class="block p-4 sm:p-7 overflow-y-auto max-h-[calc(100vh-10rem)] sm:max-h-[70vh]">
-
-                @if ($errors->any())
-                <div class="md:col-span-2 mb-4 rounded-xl border border-error/30 bg-error/5 px-4 py-3 flex items-start gap-2.5">
-                    <i data-lucide="alert-triangle" class="size-4 text-error shrink-0 mt-0.5"></i>
-                    <div class="text-sm text-error/90">
-                        <p class="font-semibold mb-1">Periksa kembali data yang dimasukkan:</p>
-                        <ul class="list-disc list-inside space-y-0.5">
-                            @foreach ($errors->all() as $message)
-                            <li>{{ $message }}</li>
-                            @endforeach
-                        </ul>
-                    </div>
-                </div>
-                @endif
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5 transform motion-safe:transition-all motion-safe:duration-500 motion-safe:ease-out"
                     :class="showUI ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'">
@@ -105,21 +104,32 @@ $positionAtTimeValue = old('position_at_time', $history->position_at_time ?? '')
                     {{-- TMT Pangkat --}}
                     <div>
                         <label class="block text-sm font-medium text-foreground mb-1.5">TMT Pangkat (Terhitung Mulai Tanggal) <span class="text-error">*</span></label>
-                        <input type="date" name="effective_date" value="{{ $effectiveDateValue }}" required
+                        <input type="date" name="effective_date" value="{{ $effectiveDateValue }}"
                             class="w-full rounded-xl border {{ $errors->has('effective_date') ? 'border-error' : 'border-border' }} px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
                         @error('effective_date')
                         <p class="text-xs text-error mt-1">{{ $message }}</p>
                         @enderror
                     </div>
 
-                    {{-- Masa Kerja --}}
+                    {{-- Masa Kerja (Tahun & Bulan) dengan Label Utama di Luar --}}
                     <div>
-                        <label class="block text-sm font-medium text-foreground mb-1.5">Masa Kerja (Tahun)</label>
-                        <input type="number" min="0" name="service_period_years" value="{{ $servicePeriodYearsValue }}" placeholder="0"
-                            class="w-full rounded-xl border {{ $errors->has('service_period_years') ? 'border-error' : 'border-border' }} px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
-                        @error('service_period_years')
-                        <p class="text-xs text-error mt-1">{{ $message }}</p>
-                        @enderror
+                        <label class="block text-sm font-medium text-foreground mb-1.5">Masa Kerja</label>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <input type="number" min="0" name="service_period_years" value="{{ $servicePeriodYearsValue }}" placeholder="Tahun"
+                                    class="w-full rounded-xl border {{ $errors->has('service_period_years') ? 'border-error' : 'border-border' }} px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                                @error('service_period_years')
+                                <p class="text-xs text-error mt-1">{{ $message }}</p>
+                                @enderror
+                            </div>
+                            <div>
+                                <input type="number" min="0" max="11" name="service_period_months" value="{{ $servicePeriodMonthsValue }}" placeholder="Bulan"
+                                    class="w-full rounded-xl border {{ $errors->has('service_period_months') ? 'border-error' : 'border-border' }} px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                                @error('service_period_months')
+                                <p class="text-xs text-error mt-1">{{ $message }}</p>
+                                @enderror
+                            </div>
+                        </div>
                     </div>
 
                     {{-- Informasi SK --}}
@@ -158,12 +168,22 @@ $positionAtTimeValue = old('position_at_time', $history->position_at_time ?? '')
                         @enderror
                     </div>
 
-                    {{-- Jabatan Saat SK --}}
-                    <div class="md:col-span-2">
-                        <label class="block text-sm font-medium text-foreground mb-1.5">Jabatan Saat SK Diterbitkan</label>
-                        <input type="text" name="position_at_time" value="{{ $positionAtTimeValue }}" placeholder="Cth: Staf Pelaksana"
-                            class="w-full rounded-xl border {{ $errors->has('position_at_time') ? 'border-error' : 'border-border' }} px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
-                        @error('position_at_time')
+                    {{-- Berkas SK --}}
+                    <div class="md:col-span-2" x-data="{ fileError: '' }">
+                        <label class="block text-sm font-medium text-foreground mb-1.5">Berkas SK Pangkat <span class="text-secondary font-normal">(PDF, maksimal 1 MB)</span></label>
+                        @if ($existingSk)
+                        <p class="text-xs text-secondary mb-2 flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                            <i data-lucide="paperclip" class="size-3.5 shrink-0"></i>
+                            <span>Berkas saat ini:</span>
+                            <a href="{{ route('admin.personnel.documents.preview', $existingSk->id) }}" target="_blank" rel="noopener" class="text-blue-600 hover:underline break-all">{{ $existingSk->original_filename ?? 'Lihat berkas' }}</a>
+                            <span>- unggah berkas baru untuk menggantinya.</span>
+                        </p>
+                        @endif
+                        <input type="file" name="file" accept="application/pdf,.pdf"
+                            @change="fileError = ''; const f = $event.target.files[0]; if (f && f.type !== 'application/pdf') { fileError = 'Format berkas harus PDF.'; $event.target.value = ''; } else if (f && f.size > 1048576) { fileError = 'Ukuran berkas maksimal 1 MB.'; $event.target.value = ''; }"
+                            class="w-full rounded-xl border {{ $errors->has('file') ? 'border-error' : 'border-border' }} px-3.5 py-2 text-sm bg-white file:mr-3 file:rounded-lg file:border-0 file:bg-primary/10 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-primary hover:file:bg-primary/15 cursor-pointer">
+                        <p x-show="fileError" x-cloak x-text="fileError" class="text-xs text-error mt-1"></p>
+                        @error('file')
                         <p class="text-xs text-error mt-1">{{ $message }}</p>
                         @enderror
                     </div>

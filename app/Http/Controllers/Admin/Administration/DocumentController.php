@@ -6,10 +6,13 @@ use App\Http\Controllers\Controller;
 use App\Models\Data;
 use App\Models\Document;
 use App\Models\DocumentCategory;
+use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Throwable;
 
 class DocumentController extends Controller
 {
@@ -57,7 +60,6 @@ class DocumentController extends Controller
     public function edit($id)
     {
         $item = Document::findOrFail($id);
-
         return view('pages.admin.administration.documents.partials._document-form', array_merge(
             $this->formOptions(),
             ['item' => $item]
@@ -79,8 +81,8 @@ class DocumentController extends Controller
             'original_filename' => $file->getClientOriginalName(),
             'mime_type'         => $file->getClientMimeType(),
             'file_size'         => $file->getSize(),
-            'created_by'        => auth()->id(),
-            'updated_by'        => auth()->id(),
+            'created_by'        => Auth::id(),
+            'updated_by'        => Auth::id(),
         ]));
 
         return $this->respondWithSuccess('Dokumen berhasil ditambahkan.');
@@ -91,13 +93,23 @@ class DocumentController extends Controller
         $item = Document::findOrFail($id);
         $validated = $this->validated($request, isCreate: false);
 
-        $payload = array_merge($validated, ['updated_by' => auth()->id()]);
+        $payload = array_merge($validated, ['updated_by' => Auth::id()]);
         unset($payload['file']);
 
         // File baru diupload -> ganti file lama. Kalau tidak, biarkan
         // file_path/metadata lama tetap seperti sebelumnya.
         if ($request->hasFile('file')) {
-            Storage::disk('documents')->delete($item->file_path);
+            // Berkas lama bisa saja sudah hilang dari penyimpanan; delete()
+            // pada disk 'throw' => true tetap aman karena hanya mengembalikan
+            // false/true untuk file yang tidak ada, tapi dibungkus agar update
+            // tidak gagal hanya karena berkas lama bermasalah.
+            try {
+                if (filled($item->file_path)) {
+                    Storage::disk('documents')->delete($item->file_path);
+                }
+            } catch (Throwable $e) {
+                report($e);
+            }
 
             /** @var UploadedFile $file */
             $file = $request->file('file');
@@ -128,9 +140,16 @@ class DocumentController extends Controller
     // Menampilkan file inline di tab baru (mis. PDF langsung tampil di browser)
     public function preview($id)
     {
-        $item = Document::findOrFail($id);
+        $item = Document::with('staff')->findOrFail($id);
 
-        return Storage::disk('documents')->response(
+        if (! $this->fileExists($item)) {
+            return $this->fileNotFoundResponse($item);
+        }
+
+        /** @var FilesystemAdapter $disk */
+        $disk = Storage::disk('documents');
+
+        return $disk->response(
             $item->file_path,
             $item->original_filename
         );
@@ -139,9 +158,16 @@ class DocumentController extends Controller
     // Memaksa file terunduh ke perangkat, nama file sesuai nama asli saat diupload
     public function download($id)
     {
-        $item = Document::findOrFail($id);
+        $item = Document::with('staff')->findOrFail($id);
 
-        return Storage::disk('documents')->download(
+        if (! $this->fileExists($item)) {
+            return $this->fileNotFoundResponse($item);
+        }
+
+        /** @var FilesystemAdapter $disk */
+        $disk = Storage::disk('documents');
+
+        return $disk->download(
             $item->file_path,
             $item->original_filename
         );
@@ -152,6 +178,35 @@ class DocumentController extends Controller
     | Helpers
     |--------------------------------------------------------------------
     */
+
+    /**
+     * Cek berkas fisik ada di disk 'documents'. Dibungkus try/catch karena
+     * disk ini memakai 'throw' => true, sehingga masalah I/O akan melempar
+     * exception; di sini dianggap sebagai "berkas tidak tersedia".
+     */
+    private function fileExists(Document $item): bool
+    {
+        if (blank($item->file_path)) {
+            return false;
+        }
+
+        try {
+            return Storage::disk('documents')->exists($item->file_path);
+        } catch (Throwable $e) {
+            report($e);
+            return false;
+        }
+    }
+
+    /** Halaman ramah pengguna saat berkas fisik tidak ditemukan (HTTP 404). */
+    private function fileNotFoundResponse(Document $item)
+    {
+        return response()->view(
+            'pages.admin.administration.documents.not-found',
+            ['item' => $item],
+            404
+        );
+    }
 
     private function formOptions(): array
     {
@@ -170,11 +225,11 @@ class DocumentController extends Controller
         return $request->validate([
             'staff_id'                    => 'required|uuid|exists:staff_data,id',
             'staff_document_category_id'  => 'required|uuid|exists:staff_document_categories,id',
-            'document_name'                => 'required|string|max:255',
-            'document_number'              => 'nullable|string|max:255',
-            'document_date'                => 'nullable|date',
-            'verification_status'          => 'required|in:draft,verified,rejected',
-            'file'                         => ($isCreate ? 'required' : 'nullable') . '|file|mimes:pdf,jpg,jpeg,png|max:10240',
+            'document_name'               => 'required|string|max:255',
+            'document_number'             => 'nullable|string|max:255',
+            'document_date'               => 'nullable|date',
+            'verification_status'         => 'required|in:draft,verified,rejected',
+            'file'                        => ($isCreate ? 'required' : 'nullable') . '|file|mimes:pdf,jpg,jpeg,png|max:10240',
         ]);
     }
 
@@ -187,7 +242,10 @@ class DocumentController extends Controller
         $extension = $file->getClientOriginalExtension();
         $storedPath = "{$staffId}/{$uuid}.{$extension}";
 
-        Storage::disk('documents')->putFileAs(
+        /** @var FilesystemAdapter $disk */
+        $disk = Storage::disk('documents');
+
+        $disk->putFileAs(
             dirname($storedPath),
             $file,
             basename($storedPath)

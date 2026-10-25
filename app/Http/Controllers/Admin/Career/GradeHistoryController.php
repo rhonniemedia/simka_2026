@@ -6,12 +6,20 @@ use App\Http\Controllers\Controller;
 use App\Models\Data;
 use App\Models\Grade;
 use App\Models\GradeHistory;
+use App\Services\Staff\StaffDocumentService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\ViewErrorBag;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class GradeHistoryController extends Controller
 {
+    /** Kode kategori dokumen untuk SK pangkat (tabel staff_document_categories). */
+    private const SK_CATEGORY = 'sk_pangkat';
+
     public function index(Request $request)
     {
         $search = $request->search;
@@ -19,12 +27,13 @@ class GradeHistoryController extends Controller
         // Mengambil data riwayat pangkat beserta relasi pegawai dan master golongan
         $query = GradeHistory::with(['staff', 'grade'])
             ->when($search, function ($q) use ($search) {
-                $q->whereHas('staff', function ($qStaff) use ($search) {
-                    $qStaff->where('name', 'like', "%{$search}%");
-                })
-                    ->orWhereHas('grade', function ($qGrade) use ($search) {
-                        $qGrade->where('name', 'like', "%{$search}%");
-                    });
+                $q->where(function ($w) use ($search) {
+                    $w->whereHas('staff', fn($s) => $s->where('name', 'like', "%{$search}%"))
+                        ->orWhereHas('grade', function ($g) use ($search) {
+                            $g->where('grade_name', 'like', "%{$search}%")
+                                ->orWhere('grade_code', 'like', "%{$search}%");
+                        });
+                });
             })
             ->orderBy('effective_date', 'desc');
 
@@ -43,8 +52,8 @@ class GradeHistoryController extends Controller
         // 1. Ambil data pegawai beserta relasinya
         $staff = Data::with(['vault', 'employmentStatus'])->findOrFail($id);
 
-        // 2. Ambil data riwayat kepangkatan khusus untuk pegawai ini
-        $histories = GradeHistory::with(['grade'])
+        // 2. Ambil data riwayat kepangkatan khusus untuk pegawai ini (beserta berkas SK-nya)
+        $histories = GradeHistory::with(['grade', 'documents.category'])
             ->where('staff_id', $id)
             ->orderBy('effective_date', 'desc')
             ->paginate(10);
@@ -71,34 +80,23 @@ class GradeHistoryController extends Controller
         $staff = Data::findOrFail($id);
 
         try {
-            $validated = $request->validate([
-                'grade_id' => 'required|exists:staff_grades,id',
-                'effective_date' => [
-                    'required',
-                    'date',
-                    Rule::unique('staff_grade_histories')->where(function ($query) use ($staff) {
-                        return $query->where('staff_id', $staff->id);
-                    }),
-                ],
-                'decree_number' => 'nullable|string|max:255',
-                'decree_date' => 'nullable|date',
-                'service_period_years' => 'nullable|integer|min:0',
-                'approval_reference' => 'nullable|string|max:255',
-                'approval_date' => 'nullable|date',
-                'position_at_time' => 'nullable|string|max:255',
-            ], [
-                'grade_id.required' => 'Golongan wajib dipilih.',
-                'grade_id.exists' => 'Golongan yang dipilih tidak valid.',
-                'effective_date.unique' => 'Riwayat kepangkatan pada TMT (Tanggal) tersebut sudah ada untuk pegawai ini.',
-            ]);
+            $validated = $this->validated($request, $staff);
+
+            // Data pangkat dan berkas SK disimpan dalam satu transaksi:
+            // jika berkas gagal, data pangkat ikut dibatalkan.
+            DB::transaction(function () use ($request, $staff, $validated) {
+                $history = GradeHistory::create(
+                    Arr::except($validated, ['file']) + [
+                        'staff_id'   => $staff->id,
+                        'created_by' => Auth::id(),
+                    ]
+                );
+
+                $this->storeSk($history, $request);
+            });
         } catch (ValidationException $e) {
             return $this->respondWithModalErrors($request, $e, $staff, null);
         }
-
-        $validated['staff_id'] = $staff->id;
-        $validated['created_by'] = auth()->id();
-
-        GradeHistory::create($validated);
 
         if ($request->header('HX-Request')) {
             return response($this->show($request, $id)->render())
@@ -130,33 +128,25 @@ class GradeHistoryController extends Controller
         $history = GradeHistory::where('staff_id', $staff_id)->findOrFail($history_id);
 
         try {
-            $validated = $request->validate([
-                'grade_id' => 'required|exists:staff_grades,id',
-                'effective_date' => [
-                    'required',
-                    'date',
-                    Rule::unique('staff_grade_histories')->where(function ($query) use ($staff) {
-                        return $query->where('staff_id', $staff->id);
-                    })->ignore($history_id),
-                ],
-                'decree_number' => 'nullable|string|max:255',
-                'decree_date' => 'nullable|date',
-                'service_period_years' => 'nullable|integer|min:0',
-                'approval_reference' => 'nullable|string|max:255',
-                'approval_date' => 'nullable|date',
-                'position_at_time' => 'nullable|string|max:255',
-            ], [
-                'grade_id.required' => 'Golongan wajib dipilih.',
-                'grade_id.exists' => 'Golongan yang dipilih tidak valid.',
-                'effective_date.unique' => 'Riwayat kepangkatan pada TMT (Tanggal) tersebut sudah ada untuk pegawai ini.',
-            ]);
+            $validated = $this->validated($request, $staff, $history_id);
+
+            DB::transaction(function () use ($request, $history, $validated) {
+                $history->update(
+                    Arr::except($validated, ['file']) + ['updated_by' => Auth::id()]
+                );
+
+                // Nomor & tanggal SK di berkas mengikuti data pangkat (sumber kebenaran)
+                $this->skDocuments($history)->update([
+                    'document_number' => $history->decree_number,
+                    'document_date'   => $history->decree_date,
+                    'updated_by'      => Auth::id(),
+                ]);
+
+                $this->storeSk($history, $request);
+            });
         } catch (ValidationException $e) {
             return $this->respondWithModalErrors($request, $e, $staff, $history);
         }
-
-        $validated['updated_by'] = auth()->id();
-
-        $history->update($validated);
 
         if ($request->header('HX-Request')) {
             return response($this->show($request, $staff_id)->render())
@@ -177,6 +167,8 @@ class GradeHistoryController extends Controller
     {
         try {
             $history = GradeHistory::where('staff_id', $staff_id)->findOrFail($history_id);
+
+            // Berkas SK ikut dihapus lunak lewat trait HasStaffDocuments
             $history->delete();
         } catch (\Throwable $e) {
             report($e);
@@ -216,6 +208,71 @@ class GradeHistoryController extends Controller
         return redirect()->route('admin.personnel.promotions.show', $staff_id);
     }
 
+    /*
+    |--------------------------------------------------------------------
+    | Helper
+    |--------------------------------------------------------------------
+    */
+
+    /**
+     * Aturan validasi bersama untuk tambah & ubah. $ignoreId diisi saat ubah
+     * supaya TMT milik baris yang sedang diedit tidak dianggap duplikat.
+     */
+    private function validated(Request $request, Data $staff, ?string $ignoreId = null): array
+    {
+        $unique = Rule::unique('staff_grade_histories')
+            ->where(fn($query) => $query->where('staff_id', $staff->id));
+
+        if ($ignoreId) {
+            $unique->ignore($ignoreId);
+        }
+
+        return $request->validate([
+            'grade_id'             => 'required|exists:staff_grades,id',
+            'effective_date'       => ['required', 'date', $unique],
+            'decree_number'        => ['nullable', 'string', 'max:255', 'required_with:file'],
+            'decree_date'          => 'nullable|date',
+            'service_period_years' => 'nullable|integer|min:0',
+            'service_period_months' => 'nullable|integer|min:0|max:11',
+            'approval_reference'   => 'nullable|string|max:255',
+            'approval_date'        => 'nullable|date',
+            'position_at_time'     => 'nullable|string|max:255',
+            'file'                 => ['nullable', 'file', 'mimes:pdf', 'max:' . StaffDocumentService::MAX_SIZE_KB],
+        ], [
+            'grade_id.required'              => 'Golongan wajib dipilih.',
+            'grade_id.exists'                => 'Golongan yang dipilih tidak valid.',
+            'effective_date.required'        => 'TMT Pangkat wajib diisi.', // <-- TAMBAHKAN INI
+            'effective_date.date'            => 'Format TMT Pangkat tidak valid.', // <-- OPSIONAL TAMBAHAN
+            'effective_date.unique'          => 'Riwayat kepangkatan pada TMT (Tanggal) tersebut sudah ada untuk pegawai ini.',
+            'decree_number.required_with'    => 'Nomor SK wajib diisi jika mengunggah berkas SK.',
+            'file.mimes'                     => 'Berkas SK harus berformat PDF.',
+            'file.max'                       => 'Ukuran berkas SK maksimal 1 MB.',
+            'file.uploaded'                  => 'Berkas SK gagal diunggah. Pastikan ukurannya maksimal 1 MB.',
+        ]);
+    }
+
+    /** Query berkas SK pangkat milik satu riwayat. */
+    private function skDocuments(GradeHistory $history)
+    {
+        return $history->documents()
+            ->whereHas('category', fn($c) => $c->where('code', self::SK_CATEGORY));
+    }
+
+    /**
+     * Simpan berkas SK jika ada yang diunggah. Satu riwayat hanya punya satu
+     * SK aktif: berkas lama (jika ada) dihapus lunak lalu digantikan.
+     */
+    private function storeSk(GradeHistory $history, Request $request): void
+    {
+        if (! $request->hasFile('file')) {
+            return;
+        }
+
+        $this->skDocuments($history)->get()->each->delete();
+
+        $history->attachDocument($request->file('file'), self::SK_CATEGORY);
+    }
+
     /**
      * Render ulang modal form beserta pesan error validasi, lalu
      * paksa htmx untuk swap ke #modal-container (bukan target asli form)
@@ -228,12 +285,17 @@ class GradeHistoryController extends Controller
             // Supaya old() bisa dipakai di blade untuk mempertahankan input user
             $request->flash();
 
+            // @error() di blade memanggil $errors->getBag(), jadi harus ViewErrorBag
+            // (bukan MessageBag mentah dari validator).
+            $errorBag = new ViewErrorBag();
+            $errorBag->put('default', $e->validator->errors());
+
             return response()
                 ->view('pages.admin.career.grades.show.partials._modal-form', [
                     'staff'   => $staff,
                     'history' => $history,
                     'grades'  => Grade::orderBy('grade_code')->get(),
-                    'errors'  => $e->validator->errors(),
+                    'errors'  => $errorBag,
                 ], 200)
                 ->header('HX-Retarget', '#modal-container')
                 ->header('HX-Reswap', 'innerHTML');
