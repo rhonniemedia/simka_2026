@@ -44,6 +44,7 @@ return [
 default => null,
 },
 'canProcess' => $calc['can_process'],
+'docs' => $s->retirementDocuments ?? collect(),
 'processUrl' => route('admin.personnel.retirement.process', $s->id),
 ];
 };
@@ -121,6 +122,16 @@ default => null,
                         <div class="text-[11px] text-secondary mt-1.5 whitespace-nowrap">
                             {{ $v['note'] ?? $v['tmt'] }}
                         </div>
+                        @if ($v['calc']['state'] === 'retired')
+                        @forelse ($v['docs'] as $doc)
+                        <a href="{{ route('admin.personnel.documents.preview', $doc->id) }}" target="_blank" rel="noopener"
+                            class="mt-1.5 flex items-center gap-1 text-[11px] font-medium text-blue-600 hover:underline whitespace-nowrap">
+                            <i data-lucide="file-text" class="size-3"></i> Lihat {{ $doc->category?->name ?? 'SK Pensiun' }}
+                        </a>
+                        @empty
+                        <p class="mt-1.5 flex items-center gap-1 text-[11px] text-amber-600 whitespace-nowrap"><i data-lucide="file-x" class="size-3"></i> SK belum diunggah</p>
+                        @endforelse
+                        @endif
                     </td>
 
                     {{-- 4. Aksi (10%) --}}
@@ -195,6 +206,19 @@ default => null,
                             </p>
                         </div>
                     </div>
+
+                    @if ($v['calc']['state'] === 'retired')
+                    <div class="mt-2 text-xs">
+                        @forelse ($v['docs'] as $doc)
+                        <a href="{{ route('admin.personnel.documents.preview', $doc->id) }}" target="_blank" rel="noopener"
+                            class="flex items-center gap-1 font-medium text-blue-600 hover:underline">
+                            <i data-lucide="file-text" class="size-3"></i> Lihat {{ $doc->category?->name ?? 'SK Pensiun' }}
+                        </a>
+                        @empty
+                        <p class="flex items-center gap-1 text-amber-600"><i data-lucide="file-x" class="size-3"></i> SK belum diunggah</p>
+                        @endforelse
+                    </div>
+                    @endif
 
                     <div class="mt-3 flex gap-2">
                         <a href="#" class="flex-1 inline-flex items-center justify-center gap-1.5 h-10 rounded-xl bg-slate-100 text-slate-700 text-sm font-semibold hover:bg-slate-200 transition-colors">

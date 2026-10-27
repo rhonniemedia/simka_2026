@@ -18,6 +18,7 @@ $errorClass = 'text-[11px] text-error mt-1.5 font-medium';
         open: false,
         saving: false,
         errors: {},
+        fileError: '',
         close() {
             const container = this.$root.closest('#modal-container');
             this.open = false;
@@ -42,7 +43,7 @@ $errorClass = 'text-[11px] text-error mt-1.5 font-medium';
     @close-modal.window="close()"
     @keydown.escape.window="if (open && !saving) close()">
 
-    <x-ui.modal show="open" maxWidth="md">
+    <x-ui.modal show="open" maxWidth="lg">
 
         {{-- ============================ HEADER ============================ --}}
         <div class="flex items-start sm:items-center justify-between gap-3 px-4 sm:px-6 py-4 border-b border-border bg-slate-50/50 shrink-0">
@@ -65,6 +66,7 @@ $errorClass = 'text-[11px] text-error mt-1.5 font-medium';
              Status "Menyimpan..." dan pembacaan error 422 dipasang di <form> karena event htmx
              dikirim ke elemen pemilik hx-post. --}}
         <form hx-post="{{ route('admin.personnel.retirement.process.store', $staff->id) }}"
+            hx-encoding="multipart/form-data"
             hx-swap="none"
             @htmx:before-request="saving = true"
             @htmx:after-request="
@@ -90,19 +92,42 @@ $errorClass = 'text-[11px] text-error mt-1.5 font-medium';
                         <input type="text" value="Pensiun" readonly tabindex="-1" class="{{ $readonlyClass }}">
                     </div>
                     <div>
-                        <label class="{{ $labelClass }}">TMT Pensiun</label>
+                        <label class="{{ $labelClass }}">TMT Pensiun <span class="text-error">*</span></label>
                         <input type="text" value="{{ $tmtText }}" readonly tabindex="-1" class="{{ $readonlyClass }}">
+                        <p class="text-[11px] text-secondary mt-1.5">Dihitung otomatis dari batas usia.</p>
                     </div>
                 </div>
 
                 {{-- Nomor SK --}}
                 <div>
-                    <label class="{{ $labelClass }}">Nomor SK <span class="text-error">*</span></label>
+                    <label class="{{ $labelClass }}">Nomor SK <span class="text-secondary font-normal">(opsional)</span></label>
                     <input type="text" name="decree_number"
                         placeholder="mis. 821/123/SK/2026"
                         autocomplete="off"
                         class="{{ $inputClass }}">
                     <p class="{{ $errorClass }}" x-show="err('decree_number')" x-cloak x-text="err('decree_number')"></p>
+                </div>
+
+                {{-- Tanggal SK --}}
+                <div>
+                    <label class="{{ $labelClass }}">Tanggal SK <span class="text-secondary font-normal">(opsional)</span></label>
+                    <input type="date" name="decree_date" class="{{ $inputClass }}">
+                    <p class="{{ $errorClass }}" x-show="err('decree_date')" x-cloak x-text="err('decree_date')"></p>
+                </div>
+
+                {{-- Berkas SK --}}
+                <div>
+                    <label class="{{ $labelClass }}">Berkas SK Pensiun <span class="text-secondary font-normal">(PDF, maksimal 1 MB, opsional)</span></label>
+                    <input type="file" name="file" accept="application/pdf,.pdf" x-ref="sk"
+                        @change="fileError = ''; errors.file = null; const f = $event.target.files[0]; if (f && f.type !== 'application/pdf') { fileError = 'Format berkas harus PDF.'; } else if (f && f.size > 1048576) { fileError = 'Ukuran berkas maksimal 1 MB.'; }"
+                        class="w-full rounded-xl border border-border px-3.5 py-2 text-sm bg-white file:mr-3 file:rounded-lg file:border-0 file:bg-primary/10 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-primary hover:file:bg-primary/15 cursor-pointer">
+                    <p x-show="fileError" x-cloak class="{{ $errorClass }}">
+                        <span x-text="fileError"></span>
+                        Pilih berkas lain, atau
+                        <button type="button" class="underline cursor-pointer" @click="$refs.sk.value = ''; fileError = ''">hapus pilihan</button>
+                        untuk menyimpan tanpa berkas.
+                    </p>
+                    <p class="{{ $errorClass }}" x-show="err('file')" x-cloak x-text="err('file')"></p>
                 </div>
 
                 {{-- Catatan --}}
@@ -127,7 +152,7 @@ $errorClass = 'text-[11px] text-error mt-1.5 font-medium';
                     <i data-lucide="x-circle" class="size-4"></i>
                     <span>Batal</span>
                 </button>
-                <button type="submit" :disabled="saving"
+                <button type="submit" :disabled="saving || fileError !== ''"
                     class="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary/90 shadow-sm shadow-primary/30 transition-all cursor-pointer disabled:opacity-70 disabled:cursor-wait">
                     <span class="flex" x-show="!saving"><i data-lucide="check" class="size-4"></i></span>
                     <span class="flex" x-show="saving" x-cloak><i data-lucide="loader-2" stroke-width="3" class="size-4 animate-spin"></i></span>

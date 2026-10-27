@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Data;
 use App\Models\EmploymentStatus;
 use App\Models\StaffStatusHistory;
+use App\Services\Staff\StaffDocumentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -29,6 +30,19 @@ class TransferController extends Controller
 
     /** Status kepegawaian (slug) yang muncul di filter: PNS, PPPK, dan PPPK Paruh Waktu. */
     private const INCLUDED_EMPLOYMENT_SLUGS = ['pns', 'pppk', 'pppkpw'];
+
+    /**
+     * Kode kategori berkas SK menurut status tujuan (kolom `code` di
+     * staff_document_categories). 'active' = alur Reaktivasi.
+     * Pensiun (retired) ditangani menu Pensiun.
+     */
+    private const SK_CATEGORY = [
+        'transferred' => 'sk_mutasi',
+        'resigned'    => 'sk_pengunduran_diri',
+        'dismissed'   => 'sk_pemberhentian',
+        'deceased'    => 'surat_kematian',
+        'active'      => 'sk_reaktivasi',
+    ];
 
     public const STATUS_LABELS = [
         'active' => 'Aktif',
@@ -87,6 +101,9 @@ class TransferController extends Controller
         }
 
         $staffList = $query->orderByDesc('status_effective_date')->paginate(10)->withQueryString();
+
+        // Berkas SK dari peristiwa status terakhir tiap pegawai di halaman ini
+        $this->attachLatestDocuments($staffList);
 
         if ($request->header('HX-Request')) {
             return view(self::TABLE_VIEW, compact('staffList'));
@@ -174,48 +191,26 @@ class TransferController extends Controller
     {
         try {
             $validated = $request->validate(
-                [
+                $this->rules([
                     'staff_id' => [
                         'required',
                         'uuid',
                         Rule::exists('staff_data', 'id')->where('status', 'active'),
                     ],
                     'to_status' => ['required', Rule::in(self::MUTATION_TARGET_STATUSES)],
-                    'decree_number' => ['required', 'string', 'max:255'],
-                    'effective_date' => ['required', 'date'],
-                    'note' => ['nullable', 'string', 'max:1000'],
-                ],
-                [
+                ]),
+                $this->messages([
                     'staff_id.exists' => 'Pegawai yang dipilih tidak valid atau sudah tidak berstatus aktif.',
-                    'required' => ':attribute wajib diisi.',
-                    'date' => ':attribute harus berupa tanggal yang valid.',
-                ],
-                [
-                    'staff_id' => 'Pegawai',
-                    'to_status' => 'Status tujuan',
-                    'decree_number' => 'Nomor SK',
-                    'effective_date' => 'TMT',
-                ]
+                ]),
+                $this->attributes()
             );
+
+            $staff = Data::completed()->findOrFail($validated['staff_id']);
+
+            DB::transaction(fn() => $this->recordStatusChange($staff, $validated['to_status'], $validated, $request));
         } catch (ValidationException $e) {
             return $this->validationErrorResponse($e);
         }
-
-        $staff = Data::completed()->findOrFail($validated['staff_id']);
-
-        DB::transaction(function () use ($staff, $validated) {
-            StaffStatusHistory::create([
-                'staff_id' => $staff->id,
-                'from_status' => $staff->status,
-                'to_status' => $validated['to_status'],
-                'decree_number' => $validated['decree_number'],
-                'effective_date' => $validated['effective_date'],
-                'note' => $validated['note'] ?? null,
-                'created_by' => Auth::id(),
-            ]);
-
-            $staff->update(['updated_by' => Auth::id()]);
-        });
 
         return $this->respondWithSuccess($request, 'Status pegawai berhasil diperbarui.');
     }
@@ -224,7 +219,7 @@ class TransferController extends Controller
     {
         try {
             $validated = $request->validate(
-                [
+                $this->rules([
                     'staff_id' => [
                         'required',
                         'uuid',
@@ -232,42 +227,113 @@ class TransferController extends Controller
                             fn($q) => $q->whereIn('status', self::REACTIVATABLE_STATUSES)
                         ),
                     ],
-                    'decree_number' => ['required', 'string', 'max:255'],
-                    'effective_date' => ['required', 'date'],
-                    'note' => ['nullable', 'string', 'max:1000'],
-                ],
-                [
+                ]),
+                $this->messages([
                     'staff_id.exists' => 'Pegawai yang dipilih tidak valid atau tidak berstatus Pindah/Mengundurkan Diri.',
-                    'required' => ':attribute wajib diisi.',
-                    'date' => ':attribute harus berupa tanggal yang valid.',
-                ],
-                [
-                    'staff_id' => 'Pegawai',
-                    'decree_number' => 'Nomor SK',
-                    'effective_date' => 'TMT',
-                ]
+                ]),
+                $this->attributes()
             );
+
+            $staff = Data::completed()->findOrFail($validated['staff_id']);
+
+            DB::transaction(fn() => $this->recordStatusChange($staff, 'active', $validated, $request));
         } catch (ValidationException $e) {
             return $this->validationErrorResponse($e);
         }
 
-        $staff = Data::completed()->findOrFail($validated['staff_id']);
-
-        DB::transaction(function () use ($staff, $validated) {
-            StaffStatusHistory::create([
-                'staff_id' => $staff->id,
-                'from_status' => $staff->status,
-                'to_status' => 'active',
-                'decree_number' => $validated['decree_number'],
-                'effective_date' => $validated['effective_date'],
-                'note' => $validated['note'] ?? null,
-                'created_by' => Auth::id(),
-            ]);
-
-            $staff->update(['updated_by' => Auth::id()]);
-        });
-
         return $this->respondWithSuccess($request, 'Pegawai berhasil diaktifkan kembali.');
+    }
+
+    /*
+    |--------------------------------------------------------------------
+    | Riwayat status & berkas SK
+    |--------------------------------------------------------------------
+    */
+
+    /**
+     * Catat perubahan status beserta berkas SK-nya (jika ada) dalam satu
+     * transaksi. Status & TMT di staff_data diperbarui otomatis oleh model
+     * StaffStatusHistory. Jika berkas ditolak, perubahan status ikut dibatalkan.
+     */
+    private function recordStatusChange(Data $staff, string $toStatus, array $validated, Request $request): void
+    {
+        $history = StaffStatusHistory::create([
+            'staff_id'       => $staff->id,
+            'from_status'    => $staff->status,
+            'to_status'      => $toStatus,
+            'decree_number'  => $validated['decree_number'],
+            'decree_date'    => $validated['decree_date'],
+            'effective_date' => $validated['effective_date'],
+            'note'           => $validated['note'] ?? null,
+            'created_by'     => Auth::id(),
+        ]);
+
+        if ($request->hasFile('file')) {
+            $history->attachDocument($request->file('file'), self::SK_CATEGORY[$toStatus]);
+        }
+
+        $staff->update(['updated_by' => Auth::id()]);
+    }
+
+    /**
+     * Tempelkan berkas dari peristiwa status TERAKHIR (yang to_status-nya sama
+     * dengan status pegawai saat ini) sebagai relasi 'latestStatusDocuments'.
+     */
+    private function attachLatestDocuments($staffList): void
+    {
+        $histories = StaffStatusHistory::with('documents.category')
+            ->whereIn('staff_id', $staffList->pluck('id'))
+            ->orderByDesc('effective_date')
+            ->orderByDesc('created_at')
+            ->get()
+            ->groupBy('staff_id');
+
+        $staffList->getCollection()->each(function ($staff) use ($histories) {
+            $latest = $histories->get($staff->id)?->first(fn($h) => $h->to_status === $staff->status);
+
+            $staff->setRelation('latestStatusDocuments', $latest?->documents ?? collect());
+        });
+    }
+
+    /*
+    |--------------------------------------------------------------------
+    | Validasi
+    |--------------------------------------------------------------------
+    */
+
+    /** Aturan bersama Mutasi & Reaktivasi; $specific = aturan khusus tiap mode. */
+    private function rules(array $specific): array
+    {
+        return $specific + [
+            'decree_number'  => ['required', 'string', 'max:255'],
+            'decree_date'    => ['required', 'date'],
+            'effective_date' => ['required', 'date'],
+            'note'           => ['nullable', 'string', 'max:1000'],
+            'file'           => ['nullable', 'file', 'mimes:pdf', 'max:' . StaffDocumentService::MAX_SIZE_KB],
+        ];
+    }
+
+    private function messages(array $extra = []): array
+    {
+        return $extra + [
+            'required'      => ':attribute wajib diisi.',
+            'date'          => ':attribute harus berupa tanggal yang valid.',
+            'file.mimes'    => 'Berkas SK harus berformat PDF.',
+            'file.max'      => 'Ukuran berkas SK maksimal 1 MB.',
+            'file.uploaded' => 'Berkas SK gagal diunggah. Pastikan ukurannya maksimal 1 MB.',
+        ];
+    }
+
+    private function attributes(): array
+    {
+        return [
+            'staff_id'       => 'Pegawai',
+            'to_status'      => 'Status tujuan',
+            'decree_number'  => 'Nomor SK',
+            'decree_date'    => 'Tanggal SK',
+            'effective_date' => 'TMT',
+            'file'           => 'Berkas SK',
+        ];
     }
 
     /*
@@ -297,9 +363,18 @@ class TransferController extends Controller
 
     private function validationErrorResponse(ValidationException $e): JsonResponse
     {
+        // Pesan dari service berkas (kunci selain field form) ditampilkan di bawah field berkas.
+        $known = ['staff_id', 'to_status', 'decree_number', 'decree_date', 'effective_date', 'note', 'file'];
+        $errors = [];
+
+        foreach ($e->errors() as $field => $messages) {
+            $key = in_array($field, $known, true) ? $field : 'file';
+            $errors[$key] = array_merge($errors[$key] ?? [], $messages);
+        }
+
         return response()->json([
             'message' => $e->getMessage(),
-            'errors' => $e->errors(),
+            'errors' => $errors,
         ], $e->status);
     }
 }

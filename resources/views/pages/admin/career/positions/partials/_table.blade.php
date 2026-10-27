@@ -31,8 +31,8 @@
                 @forelse ($staffList as $staff)
                 @php
                 $nik = $staff->vault?->nik ?? '-';
-                // Sesuaikan attribute ini dengan nama kolom file SK di model Staff/PositionHistory Anda
-                $hasFile = $staff->decree_file_id ?? false;
+                // Berkas SK jabatan aktif (diisi controller lewat attachActiveSk())
+                $sk = $staff->activeSk;
                 @endphp
                 <tr id="row-staff-{{ $staff->id }}" class="group transition-colors hover:bg-muted/40">
                     {{-- Kolom 1: Pegawai --}}
@@ -76,12 +76,12 @@
                     {{-- Kolom 4: Dokumen --}}
                     <td class="px-5 py-4 min-w-[100px]">
                         <div class="flex items-center gap-3">
-                            @if ($hasFile)
-                            <button type="button" class="shrink-0 hover:opacity-80 transition-opacity" title="Lihat Dokumen SK">
+                            @if ($sk)
+                            <a href="{{ route('admin.personnel.documents.preview', $sk->id) }}" target="_blank" rel="noopener" class="shrink-0 hover:opacity-80 transition-opacity" title="Lihat Dokumen SK">
                                 <div class="size-8 rounded-lg bg-red-50 flex items-center justify-center border border-red-200">
                                     <i data-lucide="file-text" class="size-4 text-red-600"></i>
                                 </div>
-                            </button>
+                            </a>
                             @else
                             <div class="size-8 rounded-lg bg-muted flex items-center justify-center border border-border" title="Dokumen Tidak Tersedia">
                                 <i data-lucide="file-x-2" class="size-4 text-secondary/50"></i>
@@ -109,7 +109,7 @@
         @forelse ($staffList as $staff)
         @php
         $nik = $staff->vault?->nik ?? '-';
-        $hasFile = $staff->decree_file_id ?? false;
+        $sk = $staff->activeSk;
         @endphp
         <div id="card-staff-{{ $staff->id }}" class="px-5 py-4 active:bg-muted/40 transition-colors">
             {{-- Bagian Header Card: Avatar & Informasi Kiri --}}
@@ -162,10 +162,10 @@
             </div>
 
             <div class="mt-3 flex items-center justify-end gap-2">
-                @if ($hasFile)
-                <button type="button" title="Lihat SK" class="inline-flex items-center justify-center size-8 rounded-lg border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 transition-colors cursor-pointer">
+                @if ($sk)
+                <a href="{{ route('admin.personnel.documents.preview', $sk->id) }}" target="_blank" rel="noopener" title="Lihat SK" class="inline-flex items-center justify-center size-8 rounded-lg border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 transition-colors cursor-pointer">
                     <i data-lucide="file-text" class="size-4"></i>
-                </button>
+                </a>
                 @else
                 <div class="inline-flex items-center justify-center size-8 rounded-lg border border-border bg-muted" title="Dokumen Tidak Tersedia">
                     <i data-lucide="file-x-2" class="size-4 text-secondary/50"></i>

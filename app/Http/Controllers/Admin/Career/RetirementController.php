@@ -7,6 +7,7 @@ use App\Models\AsnPositionHistory;
 use App\Models\Data;
 use App\Models\EmploymentStatus;
 use App\Models\StaffStatusHistory;
+use App\Services\Staff\StaffDocumentService;
 use App\Services\Personnel\RetirementList;
 use Carbon\Carbon;
 use DateTimeImmutable;
@@ -20,6 +21,9 @@ use Throwable;
 
 class RetirementController extends Controller
 {
+    /** Kode kategori berkas SK pensiun (tabel staff_document_categories). */
+    private const SK_CATEGORY = 'sk_pensiun';
+
     private const PER_PAGE = 10;
 
     private const INDEX_VIEW = 'pages.admin.career.retirements.index';
@@ -45,6 +49,9 @@ class RetirementController extends Controller
         $allRows = $this->buildRows();
         $rows = RetirementList::sort(RetirementList::filter($allRows, $filters));
         $paginator = $this->paginate($rows, $request);
+
+        // Berkas SK pensiun untuk pegawai yang sudah pensiun di halaman ini
+        $this->attachRetirementDocuments($paginator);
 
         if ($request->header('HX-Request')) {
             return view(self::TABLE_VIEW, ['rows' => $paginator]);
@@ -102,53 +109,69 @@ class RetirementController extends Controller
         try {
             $validated = $request->validate(
                 [
-                    'decree_number' => ['required', 'string', 'max:255'],
+                    'decree_number' => ['nullable', 'string', 'max:255'],
+                    'decree_date' => ['nullable', 'date'],
                     'note' => ['nullable', 'string', 'max:1000'],
+                    'file' => ['nullable', 'file', 'mimes:pdf', 'max:' . StaffDocumentService::MAX_SIZE_KB],
                 ],
                 [
-                    'required' => ':attribute wajib diisi.',
                     'string' => ':attribute harus berupa teks.',
                     'max' => ':attribute maksimal :max karakter.',
+                    'date' => ':attribute harus berupa tanggal yang valid.',
+                    'file.mimes' => 'Berkas SK harus berformat PDF.',
+                    'file.max' => 'Ukuran berkas SK maksimal 1 MB.',
+                    'file.uploaded' => 'Berkas SK gagal diunggah. Pastikan ukurannya maksimal 1 MB.',
                 ],
                 [
                     'decree_number' => 'Nomor SK',
+                    'decree_date' => 'Tanggal SK',
                     'note' => 'Catatan',
+                    'file' => 'Berkas SK',
                 ]
             );
+
+            // Riwayat pensiun dan berkas SK disimpan dalam satu transaksi:
+            // jika berkas ditolak, perubahan status ikut dibatalkan.
+            $outcome = DB::transaction(function () use ($request, $id, $validated) {
+                Data::completed()->whereKey($id)->lockForUpdate()->firstOrFail();
+
+                $row = $this->buildRows($id)[0] ?? null;
+
+                if ($row === null) {
+                    return ['ok' => false, 'message' => 'Data pegawai tidak ditemukan atau tidak termasuk daftar pensiun.'];
+                }
+
+                if (! $row['calc']['can_process']) {
+                    return ['ok' => false, 'message' => $this->notProcessableMessage($row)];
+                }
+
+                $staff = $row['staff'];
+                $tmt = $row['calc']['tmt'];
+
+                $history = StaffStatusHistory::create([
+                    'staff_id' => $staff->id,
+                    'from_status' => $staff->status,
+                    'to_status' => RetirementList::RETIRED_STATUS,
+                    'decree_number' => $validated['decree_number'] ?? null,
+                    'decree_date' => $validated['decree_date'] ?? null,
+                    'effective_date' => $tmt->format('Y-m-d'),
+                    'note' => $validated['note'] ?? null,
+                    'created_by' => Auth::id(),
+                ]);
+
+                if ($request->hasFile('file')) {
+                    $history->attachDocument($request->file('file'), self::SK_CATEGORY);
+                }
+
+                // status & status_effective_date di staff_data diperbarui
+                // otomatis oleh model StaffStatusHistory.
+                $staff->update(['updated_by' => Auth::id()]);
+
+                return ['ok' => true, 'name' => $staff->name, 'tmt' => $tmt];
+            });
         } catch (ValidationException $e) {
             return $this->validationErrorResponse($e);
         }
-
-        $outcome = DB::transaction(function () use ($id, $validated) {
-            Data::completed()->whereKey($id)->lockForUpdate()->firstOrFail();
-
-            $row = $this->buildRows($id)[0] ?? null;
-
-            if ($row === null) {
-                return ['ok' => false, 'message' => 'Data pegawai tidak ditemukan atau tidak termasuk daftar pensiun.'];
-            }
-
-            if (! $row['calc']['can_process']) {
-                return ['ok' => false, 'message' => $this->notProcessableMessage($row)];
-            }
-
-            $staff = $row['staff'];
-            $tmt = $row['calc']['tmt'];
-
-            StaffStatusHistory::create([
-                'staff_id' => $staff->id,
-                'from_status' => $staff->status,
-                'to_status' => RetirementList::RETIRED_STATUS,
-                'decree_number' => $validated['decree_number'],
-                'effective_date' => $tmt->format('Y-m-d'),
-                'note' => $validated['note'] ?? null,
-                'created_by' => Auth::id(),
-            ]);
-
-            $staff->update(['updated_by' => Auth::id()]);
-
-            return ['ok' => true, 'name' => $staff->name, 'tmt' => $tmt];
-        });
 
         if (! $outcome['ok']) {
             return $this->alertResponse($request, 'warning', 'Tidak dapat diproses', $outcome['message'], 422, true);
@@ -162,6 +185,30 @@ class RetirementController extends Controller
             200,
             true
         );
+    }
+
+    /**
+     * Tempelkan berkas SK dari peristiwa pensiun terakhir tiap pegawai
+     * (status 'retired') sebagai relasi 'retirementDocuments' pada model staff.
+     */
+    private function attachRetirementDocuments(LengthAwarePaginator $paginator): void
+    {
+        $staffIds = collect($paginator->items())->pluck('staff.id')->all();
+
+        $histories = StaffStatusHistory::with('documents.category')
+            ->whereIn('staff_id', $staffIds)
+            ->where('to_status', RetirementList::RETIRED_STATUS)
+            ->orderByDesc('effective_date')
+            ->orderByDesc('created_at')
+            ->get()
+            ->groupBy('staff_id');
+
+        foreach ($paginator->items() as $row) {
+            $row['staff']->setRelation(
+                'retirementDocuments',
+                $histories->get($row['staff']->id)?->first()?->documents ?? collect()
+            );
+        }
     }
 
     /*
@@ -353,9 +400,18 @@ class RetirementController extends Controller
      */
     private function validationErrorResponse(ValidationException $e): JsonResponse
     {
+        // Pesan dari service berkas (kunci selain field form) ditampilkan di bawah field berkas.
+        $known = ['decree_number', 'decree_date', 'note', 'file'];
+        $errors = [];
+
+        foreach ($e->errors() as $field => $messages) {
+            $key = in_array($field, $known, true) ? $field : 'file';
+            $errors[$key] = array_merge($errors[$key] ?? [], $messages);
+        }
+
         return response()->json([
             'message' => $e->getMessage(),
-            'errors' => $e->errors(),
+            'errors' => $errors,
         ], $e->status);
     }
 

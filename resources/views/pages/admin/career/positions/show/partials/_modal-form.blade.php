@@ -22,13 +22,23 @@ $positionSelectOptions[] = [
 ];
 }
 }
+
+// Berkas SK jabatan yang sudah terunggah (hanya saat edit)
+$existingSk = $isEdit
+? $history->documents()->whereHas('category', fn ($c) => $c->where('code', 'sk_jabatan'))->latest()->first()
+: null;
 @endphp
 
 <div id="modal-container"
     x-data="{
         open: false,
         errors: {},
+        fileError: '',
         hasErrors: false,
+        staff_asn_position_id: '{{ old('staff_asn_position_id', $history->staff_asn_position_id) }}',
+        decree_number: '{{ old('decree_number', $history->decree_number) }}',
+        decree_date: '{{ old('decree_date', optional($history->decree_date)->format('Y-m-d')) }}',
+        effective_date: '{{ old('effective_date', optional($history->effective_date)->format('Y-m-d')) }}',
         close() {
             this.open = false;
             setTimeout(() => document.getElementById('modal-container').innerHTML = '', 300);
@@ -78,6 +88,7 @@ $positionSelectOptions[] = [
             </div>
 
             <form hx-post="{{ $actionUrl }}"
+                hx-encoding="multipart/form-data"
                 hx-target="#position-history-container" hx-select="#position-history-container" hx-swap="outerHTML"
                 @htmx:after-request="
                     const xhr = $event.detail.xhr;
@@ -94,7 +105,7 @@ $positionSelectOptions[] = [
                     {{-- Jabatan ASN --}}
                     <div>
                         <label class="text-xs font-bold text-secondary uppercase tracking-wider">Jabatan ASN <span class="text-error">*</span></label>
-                        <div class="mt-1.5">
+                        <div class="mt-1.5" @change="staff_asn_position_id = $event.target.value">
                             <x-ui.searchable-select
                                 name="staff_asn_position_id"
                                 :options="$positionSelectOptions"
@@ -107,7 +118,7 @@ $positionSelectOptions[] = [
                     {{-- Nomor SK --}}
                     <div>
                         <label class="text-xs font-bold text-secondary uppercase tracking-wider">Nomor SK <span class="text-error">*</span></label>
-                        <input type="text" name="decree_number" value="{{ old('decree_number', $history->decree_number) }}"
+                        <input type="text" name="decree_number" x-model="decree_number"
                             class="mt-1.5 w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                             placeholder="mis. 821/123/SK/2026">
                         <p class="text-xs text-error font-medium mt-1" x-show="err('decree_number')" x-cloak x-text="err('decree_number')"></p>
@@ -117,16 +128,39 @@ $positionSelectOptions[] = [
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label class="text-xs font-bold text-secondary uppercase tracking-wider">Tanggal SK <span class="text-error">*</span></label>
-                            <input type="date" name="decree_date" value="{{ old('decree_date', optional($history->decree_date)->format('Y-m-d')) }}"
+                            <input type="date" name="decree_date" x-model="decree_date"
                                 class="mt-1.5 w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
                             <p class="text-xs text-error font-medium mt-1" x-show="err('decree_date')" x-cloak x-text="err('decree_date')"></p>
                         </div>
                         <div>
                             <label class="text-xs font-bold text-secondary uppercase tracking-wider">TMT <span class="text-error">*</span></label>
-                            <input type="date" name="effective_date" value="{{ old('effective_date', optional($history->effective_date)->format('Y-m-d')) }}"
+                            <input type="date" name="effective_date" x-model="effective_date"
                                 class="mt-1.5 w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
                             <p class="text-xs text-error font-medium mt-1" x-show="err('effective_date')" x-cloak x-text="err('effective_date')"></p>
                         </div>
+                    </div>
+
+                    {{-- Berkas SK --}}
+                    <div>
+                        <label class="text-xs font-bold text-secondary uppercase tracking-wider">Berkas SK <span class="text-secondary font-normal normal-case tracking-normal">(PDF, maksimal 1 MB)</span></label>
+                        @if ($existingSk)
+                        <p class="mt-1.5 text-xs text-secondary flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                            <i data-lucide="paperclip" class="size-3.5 shrink-0"></i>
+                            <span>Berkas saat ini:</span>
+                            <a href="{{ route('admin.personnel.documents.preview', $existingSk->id) }}" target="_blank" rel="noopener" class="text-blue-600 hover:underline break-all">{{ $existingSk->original_filename ?? 'Lihat berkas' }}</a>
+                            <span>- unggah berkas baru untuk menggantinya.</span>
+                        </p>
+                        @endif
+                        <input type="file" name="file" accept="application/pdf,.pdf" x-ref="sk"
+                            @change="fileError = ''; errors.file = null; const f = $event.target.files[0]; if (f && f.type !== 'application/pdf') { fileError = 'Format berkas harus PDF.'; $event.target.value = ''; } else if (f && f.size > 1048576) { fileError = 'Ukuran berkas maksimal 1 MB.'; $event.target.value = ''; }"
+                            class="mt-1.5 w-full rounded-xl border border-border px-3.5 py-2 text-sm bg-white file:mr-3 file:rounded-lg file:border-0 file:bg-primary/10 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-primary hover:file:bg-primary/15 cursor-pointer">
+                        <p x-show="fileError" x-cloak class="text-xs text-error font-medium mt-1">
+                            <span x-text="fileError"></span>
+                            Pilih berkas lain, atau
+                            <button type="button" class="underline cursor-pointer" @click="$refs.sk.value = ''; fileError = ''">hapus pilihan</button>
+                            untuk menyimpan tanpa berkas.
+                        </p>
+                        <p class="text-xs text-error font-medium mt-1" x-show="err('file')" x-cloak x-text="err('file')"></p>
                     </div>
 
                     {{-- Status aktif --}}
@@ -150,7 +184,7 @@ $positionSelectOptions[] = [
                         x-data="{ saving: false }"
                         @htmx:before-request="saving = true"
                         @htmx:after-request="saving = false"
-                        :disabled="saving"
+                        :disabled="saving || fileError !== '' || !staff_asn_position_id || !decree_number.trim() || !decree_date || !effective_date"
                         class="inline-flex items-center gap-2 px-6 py-2.5 bg-primary text-white text-sm font-bold rounded-xl hover:bg-primary/90 transition-all shadow-sm shadow-primary/30 disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer">
                         <i data-lucide="save" class="size-4" x-show="!saving"></i>
                         <i data-lucide="loader-2" stroke-width="3" class="size-4 animate-spin text-white" x-show="saving" x-cloak></i>

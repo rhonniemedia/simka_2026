@@ -28,6 +28,13 @@ $errorClass = 'text-[11px] text-error mt-1.5 font-medium';
         open: false,
         saving: false,
         errors: {},
+        fileError: '',
+        staff_id: '{{ old('staff_id') }}',
+        to_status: '{{ old('to_status') }}',
+        decree_number: '{{ old('decree_number') }}',
+        decree_date: '{{ old('decree_date') }}',
+        effective_date: '{{ old('effective_date') }}',
+        isReaktivasi: {{ $isReaktivasi ? 'true' : 'false' }},
         close() {
             this.open = false;
             setTimeout(() => document.getElementById('modal-container').innerHTML = '', 300);
@@ -70,9 +77,9 @@ $errorClass = 'text-[11px] text-error mt-1.5 font-medium';
             </button>
         </div>
 
-        {{-- Form: status "Menyimpan..." dan pembacaan error 422 dipasang di <form>,
-             karena event htmx dikirim ke elemen pemilik hx-post (bukan ke tombol). --}}
+        {{-- Form: status "Menyimpan..." dan pembacaan error 422 dipasang di <form> --}}
         <form hx-post="{{ route('admin.personnel.mutation.store') }}"
+            hx-encoding="multipart/form-data"
             hx-target="#staff-container" hx-select="#staff-container" hx-swap="outerHTML"
             @htmx:before-request="saving = true"
             @htmx:after-request="
@@ -88,7 +95,7 @@ $errorClass = 'text-[11px] text-error mt-1.5 font-medium';
             <div class="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 space-y-4 [scrollbar-gutter:stable]">
 
                 {{-- Pegawai (dapat dicari) --}}
-                <div>
+                <div @change="staff_id = $event.target.value">
                     <label class="{{ $labelClass }}">Pegawai <span class="text-error">*</span></label>
                     <x-ui.searchable-select
                         name="staff_id"
@@ -104,7 +111,7 @@ $errorClass = 'text-[11px] text-error mt-1.5 font-medium';
 
                 {{-- Status tujuan (khusus mode Mutasi) --}}
                 @if (!$isReaktivasi)
-                <div>
+                <div @change="to_status = $event.target.value">
                     <label class="{{ $labelClass }}">Status Tujuan <span class="text-error">*</span></label>
                     <x-ui.select
                         name="to_status"
@@ -122,19 +129,49 @@ $errorClass = 'text-[11px] text-error mt-1.5 font-medium';
                 {{-- Nomor SK --}}
                 <div>
                     <label class="{{ $labelClass }}">Nomor SK <span class="text-error">*</span></label>
-                    <input type="text" name="decree_number" value="{{ old('decree_number') }}"
+                    <input type="text" name="decree_number" x-model="decree_number"
                         placeholder="mis. 821/123/SK/2026"
                         class="{{ $inputClass }}">
                     <p class="{{ $errorClass }}" x-show="err('decree_number')" x-cloak x-text="err('decree_number')"></p>
                 </div>
 
-                {{-- TMT --}}
+                {{-- Tanggal SK & TMT --}}
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="{{ $labelClass }}">Tanggal SK <span class="text-error">*</span></label>
+                        <input type="date" name="decree_date" x-model="decree_date"
+                            class="{{ $inputClass }}">
+                        <p class="{{ $errorClass }}" x-show="err('decree_date')" x-cloak x-text="err('decree_date')"></p>
+                    </div>
+                    <div>
+                        <label class="{{ $labelClass }}">TMT SK (Tanggal Efektif) <span class="text-error">*</span></label>
+                        <input type="date" name="effective_date" x-model="effective_date"
+                            placeholder="YYYY-MM-DD"
+                            class="{{ $inputClass }}">
+                        <p class="{{ $errorClass }}" x-show="err('effective_date')" x-cloak x-text="err('effective_date')"></p>
+                    </div>
+                </div>
+
+                {{-- Berkas SK --}}
                 <div>
-                    <label class="{{ $labelClass }}">TMT (Tanggal Efektif) <span class="text-error">*</span></label>
-                    <input type="date" name="effective_date" value="{{ old('effective_date') }}"
-                        placeholder="YYYY-MM-DD"
-                        class="{{ $inputClass }}">
-                    <p class="{{ $errorClass }}" x-show="err('effective_date')" x-cloak x-text="err('effective_date')"></p>
+                    <label class="{{ $labelClass }}">Berkas SK <span class="text-secondary font-normal">(PDF, maksimal 1 MB, opsional)</span></label>
+                    <input type="file" name="file" accept="application/pdf,.pdf" x-ref="sk"
+                        @change="fileError = ''; errors.file = null; const f = $event.target.files[0]; if (f && f.type !== 'application/pdf') { fileError = 'Format berkas harus PDF.'; $event.target.value = ''; } else if (f && f.size > 1048576) { fileError = 'Ukuran berkas maksimal 1 MB.'; $event.target.value = ''; }"
+                        class="w-full rounded-xl border border-border px-3.5 py-2 text-sm bg-white file:mr-3 file:rounded-lg file:border-0 file:bg-primary/10 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-primary hover:file:bg-primary/15 cursor-pointer">
+                    <p class="text-[11px] text-secondary mt-1.5">
+                        @if ($isReaktivasi)
+                        Jenis berkas: SK Reaktivasi.
+                        @else
+                        Jenis berkas mengikuti Status Tujuan: Pindah = SK Mutasi, Mengundurkan Diri = SK Pengunduran Diri, Diberhentikan = SK Pemberhentian, Meninggal Dunia = Surat Kematian.
+                        @endif
+                    </p>
+                    <p x-show="fileError" x-cloak class="{{ $errorClass }}">
+                        <span x-text="fileError"></span>
+                        Pilih berkas lain, atau
+                        <button type="button" class="underline cursor-pointer" @click="$refs.sk.value = ''; fileError = ''">hapus pilihan</button>
+                        untuk menyimpan tanpa berkas.
+                    </p>
+                    <p class="{{ $errorClass }}" x-show="err('file')" x-cloak x-text="err('file')"></p>
                 </div>
 
                 {{-- Catatan --}}
@@ -154,8 +191,9 @@ $errorClass = 'text-[11px] text-error mt-1.5 font-medium';
                     <i data-lucide="x-circle" class="size-4"></i>
                     <span>Batal</span>
                 </button>
-                <button type="submit" :disabled="saving"
-                    class="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary/90 shadow-sm shadow-primary/30 transition-all cursor-pointer disabled:opacity-70 disabled:cursor-wait">
+                <button type="submit"
+                    :disabled="saving || fileError !== '' || !staff_id || (!isReaktivasi && !to_status) || !decree_number.trim() || !decree_date || !effective_date"
+                    class="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary/90 shadow-sm shadow-primary/30 transition-all cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed">
                     <span class="flex" x-show="!saving"><i data-lucide="save" class="size-4"></i></span>
                     <span class="flex" x-show="saving" x-cloak><i data-lucide="loader-2" stroke-width="3" class="size-4 animate-spin"></i></span>
                     <span x-text="saving ? 'Menyimpan...' : 'Simpan'">Simpan</span>
