@@ -8,6 +8,7 @@ use App\Models\DocumentCategory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -51,6 +52,81 @@ class StaffDocumentService
         $this->assertFile($file);
         $linked = $this->resolveLink($staff, $category, $linked);
 
+        return $this->persist($staff, $category, $file, $linked, $meta);
+    }
+
+    /**
+     * Ubah berkas dari menu Dokumen: pemilik, kategori, tautan, metadata,
+     * dan/atau berkas.
+     *  - Tanpa berkas baru: baris diubah di tempat.
+     *  - Dengan berkas baru: dokumen baru dibuat dan yang lama dihapus lunak
+     *    (berkas lama tetap ada di disk dan bisa dipulihkan).
+     *
+     * @param  bool  $allowUnlinked  izinkan tetap tanpa tautan (untuk dokumen
+     *                               lama yang memang belum bertaut)
+     */
+    public function update(
+        Document $document,
+        Data $staff,
+        DocumentCategory $category,
+        ?UploadedFile $file,
+        ?Model $linked = null,
+        array $meta = [],
+        bool $allowUnlinked = false
+    ): Document {
+        $categoryChanged = $category->id !== $document->staff_document_category_id;
+
+        if ($categoryChanged) {
+            $this->assertCategoryUsable($category);
+        }
+
+        if ($file) {
+            $this->assertFile($file);
+        }
+
+        $linked = $this->resolveLink($staff, $category, $linked, $allowUnlinked);
+
+        if ($file) {
+            return DB::transaction(function () use ($document, $staff, $category, $file, $linked, $meta) {
+                $new = $this->persist($staff, $category, $file, $linked, $meta);
+                $document->delete();
+
+                return $new;
+            });
+        }
+
+        $number = $meta['document_number'] ?? $linked?->getAttribute('decree_number');
+        $date   = $meta['document_date'] ?? $linked?->getAttribute('decree_date');
+
+        if ($categoryChanged && $category->requires_document_number && blank($number)) {
+            throw ValidationException::withMessages([
+                'document_number' => 'Nomor dokumen wajib diisi untuk kategori ' . $category->name . '.',
+            ]);
+        }
+
+        $document->update([
+            'staff_id'                   => $staff->id,
+            'staff_document_category_id' => $category->id,
+            'linked_record_type'         => $linked?->getMorphClass(),
+            'linked_record_id'           => $linked?->getKey(),
+            'document_name'              => $meta['document_name'] ?? $document->document_name,
+            'document_number'            => $number,
+            'document_date'              => $date,
+            'verification_status'        => $meta['verification_status'] ?? $document->verification_status,
+            'updated_by'                 => Auth::id(),
+        ]);
+
+        return $document->refresh();
+    }
+
+    /** Simpan file ke disk dan buat baris dokumen (pemeriksaan sudah dilakukan pemanggil). */
+    private function persist(
+        Data $staff,
+        DocumentCategory $category,
+        UploadedFile $file,
+        ?Model $linked,
+        array $meta
+    ): Document {
         $number = $meta['document_number'] ?? $linked?->getAttribute('decree_number');
         $date   = $meta['document_date'] ?? $linked?->getAttribute('decree_date');
 
@@ -121,7 +197,7 @@ class StaffDocumentService
     /**
      * Kembalikan model tujuan tautan, atau null untuk kategori mandiri.
      */
-    private function resolveLink(Data $staff, DocumentCategory $category, ?Model $linked): ?Model
+    private function resolveLink(Data $staff, DocumentCategory $category, ?Model $linked, bool $allowUnlinked = false): ?Model
     {
         // Kategori mandiri: tautan yang dikirim diabaikan
         if (blank($category->linked_table)) {
@@ -129,6 +205,10 @@ class StaffDocumentService
         }
 
         if (! $linked) {
+            if ($allowUnlinked) {
+                return null;
+            }
+
             throw ValidationException::withMessages([
                 'linked_record_id' => 'Dokumen ' . $category->name . ' harus ditautkan ke data terkait.',
             ]);

@@ -8,14 +8,15 @@
 <div class="px-5 py-8 md:p-8"
     x-data="{
         filterModalOpen: false,
-        isFilterActive: {{ (!empty($filterCategory) || !empty($filterVerification) || !empty($filterDateFrom) || !empty($filterDateTo)) ? 'true' : 'false' }},
+        isFilterActive: {{ (!empty($filterCategory) || !empty($filterVerification) || !empty($filterLink) || !empty($filterDateFrom) || !empty($filterDateTo)) ? 'true' : 'false' }},
         checkFilterStatus() {
             const category     = document.querySelector('[name=filter_category]')?.value || '';
             const verification = document.querySelector('[name=filter_verification]')?.value || '';
+            const link         = document.querySelector('[name=filter_link]')?.value || '';
             const dateFrom     = document.querySelector('[name=filter_date_from]')?.value || '';
             const dateTo       = document.querySelector('[name=filter_date_to]')?.value || '';
 
-            this.isFilterActive = (category !== '' || verification !== '' || dateFrom !== '' || dateTo !== '');
+            this.isFilterActive = (category !== '' || verification !== '' || link !== '' || dateFrom !== '' || dateTo !== '');
         }
     }"
     @htmx:after-request.document="checkFilterStatus()">
@@ -122,6 +123,7 @@
     @include('pages.admin.administration.documents.partials._filter-modal', [
     'filterCategory' => $filterCategory ?? '',
     'filterVerification' => $filterVerification ?? '',
+    'filterLink' => $filterLink ?? '',
     'filterDateFrom' => $filterDateFrom ?? '',
     'filterDateTo' => $filterDateTo ?? '',
     'categoryOptions' => $categoryOptions ?? [],

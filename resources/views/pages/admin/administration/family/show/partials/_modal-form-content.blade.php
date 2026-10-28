@@ -1,3 +1,4 @@
+{{-- File: resources/views/pages/admin/administration/family/show/partials/_modal-form.blade.php --}}
 @php
 use App\Enums\Staff\FamilyRelation as FamilyRelationEnum;
 use App\Enums\Staff\Gender;
@@ -7,13 +8,6 @@ $relation = $relation ?? null;
 $prefill = $prefill ?? null;
 $linkToFamilyMemberId = $linkToFamilyMemberId ?? null;
 
-// Prioritas data yang ditampilkan: data prefill (hasil klik
-// "Tautkan"/"Isi Otomatis", termasuk saat sedang Edit) lebih diutamakan
-// daripada familyMember tersimpan, supaya tombol itu tetap kelihatan
-// efeknya walau modal ini dibuka dalam mode Edit. Karena $prefill datang
-// dari server (bukan disuntik JS), semua komponen select custom
-// (x-ui.select, x-ui.searchable-select) otomatis tampil benar lewat
-// atribut :value di bawah - sama seperti mode Edit biasa.
 $familyMember = $prefill ?? $relation->familyMember ?? null;
 $isEdit = !empty($relation);
 
@@ -46,17 +40,24 @@ $actionUrl = $isEdit
 ? route('admin.personnel.family.update', [$staff->id, $relation->id])
 : route('admin.personnel.family.store', $staff->id);
 $checkNikUrl = route('admin.personnel.family.check-nik', $staff->id);
-$method = $isEdit ? 'hx-put' : 'hx-post';
+$method = 'hx-post';
 
 $birthDateValue = $familyMember?->birth_date ? \Carbon\Carbon::parse($familyMember->birth_date)->format('Y-m-d') : '';
 $marriageDateValue = $relation?->marriage_date_encrypted ? \Carbon\Carbon::parse($relation->marriage_date_encrypted)->format('Y-m-d') : '';
 
-// Kalau sedang edit/tautkan dan orang ini ditautkan lebih dari 1 staff,
-// tampilkan peringatan. Hanya berlaku untuk FamilyMember yang benar-benar
-// tersimpan - prefill dari "Isi Otomatis dari Data Staff Ini" berupa
-// stdClass biasa (bukan model), jadi tidak punya relasi apa pun.
 $isShared = $familyMember instanceof \App\Models\FamilyMember
 && ($familyMember->relations_count ?? $familyMember->relations()->count()) > 1;
+
+$existingAkta = $isEdit
+? $relation->documents()->with('category')
+->whereHas('category', fn ($c) => $c->whereIn('code', ['akta_nikah', 'akta_kelahiran_anak']))
+->latest()->first()
+: null;
+$documentNumberValue = $existingAkta?->document_number ?? '';
+$documentDateValue = $existingAkta?->document_date?->format('Y-m-d') ?? '';
+
+$labelClass = 'block text-sm font-medium text-foreground mb-1.5';
+$errorClass = 'text-[11px] text-error mt-1.5 font-medium';
 @endphp
 
 {{-- Modal Header --}}
@@ -81,19 +82,42 @@ $isShared = $familyMember instanceof \App\Models\FamilyMember
 {{-- Form HTMX --}}
 <form id="family-form"
     {!! $method !!}="{{ $actionUrl }}"
+    hx-encoding="multipart/form-data"
     hx-target="#family-detail-container"
     hx-swap="outerHTML"
-    x-data="{ saving: false }"
+    x-data="{ 
+        saving: false, 
+        fileError: '', 
+        errors: {},
+        name: '{{ old('name', $familyMember->name ?? '') }}',
+        relationship: '{{ old('relationship', $relation->relationship ?? '') }}',
+        gender: '{{ old('gender', $familyMember->gender ?? '') }}',
+        setErrors(xhr) {
+            this.errors = {};
+            if (xhr && xhr.status === 422) {
+                try {
+                    this.errors = JSON.parse(xhr.response).errors ?? {};
+                } catch (e) {
+                    this.errors = {};
+                }
+            }
+        },
+        err(field) {
+            return this.errors[field]?.[0] ?? null;
+        }
+    }"
     @htmx:before-request="saving = true"
-    @htmx:after-request="saving = false"
+    @htmx:after-request="
+        saving = false;
+        setErrors($event.detail.xhr);
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    "
     class="flex flex-col flex-1 min-h-0">
     @csrf
+    @if ($isEdit)
+    @method('PUT')
+    @endif
 
-    {{-- Dipakai controller untuk menentukan: tautkan ke orang yang
-        sudah ada, atau buat data orang baru. Diisi dari server
-        (query string ?link_to_family_member_id=...) saat konten ini
-        di-reload lewat tombol "Tautkan" - lihat
-        _nik-check-result.blade.php & FamilyController::resolvePrefillFromRequest(). --}}
     <input type="hidden" name="link_to_family_member_id" value="{{ $linkToFamilyMemberId }}">
 
     @if ($isEdit)
@@ -115,13 +139,11 @@ $isShared = $familyMember instanceof \App\Models\FamilyMember
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5 transform motion-safe:transition-all motion-safe:duration-500 motion-safe:ease-out"
             :class="showUI ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'">
 
-            {{-- NIK - kolom inti, ditaruh paling atas & 1 baris penuh
-                karena semua pengecekan (tautkan/deteksi staff ganda)
-                dimulai dari sini. --}}
+            {{-- NIK --}}
             <div class="md:col-span-2">
-                <label class="block text-sm font-medium text-foreground mb-1.5">NIK / Nomor Identitas</label>
+                <label class="{{ $labelClass }}">NIK / Nomor Identitas</label>
                 <input type="text" name="nik"
-                    value="{{ $familyMember->nik ?? '' }}"
+                    value="{{ old('nik', $familyMember->nik ?? '') }}"
                     placeholder="Nomor Induk Kependudukan"
                     hx-post="{{ $checkNikUrl }}"
                     hx-trigger="keyup changed delay:600ms, blur"
@@ -131,67 +153,121 @@ $isShared = $familyMember instanceof \App\Models\FamilyMember
                     @input="$el.closest('form').querySelector('[name=link_to_family_member_id]').value = ''"
                     class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
                 <div id="nik-check-result"></div>
+                <p class="{{ $errorClass }}" x-show="err('nik')" x-cloak x-text="err('nik')"></p>
             </div>
 
-            {{-- Nama & Status Hubungan --}}
+            {{-- Nama Lengkap --}}
             <div class="md:col-span-2">
-                <label class="block text-sm font-medium text-foreground mb-1.5">Nama Lengkap <span class="text-error">*</span></label>
-                <input type="text" name="name" value="{{ $familyMember->name ?? '' }}" required placeholder="Nama lengkap anggota keluarga" class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                <label class="{{ $labelClass }}">Nama Lengkap <span class="text-error">*</span></label>
+                <input type="text" name="name" x-model="name" placeholder="Nama lengkap anggota keluarga" class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                <p class="{{ $errorClass }}" x-show="err('name')" x-cloak x-text="err('name')"></p>
             </div>
 
+            {{-- Status Hubungan --}}
+            <div @change="relationship = $event.target.value">
+                <label class="{{ $labelClass }}">Status Hubungan <span class="text-error">*</span></label>
+                <x-ui.select name="relationship" :options="$relationshipOptions" :value="old('relationship', $relation->relationship ?? '')" placeholder="-- Pilih Hubungan --" />
+                <p class="{{ $errorClass }}" x-show="err('relationship')" x-cloak x-text="err('relationship')"></p>
+            </div>
+
+            {{-- Jenis Kelamin --}}
+            <div @change="gender = $event.target.value">
+                <label class="{{ $labelClass }}">Jenis Kelamin <span class="text-error">*</span></label>
+                <x-ui.select name="gender" :options="$genderOptions" :value="old('gender', $familyMember->gender ?? '')" placeholder="-- Pilih Kelamin --" />
+                <p class="{{ $errorClass }}" x-show="err('gender')" x-cloak x-text="err('gender')"></p>
+            </div>
+
+            {{-- Nomor Telepon --}}
             <div>
-                <label class="block text-sm font-medium text-foreground mb-1.5">Status Hubungan <span class="text-error">*</span></label>
-                <x-ui.select name="relationship" :options="$relationshipOptions" :value="$relation->relationship ?? ''" required placeholder="-- Pilih Hubungan --" />
+                <label class="{{ $labelClass }}">Nomor Telepon</label>
+                <input type="text" name="telephone" value="{{ old('telephone', $familyMember->telephone ?? '') }}" placeholder="Contoh: 0812..." class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                <p class="{{ $errorClass }}" x-show="err('telephone')" x-cloak x-text="err('telephone')"></p>
             </div>
 
+            {{-- Tempat Lahir --}}
             <div>
-                <label class="block text-sm font-medium text-foreground mb-1.5">Jenis Kelamin <span class="text-error">*</span></label>
-                <x-ui.select name="gender" :options="$genderOptions" :value="$familyMember->gender ?? ''" required placeholder="-- Pilih Kelamin --" />
+                <label class="{{ $labelClass }}">Tempat Lahir</label>
+                <input type="text" name="birth_place" value="{{ old('birth_place', $familyMember->birth_place ?? '') }}" placeholder="Kota kelahiran" class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                <p class="{{ $errorClass }}" x-show="err('birth_place')" x-cloak x-text="err('birth_place')"></p>
             </div>
 
-            {{-- Data Kontak & Lahir --}}
-            <div>
-                <label class="block text-sm font-medium text-foreground mb-1.5">Nomor Telepon</label>
-                <input type="text" name="telephone" value="{{ $familyMember->telephone ?? '' }}" placeholder="Contoh: 0812..." class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
-            </div>
-
-            <div>
-                <label class="block text-sm font-medium text-foreground mb-1.5">Tempat Lahir</label>
-                <input type="text" name="birth_place" value="{{ $familyMember->birth_place ?? '' }}" placeholder="Kota kelahiran" class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
-            </div>
-
+            {{-- Tanggal Lahir --}}
             <div class="md:col-span-2">
-                <label class="block text-sm font-medium text-foreground mb-1.5">Tanggal Lahir</label>
-                <input type="date" name="birth_date" value="{{ $birthDateValue }}" class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                <label class="{{ $labelClass }}">Tanggal Lahir</label>
+                <input type="date" name="birth_date" value="{{ old('birth_date', $birthDateValue) }}" class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                <p class="{{ $errorClass }}" x-show="err('birth_date')" x-cloak x-text="err('birth_date')"></p>
             </div>
 
-            {{-- Pendidikan & Pekerjaan --}}
+            {{-- Pendidikan Terakhir --}}
             <div>
-                <label class="block text-sm font-medium text-foreground mb-1.5">Pendidikan Terakhir</label>
-                <x-ui.searchable-select name="education_level_id" :options="$levelOptions" :value="$familyMember->education_level_id ?? ''" placeholder="-- Pilih Pendidikan --" />
+                <label class="{{ $labelClass }}">Pendidikan Terakhir</label>
+                <x-ui.searchable-select name="education_level_id" :options="$levelOptions" :value="old('education_level_id', $familyMember->education_level_id ?? '')" placeholder="-- Pilih Pendidikan --" />
+                <p class="{{ $errorClass }}" x-show="err('education_level_id')" x-cloak x-text="err('education_level_id')"></p>
             </div>
 
+            {{-- Pekerjaan --}}
             <div>
-                <label class="block text-sm font-medium text-foreground mb-1.5">Pekerjaan</label>
-                <x-ui.searchable-select name="occupation" :options="$professionOptions" :value="$familyMember->occupation ?? ''" placeholder="-- Pilih Pekerjaan --" />
+                <label class="{{ $labelClass }}">Pekerjaan</label>
+                <x-ui.searchable-select name="occupation" :options="$professionOptions" :value="old('occupation', $familyMember->occupation ?? '')" placeholder="-- Pilih Pekerjaan --" />
+                <p class="{{ $errorClass }}" x-show="err('occupation')" x-cloak x-text="err('occupation')"></p>
             </div>
 
             {{-- Informasi Tambahan --}}
             <div class="md:col-span-2 mt-2 p-4 rounded-xl border border-border bg-slate-50/50 space-y-4">
                 <h4 class="text-xs font-bold uppercase tracking-wider text-secondary">Informasi Tambahan</h4>
 
-                {{-- Status Tunjangan (Gaji) sengaja DIHAPUS dari sini -
-                    perhitungan masuk/tidaknya ke daftar gaji pakai kriteria
-                    tersendiri di modul lain, bukan diisi manual di form ini. --}}
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-medium text-foreground mb-1.5">Tanggal Pernikahan (Jika Pasangan)</label>
-                        <input type="date" name="marriage_date_encrypted" value="{{ $marriageDateValue }}" class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                        <input type="date" name="marriage_date_encrypted" value="{{ old('marriage_date_encrypted', $marriageDateValue) }}" class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                        <p class="{{ $errorClass }}" x-show="err('marriage_date_encrypted')" x-cloak x-text="err('marriage_date_encrypted')"></p>
                     </div>
 
                     <div>
                         <label class="block text-xs font-medium text-foreground mb-1.5">Masih Sekolah / Kuliah?</label>
-                        <x-ui.select name="is_studying" :options="$studyingOptions" :value="isset($familyMember->is_studying) ? (string)(int)$familyMember->is_studying : ''" placeholder="-- Pilih Status --" />
+                        <x-ui.select name="is_studying" :options="$studyingOptions" :value="old('is_studying', isset($familyMember->is_studying) ? (string)(int)$familyMember->is_studying : '')" placeholder="-- Pilih Status --" />
+                        <p class="{{ $errorClass }}" x-show="err('is_studying')" x-cloak x-text="err('is_studying')"></p>
+                    </div>
+                </div>
+            </div>
+
+            {{-- Berkas Akta --}}
+            <div class="md:col-span-2 p-4 rounded-xl border border-border bg-slate-50/50 space-y-3">
+                <h4 class="text-xs font-bold uppercase tracking-wider text-secondary">Berkas Akta <span class="font-normal normal-case tracking-normal">(PDF, maksimal 1 MB, opsional)</span></h4>
+                <p class="text-[11px] text-secondary">Jenis berkas mengikuti Status Hubungan: Suami/Istri menjadi Akta Nikah, Anak menjadi Akta Kelahiran Anak.</p>
+
+                @if ($existingAkta)
+                <p class="text-xs text-secondary flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                    <i data-lucide="paperclip" class="size-3.5 shrink-0"></i>
+                    <span>{{ $existingAkta->category?->name ?? 'Berkas' }} saat ini:</span>
+                    <a href="{{ route('admin.personnel.documents.preview', $existingAkta->id) }}" target="_blank" rel="noopener" class="text-blue-600 hover:underline break-all">{{ $existingAkta->original_filename ?? 'Lihat berkas' }}</a>
+                    <span>- unggah berkas baru untuk menggantinya.</span>
+                </p>
+                @endif
+
+                <div>
+                    <input type="file" name="file" accept="application/pdf,.pdf" x-ref="sk"
+                        @change="fileError = ''; errors.file = null; const f = $event.target.files[0]; if (f && f.type !== 'application/pdf') { fileError = 'Format berkas harus PDF.'; $event.target.value = ''; } else if (f && f.size > 1048576) { fileError = 'Ukuran berkas maksimal 1 MB.'; $event.target.value = ''; }"
+                        class="w-full rounded-xl border border-border px-3.5 py-2 text-sm bg-white file:mr-3 file:rounded-lg file:border-0 file:bg-primary/10 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-primary hover:file:bg-primary/15 cursor-pointer">
+                    <p x-show="fileError" x-cloak class="{{ $errorClass }}">
+                        <span x-text="fileError"></span>
+                        Pilih berkas lain, atau
+                        <button type="button" class="underline font-medium cursor-pointer" @click="$refs.sk.value = ''; fileError = ''">hapus pilihan</button>
+                        untuk menyimpan tanpa berkas.
+                    </p>
+                    <p class="{{ $errorClass }}" x-show="err('file')" x-cloak x-text="err('file')"></p>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-foreground mb-1.5">Nomor Akta</label>
+                        <input type="text" name="document_number" value="{{ old('document_number', $documentNumberValue) }}" placeholder="Wajib untuk Akta Nikah" class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                        <p class="{{ $errorClass }}" x-show="err('document_number')" x-cloak x-text="err('document_number')"></p>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-foreground mb-1.5">Tanggal Akta</label>
+                        <input type="date" name="document_date" value="{{ old('document_date', $documentDateValue) }}" class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                        <p class="{{ $errorClass }}" x-show="err('document_date')" x-cloak x-text="err('document_date')"></p>
                     </div>
                 </div>
             </div>
@@ -206,7 +282,8 @@ $isShared = $familyMember instanceof \App\Models\FamilyMember
             <i data-lucide="x-circle" class="size-4"></i>
             <span>Batal</span>
         </button>
-        <button type="submit" :disabled="saving"
+        <button type="submit"
+            :disabled="saving || fileError !== '' || !name.trim() || !relationship || !gender"
             class="w-full sm:w-auto flex items-center justify-center min-w-[140px] px-5 py-2.5 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary/90 shadow-sm shadow-primary/30 transition-all cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed">
             <div x-show="!saving" class="flex items-center gap-1.5">
                 <i data-lucide="save" class="size-4"></i>

@@ -4,14 +4,29 @@ namespace App\Http\Controllers\Admin\Administration;
 
 use App\Http\Controllers\Controller;
 use App\Models\Data;
+use App\Models\EducationHistory;
 use App\Models\EducationLevel;
 use App\Models\EmploymentStatus;
 use App\Models\PersonnelType;
 use App\Models\Position;
+use App\Services\Staff\StaffDocumentService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class EducationController extends Controller
 {
+    /**
+     * Field berkas pada form => kode kategori dokumen (kolom `code` di
+     * staff_document_categories).
+     */
+    private const DOCUMENT_FIELDS = [
+        'file_ijazah'     => 'ijazah',
+        'file_transcript' => 'transkrip_nilai',
+    ];
+
     public function index(Request $request)
     {
         // 1. Ambil parameter dari request
@@ -168,7 +183,7 @@ class EducationController extends Controller
 
         // Paginasi riwayat pendidikan (bukan eager loading collection lagi)
         $educations = $staff->educations()
-            ->with('level')
+            ->with(['level', 'documents.category'])
             ->orderBy('graduation_date', 'desc')
             ->paginate(10)
             ->withQueryString();
@@ -196,22 +211,21 @@ class EducationController extends Controller
     {
         $staff = Data::findOrFail($id);
 
-        // Validasi simpel (Sesuaikan dengan FormRequest jika ada)
-        $validated = $request->validate([
-            'education_level_id' => 'required',
-            'institution_name' => 'required|string|max:255',
-            'major' => 'nullable|string|max:255',
-            'province' => 'nullable|string|max:255',
-            'certificate_number' => 'required|string|max:255',
-            'graduation_date' => 'nullable|date',
-            'certificate_date' => 'required|date',
-            'degree_name' => 'nullable|string|max:255',
-            'degree_abbreviation' => 'nullable|string|max:255',
-            'degree_position' => 'nullable|in:depan,belakang',
-            'is_linear' => 'nullable|boolean',
-        ]);
+        try {
+            $validated = $request->validate($this->rules(), $this->messages());
 
-        $staff->educations()->create($validated);
+            // Data pendidikan dan berkas disimpan dalam satu transaksi:
+            // jika berkas ditolak, data pendidikan ikut dibatalkan.
+            DB::transaction(function () use ($request, $staff, $validated) {
+                $education = $staff->educations()->create(
+                    Arr::except($validated, array_keys(self::DOCUMENT_FIELDS)) + ['created_by' => Auth::id()]
+                );
+
+                $this->storeDocuments($education, $request);
+            });
+        } catch (ValidationException $e) {
+            return $this->respondWithValidationError($request, $e);
+        }
 
         // Jika HTMX request, kembalikan tabel ter-update
         if ($request->header('HX-Request')) {
@@ -245,22 +259,20 @@ class EducationController extends Controller
         $staff = Data::findOrFail($staff_id);
         $education = $staff->educations()->findOrFail($edu_id);
 
-        $validated = $request->validate([
-            // rules yang sama dengan store
-            'education_level_id' => 'required',
-            'institution_name' => 'required|string|max:255',
-            'major' => 'nullable|string|max:255',
-            'province' => 'nullable|string|max:255',
-            'certificate_number' => 'required|string|max:255',
-            'graduation_date' => 'nullable|date',
-            'certificate_date' => 'required|date',
-            'degree_name' => 'nullable|string|max:255',
-            'degree_abbreviation' => 'nullable|string|max:255',
-            'degree_position' => 'nullable|in:depan,belakang',
-            'is_linear' => 'nullable|boolean',
-        ]);
+        try {
+            $validated = $request->validate($this->rules(), $this->messages());
 
-        $education->update($validated);
+            DB::transaction(function () use ($request, $education, $validated) {
+                $education->update(
+                    Arr::except($validated, array_keys(self::DOCUMENT_FIELDS)) + ['updated_by' => Auth::id()]
+                );
+
+                $this->syncIjazahMeta($education);
+                $this->storeDocuments($education, $request);
+            });
+        } catch (ValidationException $e) {
+            return $this->respondWithValidationError($request, $e);
+        }
 
         if ($request->header('HX-Request')) {
             return response($this->show($request, $staff_id)->render())
@@ -319,5 +331,109 @@ class EducationController extends Controller
         }
 
         return redirect()->route('admin.personnel.education.show', $staff_id);
+    }
+
+    /*
+    |--------------------------------------------------------------------
+    | Validasi & berkas
+    |--------------------------------------------------------------------
+    */
+
+    /** Aturan validasi bersama tambah & ubah (termasuk dua berkas PDF). */
+    private function rules(): array
+    {
+        $pdf = ['nullable', 'file', 'mimes:pdf', 'max:' . StaffDocumentService::MAX_SIZE_KB];
+
+        return [
+            'education_level_id' => 'required',
+            'institution_name' => 'required|string|max:255',
+            'major' => 'nullable|string|max:255',
+            'province' => 'nullable|string|max:255',
+            'certificate_number' => 'required|string|max:255',
+            'graduation_date' => 'nullable|date',
+            'certificate_date' => 'required|date',
+            'degree_name' => 'nullable|string|max:255',
+            'degree_abbreviation' => 'nullable|string|max:255',
+            'degree_position' => 'nullable|in:depan,belakang',
+            'is_linear' => 'nullable|boolean',
+            'file_ijazah' => $pdf,
+            'file_transcript' => $pdf,
+        ];
+    }
+
+    private function messages(): array
+    {
+        return [
+            'file_ijazah.mimes' => 'Berkas Ijazah harus berformat PDF.',
+            'file_ijazah.max' => 'Ukuran berkas Ijazah maksimal 1 MB.',
+            'file_ijazah.uploaded' => 'Berkas Ijazah gagal diunggah. Pastikan ukurannya maksimal 1 MB.',
+            'file_transcript.mimes' => 'Berkas Transkrip Nilai harus berformat PDF.',
+            'file_transcript.max' => 'Ukuran berkas Transkrip Nilai maksimal 1 MB.',
+            'file_transcript.uploaded' => 'Berkas Transkrip Nilai gagal diunggah. Pastikan ukurannya maksimal 1 MB.',
+        ];
+    }
+
+    /**
+     * Nomor & tanggal pada berkas Ijazah mengikuti Nomor/Tanggal Ijazah di
+     * data pendidikan (sumber kebenaran). Transkrip Nilai tidak punya nomor.
+     */
+    private function syncIjazahMeta(EducationHistory $education): void
+    {
+        $education->documents()
+            ->whereHas('category', fn($c) => $c->where('code', 'ijazah'))
+            ->update([
+                'document_number' => $education->certificate_number,
+                'document_date'   => $education->certificate_date,
+                'updated_by'      => Auth::id(),
+            ]);
+    }
+
+    /**
+     * Simpan berkas yang diunggah (Ijazah dan/atau Transkrip Nilai). Satu
+     * riwayat hanya punya satu berkas per jenis: berkas lama dengan jenis
+     * yang sama dihapus lunak lalu digantikan.
+     */
+    private function storeDocuments(EducationHistory $education, Request $request): void
+    {
+        foreach (self::DOCUMENT_FIELDS as $field => $code) {
+            if (! $request->hasFile($field)) {
+                continue;
+            }
+
+            $education->documents()
+                ->whereHas('category', fn($c) => $c->where('code', $code))
+                ->get()
+                ->each->delete();
+
+            $meta = $code === 'ijazah'
+                ? [
+                    'document_number' => $education->certificate_number,
+                    'document_date'   => $education->certificate_date,
+                ]
+                : [];
+
+            $education->attachDocument($request->file($field), $code, $meta);
+        }
+    }
+
+    /**
+     * Respons saat validasi gagal: modal TIDAK ditutup, pesan pertama
+     * ditampilkan lewat alert (pola yang sama dengan modul lain).
+     */
+    private function respondWithValidationError(Request $request, ValidationException $e)
+    {
+        if ($request->header('HX-Request')) {
+            $message = collect($e->errors())->flatten()->first() ?? 'Periksa kembali data yang dimasukkan.';
+
+            return response('', 422)->header('HX-Trigger', json_encode([
+                'showAlert' => [
+                    'icon'  => 'error',
+                    'title' => 'Gagal!',
+                    'text'  => $message,
+                ],
+            ]));
+        }
+
+        throw $e;
     }
 }

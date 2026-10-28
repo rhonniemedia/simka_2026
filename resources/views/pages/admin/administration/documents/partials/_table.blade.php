@@ -13,6 +13,27 @@
     'verified' => ['dot' => 'bg-emerald-500', 'text' => 'text-emerald-700', 'label' => 'Terverifikasi'],
     'rejected' => ['dot' => 'bg-red-500', 'text' => 'text-red-700', 'label' => 'Ditolak'],
     ];
+
+    // Keterangan tautan: "Terkait dengan" / "Belum bertaut" / "Mandiri".
+    $linkInfo = function ($item) {
+    if ($item->linked_record_id) {
+    $label = null;
+
+    try {
+    $label = $item->linkedRecord?->documentLabel();
+    } catch (\Throwable $e) {
+    $label = null;
+    }
+
+    return $label
+    ? ['text' => 'text-slate-600', 'icon' => 'link', 'label' => $label]
+    : ['text' => 'text-amber-600', 'icon' => 'unlink', 'label' => 'Data terkait tidak ditemukan'];
+    }
+
+    return filled($item->category?->linked_table)
+    ? ['text' => 'text-amber-600', 'icon' => 'unlink', 'label' => 'Belum bertaut']
+    : ['text' => 'text-secondary', 'icon' => 'file', 'label' => 'Mandiri'];
+    };
     @endphp
 
     {{-- ============ DESKTOP TABLE ============ --}}
@@ -40,7 +61,10 @@
             </thead>
             <tbody>
                 @forelse ($documents as $item)
-                @php $badge = $verificationBadges[$item->verification_status] ?? $verificationBadges['draft']; @endphp
+                @php
+                $badge = $verificationBadges[$item->verification_status] ?? $verificationBadges['draft'];
+                $link = $linkInfo($item);
+                @endphp
                 <tr class="border-b border-border hover:bg-muted/50 transition-colors">
                     {{-- Dokumen: ikon PDF + nama + tanggal --}}
                     <td class="px-4 py-4">
@@ -76,6 +100,10 @@
                         <div class="flex items-center gap-1.5 mt-1.5">
                             <span class="size-1.5 rounded-full {{ $badge['dot'] }}"></span>
                             <span class="text-xs font-bold {{ $badge['text'] }}">{{ $badge['label'] }}</span>
+                        </div>
+                        <div class="mt-1.5 flex items-center gap-1 text-[11px] {{ $link['text'] }} truncate" title="{{ $link['label'] }}">
+                            <i data-lucide="{{ $link['icon'] }}" class="size-3 shrink-0"></i>
+                            <span class="truncate">{{ $link['label'] }}</span>
                         </div>
                     </td>
 
@@ -129,7 +157,10 @@
     {{-- ============ MOBILE CARDS ============ --}}
     <div class="md:hidden divide-y divide-border border-y border-border mt-2 mb-4">
         @forelse ($documents as $item)
-        @php $badge = $verificationBadges[$item->verification_status] ?? $verificationBadges['draft']; @endphp
+        @php
+        $badge = $verificationBadges[$item->verification_status] ?? $verificationBadges['draft'];
+        $link = $linkInfo($item);
+        @endphp
         <div class="py-3.5">
             <div class="flex items-start gap-3">
                 <div class="shrink-0 h-10 w-10 rounded-lg bg-red-50 border border-red-100 flex items-center justify-center">
@@ -168,6 +199,10 @@
                         </div>
                     </div>
                     <div class="text-xs text-secondary mt-0.5 truncate">{{ $item->staff->name ?? '-' }} &bull; {{ $item->category->name ?? '-' }}</div>
+                    <div class="mt-0.5 flex items-center gap-1 text-[11px] {{ $link['text'] }} truncate">
+                        <i data-lucide="{{ $link['icon'] }}" class="size-3 shrink-0"></i>
+                        <span class="truncate">{{ $link['label'] }}</span>
+                    </div>
                     <div class="flex items-center justify-between mt-1.5">
                         <div class="flex items-center gap-1.5">
                             <span class="size-1.5 rounded-full {{ $badge['dot'] }}"></span>

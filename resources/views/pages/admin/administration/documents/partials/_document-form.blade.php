@@ -7,6 +7,11 @@ $actionUrl = $isEdit
 : route('admin.personnel.documents.store');
 $method = 'hx-post';
 
+$categoryLinks = $categoryLinks ?? [];
+$linkedOptions = $linkedOptions ?? [];
+// Dokumen lama yang kategorinya bertaut tapi belum menaut ke data apa pun.
+$legacyUnlinked = $isEdit && blank($item->linked_record_id) && filled($item->category?->linked_table);
+
 $verificationOptions = [
 ['value' => 'draft', 'label' => 'Draft'],
 ['value' => 'verified', 'label' => 'Terverifikasi'],
@@ -39,7 +44,42 @@ $verificationOptions = [
             hx-swap="none"
             hx-encoding="multipart/form-data"
             data-no-loader
-            x-data="{ saving: false }"
+            x-data="{
+                saving: false,
+                fileError: '',
+                categoryLinks: @js($categoryLinks),
+                staffId: @js($item?->staff_id ?? ''),
+                categoryId: @js($item?->staff_document_category_id ?? ''),
+                loadingLinks: false,
+                linkMessage: '',
+                get needsLink() { return !!(this.categoryLinks[this.categoryId] ?? null); },
+                async onChange(e) {
+                    const name = e.target?.name;
+                    if (name === 'staff_id') { this.staffId = e.target.value; }
+                    else if (name === 'staff_document_category_id') { this.categoryId = e.target.value; }
+                    else { return; }
+                    await this.refreshLinks();
+                },
+                async refreshLinks() {
+                    this.linkMessage = '';
+                    const setOptions = (options) => window.dispatchEvent(new CustomEvent('update-options', { detail: { name: 'linked_record_id', options } }));
+                    if (!this.needsLink || !this.staffId) { setOptions([]); return; }
+                    this.loadingLinks = true;
+                    try {
+                        const url = '{{ route('admin.personnel.documents.linkable') }}' + '?staff_id=' + encodeURIComponent(this.staffId) + '&staff_document_category_id=' + encodeURIComponent(this.categoryId);
+                        const res = await fetch(url, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } });
+                        const data = await res.json();
+                        const options = data.options ?? [];
+                        setOptions(options);
+                        if (options.length === 0) { this.linkMessage = 'Pegawai ini belum punya data riwayat untuk jenis dokumen ini. Tambahkan datanya di menu terkait terlebih dahulu.'; }
+                    } catch (e) {
+                        this.linkMessage = 'Gagal memuat data terkait. Coba pilih ulang pegawai atau kategori.';
+                    } finally {
+                        this.loadingLinks = false;
+                    }
+                }
+            }"
+            @change="onChange($event)"
             @htmx:before-request="saving = true"
             @htmx:after-request="saving = false"
             class="flex flex-col flex-1 min-h-0">
@@ -66,6 +106,32 @@ $verificationOptions = [
                         :options="$categoryOptions"
                         value="{{ old('staff_document_category_id', $item?->staff_document_category_id ?? '') }}"
                         placeholder="-- Pilih Kategori --" />
+                </div>
+
+                {{-- Data terkait: hanya untuk kategori yang bertaut ke data riwayat --}}
+                <div x-show="needsLink" x-cloak>
+                    <label class="block text-sm font-medium text-foreground mb-1.5">
+                        Data Terkait
+                        @if ($legacyUnlinked)
+                        <span class="text-secondary font-normal">(dokumen ini belum bertaut)</span>
+                        @else
+                        <span class="text-error">*</span>
+                        @endif
+                    </label>
+                    <x-ui.select
+                        name="linked_record_id"
+                        :options="$linkedOptions"
+                        value="{{ old('linked_record_id', $item?->linked_record_id ?? '') }}"
+                        placeholder="-- Pilih data terkait --" />
+                    <p x-show="loadingLinks" x-cloak class="text-[11px] text-secondary mt-1">Memuat data terkait...</p>
+                    <p x-show="linkMessage" x-cloak x-text="linkMessage" class="text-[11px] text-amber-700 mt-1"></p>
+                    <p class="text-[11px] text-secondary mt-1">
+                        @if ($legacyUnlinked)
+                        Pilih data riwayat untuk menautkan berkas ini, atau biarkan kosong untuk tetap "Belum bertaut".
+                        @else
+                        Berkas jenis ini harus ditautkan ke data riwayat milik pegawai yang dipilih.
+                        @endif
+                    </p>
                 </div>
 
                 <div>
@@ -98,16 +164,25 @@ $verificationOptions = [
                         File Dokumen
                         @if(!$isEdit) <span class="text-error">*</span> @endif
                     </label>
-                    <input type="file" name="file" accept=".pdf,.jpg,.jpeg,.png" {{ $isEdit ? '' : 'required' }}
+                    <input type="file" name="file" accept=".pdf,application/pdf" x-ref="sk" {{ $isEdit ? '' : 'required' }}
+                        @change="fileError = ''; const f = $event.target.files[0]; if (f && f.type !== 'application/pdf') { fileError = 'Format berkas harus PDF.'; } else if (f && f.size > 1048576) { fileError = 'Ukuran berkas maksimal 1 MB.'; }"
                         class="w-full h-11 rounded-xl border border-border pl-1.5 pr-3.5 py-0 text-sm leading-[2.5rem] text-secondary file:mr-3 file:h-8 file:px-3 file:my-0 file:rounded-lg file:border-0 file:bg-primary/10 file:text-primary file:text-xs file:font-semibold file:cursor-pointer focus:ring-2 focus:ring-primary/20 focus:border-primary">
-                    <p class="text-[11px] text-secondary mt-1">Format PDF/JPG/PNG, maksimal 10MB.</p>
+                    <p class="text-[11px] text-secondary mt-1">Format PDF, maksimal 1 MB.</p>
+                    <p x-show="fileError" x-cloak class="text-xs text-error mt-1">
+                        <span x-text="fileError"></span>
+                        Pilih berkas lain{{ $isEdit ? ', atau' : '.' }}
+                        @if ($isEdit)
+                        <button type="button" class="underline font-medium cursor-pointer" @click="$refs.sk.value = ''; fileError = ''">hapus pilihan</button>
+                        untuk tidak mengganti berkas.
+                        @endif
+                    </p>
 
                     @if($isEdit && $item->original_filename)
                     <p class="text-xs text-foreground mt-2 flex items-center gap-1.5">
                         <i data-lucide="paperclip" class="size-3.5 text-secondary"></i>
-                        File saat ini: <span class="font-medium">{{ $item->original_filename }}</span>
+                        File saat ini: <a href="{{ route('admin.personnel.documents.preview', $item->id) }}" target="_blank" rel="noopener" class="font-medium text-blue-600 hover:underline break-all">{{ $item->original_filename }}</a>
                     </p>
-                    <p class="text-[11px] text-secondary mt-0.5">Kosongkan kolom di atas jika tidak ingin mengganti file.</p>
+                    <p class="text-[11px] text-secondary mt-0.5">Kosongkan kolom di atas jika tidak ingin mengganti file. Berkas pengganti akan menggantikan yang lama (yang lama tetap tersimpan sebagai arsip).</p>
                     @endif
                 </div>
             </div>
@@ -119,7 +194,7 @@ $verificationOptions = [
                     <i data-lucide="x-circle" class="size-4"></i>
                     <span>Batal</span>
                 </button>
-                <button type="submit" :disabled="saving"
+                <button type="submit" :disabled="saving || fileError !== ''"
                     class="w-full sm:w-auto flex items-center justify-center min-w-[120px] px-5 py-2.5 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary/90 shadow-sm shadow-primary/30 transition-all cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed">
                     <div x-show="!saving" class="flex items-center gap-1.5">
                         <i data-lucide="save" class="size-4"></i>

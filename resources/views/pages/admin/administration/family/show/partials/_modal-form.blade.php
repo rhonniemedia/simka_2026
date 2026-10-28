@@ -28,7 +28,7 @@
 
     <x-ui.modal show="open" maxWidth="2xl">
         <div id="family-modal-content">
-            @include('pages.admin.personnel.family.show.partials._modal-form-content', [
+            @include('pages.admin.administration.family.show.partials._modal-form-content', [
             'staff' => $staff,
             'relation' => $relation ?? null,
             'prefill' => $prefill ?? null,

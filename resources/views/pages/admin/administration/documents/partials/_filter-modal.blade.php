@@ -27,6 +27,12 @@
         }
         }
 
+        $linkOptions = [
+        ['value' => 'linked', 'label' => 'Bertaut'],
+        ['value' => 'unlinked', 'label' => 'Belum bertaut'],
+        ['value' => 'standalone', 'label' => 'Mandiri'],
+        ];
+
         $verificationOptions = [
         ['value' => 'draft', 'label' => 'Draft'],
         ['value' => 'verified', 'label' => 'Terverifikasi'],
@@ -56,6 +62,14 @@
                         :options="$verificationOptions"
                         value="{{ $filterVerification ?? '' }}"
                         placeholder="Semua Status" />
+                </div>
+                <div class="sm:col-span-2">
+                    <label class="block text-sm text-foreground mb-2">Status Tautan</label>
+                    <x-ui.select
+                        name="filter_link"
+                        :options="$linkOptions"
+                        value="{{ $filterLink ?? '' }}"
+                        placeholder="Semua" />
                 </div>
             </div>
         </div>

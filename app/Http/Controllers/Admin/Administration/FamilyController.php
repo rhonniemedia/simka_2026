@@ -6,16 +6,30 @@ use App\Enums\Staff\FamilyRelation as FamilyRelationEnum;
 use App\Enums\Staff\Gender;
 use App\Enums\Staff\Profession;
 use App\Http\Controllers\Controller;
-use App\Models\Data;
 use App\Models\Data as Staff;
+use App\Models\Data;
 use App\Models\DataVault;
 use App\Models\FamilyMember;
 use App\Models\FamilyRelation;
+use App\Services\Staff\StaffDocumentService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class FamilyController extends Controller
 {
+    /**
+     * Kategori berkas akta menurut jenis hubungan (kolom `code` di
+     * staff_document_categories). Hubungan 'other' tidak punya kategori berkas.
+     */
+    private const AKTA_CATEGORY = [
+        'husband' => 'akta_nikah',
+        'wife'    => 'akta_nikah',
+        'child'   => 'akta_kelahiran_anak',
+    ];
+
     public function index(Request $request)
     {
         $search = $request->search;
@@ -58,6 +72,7 @@ class FamilyController extends Controller
                 'familyMember' => function ($q) {
                     $q->withCount('relations')->with(['educationLevel', 'linkedStaff']);
                 },
+                'documents.category',
             ])
             ->orderByRaw("FIELD(relationship, 'husband', 'wife', 'child', 'other')")
             ->paginate(10);
@@ -152,33 +167,37 @@ class FamilyController extends Controller
     {
         $staff = Data::findOrFail($id);
 
-        $validated = $request->validate([
-            'name'                     => 'required|string|max:255',
-            'relationship'             => ['required', Rule::enum(FamilyRelationEnum::class)],
-            'gender'                   => ['required', Rule::enum(Gender::class)],
-            'nik'                      => 'nullable|string|max:50',
-            'birth_place'              => 'nullable|string|max:255',
-            'birth_date'               => 'nullable|date',
-            'telephone'                => 'nullable|string|max:255',
-            'occupation'               => ['nullable', Rule::enum(Profession::class)],
-            'education_level_id'       => 'nullable|exists:staff_education_levels,id',
-            'is_studying'              => 'nullable|boolean',
-            'marriage_date_encrypted'  => 'nullable|date',
-            'link_to_family_member_id' => 'nullable|uuid|exists:staff_family_members,id',
-        ]);
+        try {
+            $validated = $request->validate($this->rules(withLink: true), $this->messages());
 
-        $familyMember = $this->resolveFamilyMember($staff, $validated);
+            // Data orang, hubungan, dan berkas akta disimpan dalam satu transaksi:
+            // jika berkas ditolak, data orang & hubungan ikut dibatalkan.
+            $relation = DB::transaction(function () use ($request, $staff, $validated) {
+                $familyMember = $this->resolveFamilyMember($staff, $validated);
 
-        if ($familyMember === null) {
-            return $this->respondWithError($request, $id, 'NIK ini sudah terdaftar sebagai anggota keluarga staff ini juga.');
+                if ($familyMember === null) {
+                    return null;
+                }
+
+                $relation = $staff->familyRelations()->create([
+                    'family_member_id'         => $familyMember->id,
+                    'relationship'             => $validated['relationship'],
+                    'family_relation_code'     => FamilyRelationEnum::from($validated['relationship'])->dapodikCode(),
+                    'marriage_date_encrypted'  => $validated['marriage_date_encrypted'] ?? null,
+                    'created_by'               => Auth::id(),
+                ]);
+
+                $this->storeAkta($relation, $request, $validated);
+
+                return $relation;
+            });
+        } catch (ValidationException $e) {
+            return $this->respondWithValidationError($request, $e);
         }
 
-        $staff->familyRelations()->create([
-            'family_member_id'        => $familyMember->id,
-            'relationship'             => $validated['relationship'],
-            'family_relation_code'     => FamilyRelationEnum::from($validated['relationship'])->dapodikCode(),
-            'marriage_date_encrypted'  => $validated['marriage_date_encrypted'] ?? null,
-        ]);
+        if ($relation === null) {
+            return $this->respondWithError($request, $id, 'NIK ini sudah terdaftar sebagai anggota keluarga staff ini juga.');
+        }
 
         if ($request->header('HX-Request')) {
             return response($this->show($request, $id)->render())
@@ -219,43 +238,41 @@ class FamilyController extends Controller
         $staff = Data::findOrFail($staff_id);
         $relation = $staff->familyRelations()->with('familyMember')->findOrFail($family_id);
 
-        $validated = $request->validate([
-            'name'                    => 'required|string|max:255',
-            'relationship'            => ['required', Rule::enum(FamilyRelationEnum::class)],
-            'gender'                  => ['required', Rule::enum(Gender::class)],
-            'nik'                     => 'nullable|string|max:50',
-            'birth_place'             => 'nullable|string|max:255',
-            'birth_date'              => 'nullable|date',
-            'telephone'               => 'nullable|string|max:255',
-            'occupation'              => ['nullable', Rule::enum(Profession::class)],
-            'education_level_id'      => 'nullable|exists:staff_education_levels,id',
-            'is_studying'             => 'nullable|boolean',
-            'marriage_date_encrypted' => 'nullable|date',
-        ]);
+        try {
+            $validated = $request->validate($this->rules(), $this->messages());
 
-        // Catatan: data orang (nama/NIK/dll) ini dipakai bersama kalau
-        // family_member-nya ditautkan ke lebih dari satu staff. Mengedit
-        // dari sini akan ikut mengubah data yang dilihat staff lain juga -
-        // sudah diberi peringatan di form (lihat _modal-form.blade.php).
-        $relation->familyMember->update([
-            'name'               => $validated['name'],
-            'gender'             => $validated['gender'],
-            'nik'                => $validated['nik'] ?? null,
-            'birth_place'        => $validated['birth_place'] ?? null,
-            'birth_date'         => $validated['birth_date'] ?? null,
-            'telephone'          => $validated['telephone'] ?? null,
-            'occupation'         => $validated['occupation'] ?? null,
-            'education_level_id' => $validated['education_level_id'] ?? null,
-            'is_studying'        => $validated['is_studying'] ?? null,
-        ]);
+            DB::transaction(function () use ($request, $relation, $validated) {
+                // Catatan: data orang (nama/NIK/dll) ini dipakai bersama kalau
+                // family_member-nya ditautkan ke lebih dari satu staff. Mengedit
+                // dari sini akan ikut mengubah data yang dilihat staff lain juga -
+                // sudah diberi peringatan di form (lihat _modal-form-content.blade.php).
+                $relation->familyMember->update([
+                    'name'               => $validated['name'],
+                    'gender'             => $validated['gender'],
+                    'nik'                => $validated['nik'] ?? null,
+                    'birth_place'        => $validated['birth_place'] ?? null,
+                    'birth_date'         => $validated['birth_date'] ?? null,
+                    'telephone'          => $validated['telephone'] ?? null,
+                    'occupation'         => $validated['occupation'] ?? null,
+                    'education_level_id' => $validated['education_level_id'] ?? null,
+                    'is_studying'        => $validated['is_studying'] ?? null,
+                ]);
 
-        $this->refreshLinkedStaff($relation->familyMember, $validated['nik'] ?? null);
+                $this->refreshLinkedStaff($relation->familyMember, $validated['nik'] ?? null);
 
-        $relation->update([
-            'relationship'            => $validated['relationship'],
-            'family_relation_code'    => FamilyRelationEnum::from($validated['relationship'])->dapodikCode(),
-            'marriage_date_encrypted' => $validated['marriage_date_encrypted'] ?? null,
-        ]);
+                $relation->update([
+                    'relationship'            => $validated['relationship'],
+                    'family_relation_code'    => FamilyRelationEnum::from($validated['relationship'])->dapodikCode(),
+                    'marriage_date_encrypted' => $validated['marriage_date_encrypted'] ?? null,
+                    'updated_by'              => Auth::id(),
+                ]);
+
+                $this->syncAktaMeta($relation, $validated);
+                $this->storeAkta($relation, $request, $validated);
+            });
+        } catch (ValidationException $e) {
+            return $this->respondWithValidationError($request, $e);
+        }
 
         if ($request->header('HX-Request')) {
             return response($this->show($request, $staff_id)->render())
@@ -431,6 +448,120 @@ class FamilyController extends Controller
             : null;
 
         $familyMember->update(['linked_staff_id' => $matchedStaffId]);
+    }
+
+    /**
+     * Aturan validasi bersama tambah & ubah (termasuk berkas akta).
+     * link_to_family_member_id hanya relevan saat tambah.
+     */
+    private function rules(bool $withLink = false): array
+    {
+        $rules = [
+            'name'                     => 'required|string|max:255',
+            'relationship'             => ['required', Rule::enum(FamilyRelationEnum::class)],
+            'gender'                   => ['required', Rule::enum(Gender::class)],
+            'nik'                      => 'nullable|string|max:50',
+            'birth_place'              => 'nullable|string|max:255',
+            'birth_date'               => 'nullable|date',
+            'telephone'                => 'nullable|string|max:255',
+            'occupation'               => ['nullable', Rule::enum(Profession::class)],
+            'education_level_id'       => 'nullable|exists:staff_education_levels,id',
+            'is_studying'              => 'nullable|boolean',
+            'marriage_date_encrypted'  => 'nullable|date',
+            'document_number'          => 'nullable|string|max:255',
+            'document_date'            => 'nullable|date',
+            'file'                     => ['nullable', 'file', 'mimes:pdf', 'max:' . StaffDocumentService::MAX_SIZE_KB],
+        ];
+
+        if ($withLink) {
+            $rules['link_to_family_member_id'] = 'nullable|uuid|exists:staff_family_members,id';
+        }
+
+        return $rules;
+    }
+
+    private function messages(): array
+    {
+        return [
+            'file.mimes'    => 'Berkas akta harus berformat PDF.',
+            'file.max'      => 'Ukuran berkas akta maksimal 1 MB.',
+            'file.uploaded' => 'Berkas akta gagal diunggah. Pastikan ukurannya maksimal 1 MB.',
+        ];
+    }
+
+    /** Query berkas akta (akta nikah / akta kelahiran anak) milik satu hubungan. */
+    private function aktaDocuments(FamilyRelation $relation)
+    {
+        return $relation->documents()->whereHas(
+            'category',
+            fn($c) => $c->whereIn('code', array_values(array_unique(self::AKTA_CATEGORY)))
+        );
+    }
+
+    /**
+     * Nomor & tanggal akta yang diisi di form disalin ke berkas yang sudah ada.
+     * Hanya nilai yang terisi yang disalin, supaya data berkas tidak terhapus.
+     */
+    private function syncAktaMeta(FamilyRelation $relation, array $validated): void
+    {
+        $meta = array_filter([
+            'document_number' => $validated['document_number'] ?? null,
+            'document_date'   => $validated['document_date'] ?? null,
+        ], fn($value) => filled($value));
+
+        if ($meta) {
+            $this->aktaDocuments($relation)->update($meta + ['updated_by' => Auth::id()]);
+        }
+    }
+
+    /**
+     * Simpan berkas akta jika ada yang diunggah. Jenisnya mengikuti Status
+     * Hubungan; berkas lama dengan jenis yang sama dihapus lunak lalu digantikan.
+     */
+    private function storeAkta(FamilyRelation $relation, Request $request, array $validated): void
+    {
+        if (! $request->hasFile('file')) {
+            return;
+        }
+
+        $code = self::AKTA_CATEGORY[$validated['relationship']] ?? null;
+
+        if ($code === null) {
+            throw ValidationException::withMessages([
+                'file' => 'Berkas akta hanya bisa diunggah untuk hubungan Suami, Istri, atau Anak.',
+            ]);
+        }
+
+        $relation->documents()
+            ->whereHas('category', fn($c) => $c->where('code', $code))
+            ->get()
+            ->each->delete();
+
+        $relation->attachDocument($request->file('file'), $code, array_filter([
+            'document_number' => $validated['document_number'] ?? null,
+            'document_date'   => $validated['document_date'] ?? null,
+        ], fn($value) => filled($value)));
+    }
+
+    /**
+     * Respons saat validasi gagal: modal TIDAK ditutup, pesan pertama
+     * ditampilkan lewat alert (pola yang sama dengan modul master lain).
+     */
+    private function respondWithValidationError(Request $request, ValidationException $e)
+    {
+        if ($request->header('HX-Request')) {
+            $message = collect($e->errors())->flatten()->first() ?? 'Periksa kembali data yang dimasukkan.';
+
+            return response('', 422)->header('HX-Trigger', json_encode([
+                'showAlert' => [
+                    'icon'  => 'error',
+                    'title' => 'Gagal!',
+                    'text'  => $message,
+                ],
+            ]));
+        }
+
+        throw $e;
     }
 
     private function respondWithError(Request $request, $staffId, string $message)

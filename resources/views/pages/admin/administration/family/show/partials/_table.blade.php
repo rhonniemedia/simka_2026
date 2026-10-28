@@ -44,6 +44,8 @@ use App\Enums\Staff\Profession;
                 $occupationLabel = Profession::tryFrom($person->occupation ?? '')?->label() ?? ($person->occupation ?? '-');
                 $isSharedPerson = ($person->relations_count ?? 0) > 1;
                 $isLinkedStaff = (bool) ($person->linked_staff_id ?? null);
+                $aktaCode = ['husband' => 'akta_nikah', 'wife' => 'akta_nikah', 'child' => 'akta_kelahiran_anak'][$hubungan] ?? null;
+                $akta = $aktaCode ? $member->documents->first(fn ($d) => $d->category?->code === $aktaCode) : null;
 
                 $hubColor = match($hubungan) {
                 'husband' => 'bg-blue-100 text-blue-700 border-blue-200',
@@ -87,6 +89,13 @@ use App\Enums\Staff\Profession;
                                     </span>
                                     @endif
                                 </div>
+
+                                @if ($aktaCode)
+                                <div class="mt-1.5 text-[11px] flex items-center gap-1 whitespace-nowrap {{ $akta ? 'text-emerald-600' : 'text-amber-600' }}">
+                                    <i data-lucide="{{ $akta ? 'paperclip' : 'file-x' }}" class="size-3"></i>
+                                    {{ $akta ? $akta->category?->name . ' tersedia' : 'Akta belum diunggah' }}
+                                </div>
+                                @endif
                             </div>
                         </div>
                     </td>
@@ -144,9 +153,16 @@ use App\Enums\Staff\Profession;
                                 x-transition:enter="transition ease-out duration-100" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
                                 x-transition:leave="transition ease-in duration-75" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
                                 :style="`top: ${menuY}px; left: ${menuX}px;`"
-                                class="fixed z-[9999] w-48 rounded-xl border border-border bg-white shadow-lg py-2 flex flex-col text-left origin-top-right">
+                                class="fixed z-[9999] w-60 rounded-xl border border-border bg-white shadow-lg py-2 flex flex-col text-left origin-top-right">
 
                                 <p class="px-4 pt-1 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-secondary">Aksi Keluarga</p>
+
+                                @foreach ($member->documents as $doc)
+                                <a href="{{ route('admin.personnel.documents.preview', $doc->id) }}" target="_blank" rel="noopener" @click="open = false"
+                                    class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer text-left">
+                                    <i data-lucide="file-text" class="size-4 pointer-events-none shrink-0"></i> <span class="truncate">Lihat {{ $doc->category?->name ?? 'Berkas' }}</span>
+                                </a>
+                                @endforeach
 
                                 <button type="button" @click="open = false"
                                     hx-get="{{ route('admin.personnel.family.edit', [$staff->id, $member->id]) }}"
@@ -210,6 +226,8 @@ use App\Enums\Staff\Profession;
         $occupationLabel = Profession::tryFrom($person->occupation ?? '')?->label() ?? ($person->occupation ?? '-');
         $isSharedPerson = ($person->relations_count ?? 0) > 1;
         $isLinkedStaff = (bool) ($person->linked_staff_id ?? null);
+        $aktaCode = ['husband' => 'akta_nikah', 'wife' => 'akta_nikah', 'child' => 'akta_kelahiran_anak'][$hubungan] ?? null;
+        $akta = $aktaCode ? $member->documents->first(fn ($d) => $d->category?->code === $aktaCode) : null;
 
         $hubColor = match($hubungan) {
         'husband' => 'bg-blue-100 text-blue-700 border-blue-200',
@@ -253,6 +271,13 @@ use App\Enums\Staff\Profession;
                             </span>
                             @endif
                         </div>
+
+                        @if ($aktaCode)
+                        <p class="mt-1.5 text-[11px] flex items-center gap-1 {{ $akta ? 'text-emerald-600' : 'text-amber-600' }}">
+                            <i data-lucide="{{ $akta ? 'paperclip' : 'file-x' }}" class="size-3"></i>
+                            {{ $akta ? $akta->category?->name . ' tersedia' : 'Akta belum diunggah' }}
+                        </p>
+                        @endif
                     </div>
                 </div>
 
@@ -287,7 +312,14 @@ use App\Enums\Staff\Profession;
             </div>
 
             {{-- Tombol Aksi Mobile --}}
-            <div class="mt-3 flex items-center justify-end gap-2 pt-1">
+            <div class="mt-3 flex flex-wrap items-center justify-end gap-2 pt-1">
+                @foreach ($member->documents as $doc)
+                <a href="{{ route('admin.personnel.documents.preview', $doc->id) }}" target="_blank" rel="noopener"
+                    class="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-blue-200 bg-blue-50 text-xs font-medium text-blue-600 hover:bg-blue-100 transition-colors cursor-pointer">
+                    <i data-lucide="file-text" class="size-3.5"></i>
+                    Lihat {{ $doc->category?->name ?? 'Berkas' }}
+                </a>
+                @endforeach
                 <button type="button"
                     hx-get="{{ route('admin.personnel.family.edit', [$staff->id, $member->id]) }}"
                     hx-target="#modal-container"

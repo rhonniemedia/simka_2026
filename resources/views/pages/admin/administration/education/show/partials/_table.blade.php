@@ -44,6 +44,8 @@
                 'SMK' => ['from' => 'from-pink-300', 'to' => 'to-rose-400', 'ring' => 'ring-pink-300/40', 'dot' => 'bg-rose-400'],
                 ];
                 $color = $colorMap[$alias] ?? ['from' => 'from-slate-300', 'to' => 'to-slate-400', 'ring' => 'ring-slate-300/40', 'dot' => 'bg-slate-400'];
+                $ijazah = $edu->documents->first(fn ($d) => $d->category?->code === 'ijazah');
+                $transcript = $edu->documents->first(fn ($d) => $d->category?->code === 'transkrip_nilai');
                 @endphp
                 <tr id="row-edu-{{ $edu->id }}" class="group transition-colors hover:bg-muted/40">
                     <td class="px-5 py-4 min-w-[240px]">
@@ -73,6 +75,10 @@
                         </div>
                         <div class="text-xs text-secondary whitespace-nowrap mt-1 pl-5">
                             No. {{ $edu->certificate_number ?? '-' }}
+                        </div>
+                        <div class="mt-1.5 pl-5 flex flex-col gap-0.5 text-[11px]">
+                            <span class="flex items-center gap-1 whitespace-nowrap {{ $ijazah ? 'text-emerald-600' : 'text-amber-600' }}"><i data-lucide="{{ $ijazah ? 'paperclip' : 'file-x' }}" class="size-3"></i> {{ $ijazah ? 'Ijazah tersedia' : 'Ijazah belum diunggah' }}</span>
+                            <span class="flex items-center gap-1 whitespace-nowrap {{ $transcript ? 'text-emerald-600' : 'text-amber-600' }}"><i data-lucide="{{ $transcript ? 'paperclip' : 'file-x' }}" class="size-3"></i> {{ $transcript ? 'Transkrip tersedia' : 'Transkrip belum diunggah' }}</span>
                         </div>
                     </td>
                     <td class="px-5 py-4 min-w-[160px]">
@@ -113,8 +119,14 @@
                                 x-transition:enter="transition ease-out duration-100" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
                                 x-transition:leave="transition ease-in duration-75" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
                                 :style="`top: ${menuY}px; left: ${menuX}px;`"
-                                class="fixed z-[9999] w-48 rounded-xl border border-border bg-white shadow-lg py-2 flex flex-col text-left origin-top-right">
+                                class="fixed z-[9999] w-56 rounded-xl border border-border bg-white shadow-lg py-2 flex flex-col text-left origin-top-right">
                                 <p class="px-4 pt-1 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-secondary">Aksi Pendidikan</p>
+                                @foreach ($edu->documents as $doc)
+                                <a href="{{ route('admin.personnel.documents.preview', $doc->id) }}" target="_blank" rel="noopener" @click="open = false"
+                                    class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer text-left">
+                                    <i data-lucide="file-text" class="size-4 pointer-events-none shrink-0"></i> <span class="truncate">Lihat {{ $doc->category?->name ?? 'Berkas' }}</span>
+                                </a>
+                                @endforeach
                                 <button type="button" @click="open = false"
                                     hx-get="{{ route('admin.personnel.education.edit', [$staff->id, $edu->id]) }}"
                                     hx-target="#modal-container" hx-swap="innerHTML"
@@ -177,6 +189,8 @@
         'SMK' => ['from' => 'from-pink-300', 'to' => 'to-rose-400', 'ring' => 'ring-pink-300/40', 'dot' => 'bg-rose-400'],
         ];
         $color = $colorMap[$alias] ?? ['from' => 'from-slate-300', 'to' => 'to-slate-400', 'ring' => 'ring-slate-300/40', 'dot' => 'bg-slate-400'];
+        $ijazah = $edu->documents->first(fn ($d) => $d->category?->code === 'ijazah');
+        $transcript = $edu->documents->first(fn ($d) => $d->category?->code === 'transkrip_nilai');
         @endphp
         <div id="card-edu-{{ $edu->id }}" class="px-5 py-4 active:bg-muted/40 transition-colors">
             <div class="flex items-start gap-3">
@@ -210,6 +224,8 @@
                         <p class="text-secondary truncate mt-0.5">
                             No. {{ $edu->certificate_number ?? '-' }}
                         </p>
+                        <p class="mt-1 text-[11px] {{ $ijazah ? 'text-emerald-600' : 'text-amber-600' }}">{{ $ijazah ? 'Ijazah tersedia' : 'Ijazah belum diunggah' }}</p>
+                        <p class="text-[11px] {{ $transcript ? 'text-emerald-600' : 'text-amber-600' }}">{{ $transcript ? 'Transkrip tersedia' : 'Transkrip belum diunggah' }}</p>
                     </div>
                 </div>
                 {{-- Baris Institusi (Original) --}}
@@ -226,7 +242,14 @@
             </div>
 
             {{-- Tombol Aksi Mobile menggunakan gaya dari file contoh --}}
-            <div class="mt-3 flex items-center justify-end gap-2 border-t border-border pt-3">
+            <div class="mt-3 flex flex-wrap items-center justify-end gap-2 border-t border-border pt-3">
+                @foreach ($edu->documents as $doc)
+                <a href="{{ route('admin.personnel.documents.preview', $doc->id) }}" target="_blank" rel="noopener"
+                    class="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-blue-200 bg-blue-50 text-xs font-medium text-blue-600 hover:bg-blue-100 transition-colors cursor-pointer">
+                    <i data-lucide="file-text" class="size-3.5"></i>
+                    Lihat {{ $doc->category?->name ?? 'Berkas' }}
+                </a>
+                @endforeach
                 <button type="button"
                     hx-get="{{ route('admin.personnel.education.edit', [$staff->id, $edu->id]) }}"
                     hx-target="#modal-container"

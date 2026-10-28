@@ -21,7 +21,9 @@ $modalTitle = $isEdit ? 'Edit Pendidikan' : 'Tambah Pendidikan';
 $actionUrl = $isEdit
 ? route('admin.personnel.education.update', [$staff->id, $education->id])
 : route('admin.personnel.education.store', $staff->id);
-$method = $isEdit ? 'hx-put' : 'hx-post';
+// Selalu hx-post: PHP tidak mem-parsing body multipart pada request PUT,
+// jadi untuk edit method di-spoof lewat @method('PUT') di dalam form.
+$method = 'hx-post';
 
 // 4. Format Tanggal
 $graduationDateValue = !empty($education->graduation_date)
@@ -30,6 +32,14 @@ $graduationDateValue = !empty($education->graduation_date)
 $certificateDateValue = !empty($education->certificate_date)
 ? \Carbon\Carbon::parse($education->certificate_date)->format('Y-m-d')
 : '';
+
+// Berkas yang sudah terunggah (hanya saat edit)
+$existingIjazah = $isEdit
+? $education->documents()->whereHas('category', fn ($c) => $c->where('code', 'ijazah'))->latest()->first()
+: null;
+$existingTranscript = $isEdit
+? $education->documents()->whereHas('category', fn ($c) => $c->where('code', 'transkrip_nilai'))->latest()->first()
+: null;
 @endphp
 
 <div x-data="{ open: false }"
@@ -61,13 +71,17 @@ $certificateDateValue = !empty($education->certificate_date)
         {{-- Form HTMX --}}
         <form id="education-form"
             {!! $method !!}="{{ $actionUrl }}"
+            hx-encoding="multipart/form-data"
             hx-target="#education-container"
             hx-swap="outerHTML"
-            x-data="{ saving: false }"
+            x-data="{ saving: false, fileErrors: { ijazah: '', transcript: '' } }"
             @htmx:before-request="saving = true"
             @htmx:after-request="saving = false"
             class="flex flex-col flex-1 min-h-0">
             @csrf
+            @if ($isEdit)
+            @method('PUT')
+            @endif
 
             <div x-data="{ showUI: false }" x-init="setTimeout(() => showUI = true, 50)" class="block p-4 sm:p-7 overflow-y-auto max-h-[calc(100vh-10rem)] sm:max-h-[70vh]">
 
@@ -141,6 +155,56 @@ $certificateDateValue = !empty($education->certificate_date)
                                 placeholder="-- Pilih --" />
                         </div>
                     </div>
+                    {{-- Berkas Pendukung --}}
+                    <div class="md:col-span-2 p-3.5 sm:p-4 rounded-xl border border-border bg-slate-50/50 space-y-4">
+                        <div>
+                            <h4 class="text-xs font-bold uppercase tracking-wider text-secondary">Berkas Pendukung <span class="font-normal normal-case tracking-normal">(PDF, maksimal 1 MB, opsional)</span></h4>
+                            <p class="text-[11px] text-secondary mt-1">Nomor dan tanggal berkas Ijazah otomatis memakai Nomor Ijazah dan Tanggal Ijazah di atas.</p>
+                        </div>
+
+                        {{-- Ijazah --}}
+                        <div>
+                            <label class="block text-xs font-medium text-foreground mb-1.5">Ijazah</label>
+                            @if ($existingIjazah)
+                            <p class="text-xs text-secondary mb-2 flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                                <i data-lucide="paperclip" class="size-3.5 shrink-0"></i>
+                                <span>Berkas saat ini:</span>
+                                <a href="{{ route('admin.personnel.documents.preview', $existingIjazah->id) }}" target="_blank" rel="noopener" class="text-blue-600 hover:underline break-all">{{ $existingIjazah->original_filename ?? 'Lihat berkas' }}</a>
+                                <span>- unggah berkas baru untuk menggantinya.</span>
+                            </p>
+                            @endif
+                            <input type="file" name="file_ijazah" accept="application/pdf,.pdf" x-ref="ijazah"
+                                @change="fileErrors.ijazah = ''; const f = $event.target.files[0]; if (f && f.type !== 'application/pdf') { fileErrors.ijazah = 'Format berkas harus PDF.'; } else if (f && f.size > 1048576) { fileErrors.ijazah = 'Ukuran berkas maksimal 1 MB.'; }"
+                                class="w-full rounded-xl border border-border px-3.5 py-2 text-sm bg-white file:mr-3 file:rounded-lg file:border-0 file:bg-primary/10 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-primary hover:file:bg-primary/15 cursor-pointer">
+                            <p x-show="fileErrors.ijazah" x-cloak class="text-xs text-error mt-1">
+                                <span x-text="fileErrors.ijazah"></span>
+                                Pilih berkas lain, atau
+                                <button type="button" class="underline font-medium cursor-pointer" @click="$refs.ijazah.value = ''; fileErrors.ijazah = ''">hapus pilihan</button>
+                                untuk menyimpan tanpa berkas.
+                            </p>
+                        </div>
+                        {{-- Transkrip Nilai --}}
+                        <div>
+                            <label class="block text-xs font-medium text-foreground mb-1.5">Transkrip Nilai</label>
+                            @if ($existingTranscript)
+                            <p class="text-xs text-secondary mb-2 flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                                <i data-lucide="paperclip" class="size-3.5 shrink-0"></i>
+                                <span>Berkas saat ini:</span>
+                                <a href="{{ route('admin.personnel.documents.preview', $existingTranscript->id) }}" target="_blank" rel="noopener" class="text-blue-600 hover:underline break-all">{{ $existingTranscript->original_filename ?? 'Lihat berkas' }}</a>
+                                <span>- unggah berkas baru untuk menggantinya.</span>
+                            </p>
+                            @endif
+                            <input type="file" name="file_transcript" accept="application/pdf,.pdf" x-ref="transcript"
+                                @change="fileErrors.transcript = ''; const f = $event.target.files[0]; if (f && f.type !== 'application/pdf') { fileErrors.transcript = 'Format berkas harus PDF.'; } else if (f && f.size > 1048576) { fileErrors.transcript = 'Ukuran berkas maksimal 1 MB.'; }"
+                                class="w-full rounded-xl border border-border px-3.5 py-2 text-sm bg-white file:mr-3 file:rounded-lg file:border-0 file:bg-primary/10 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-primary hover:file:bg-primary/15 cursor-pointer">
+                            <p x-show="fileErrors.transcript" x-cloak class="text-xs text-error mt-1">
+                                <span x-text="fileErrors.transcript"></span>
+                                Pilih berkas lain, atau
+                                <button type="button" class="underline font-medium cursor-pointer" @click="$refs.transcript.value = ''; fileErrors.transcript = ''">hapus pilihan</button>
+                                untuk menyimpan tanpa berkas.
+                            </p>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -151,7 +215,7 @@ $certificateDateValue = !empty($education->certificate_date)
                     <i data-lucide="x-circle" class="size-4"></i>
                     <span>Batal</span>
                 </button>
-                <button type="submit" :disabled="saving"
+                <button type="submit" :disabled="saving || fileErrors.ijazah !== '' || fileErrors.transcript !== ''"
                     class="w-full sm:w-auto flex items-center justify-center min-w-[140px] px-5 py-2.5 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary/90 shadow-sm shadow-primary/30 transition-all cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed">
                     <div x-show="!saving" class="flex items-center gap-1.5">
                         <i data-lucide="save" class="size-4"></i>

@@ -174,6 +174,10 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'app.access'])->grou
         Route::prefix('documents')->name('documents.')->group(function () {
             Route::get('/', [DocumentController::class, 'index'])->name('index');
             Route::get('/create', [DocumentController::class, 'create'])->name('create');
+
+            // Opsi data riwayat yang bisa ditautkan ke dokumen (dipanggil via fetch dari form)
+            Route::get('/linkable', [DocumentController::class, 'linkable'])->name('linkable');
+
             Route::post('/', [DocumentController::class, 'store'])->name('store');
             Route::get('/{id}/edit', [DocumentController::class, 'edit'])->name('edit');
             Route::put('/{id}', [DocumentController::class, 'update'])->name('update');
