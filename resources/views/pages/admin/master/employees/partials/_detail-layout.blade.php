@@ -91,9 +91,9 @@ $photoUrl = $photoUrl ?? null;
                 <dl class="mt-2 divide-y divide-border/60">
                     @foreach ($section['items'] as $item)
                     @php $isEmpty = blank($item[1]) || $item[1] === '-'; @endphp
-                    <div class="flex flex-col sm:flex-row sm:items-baseline gap-0.5 sm:gap-6 py-3">
-                        <dt class="sm:w-[40%] shrink-0 text-[13px] text-secondary pr-2">{{ $item[0] }}</dt>
-                        <dd class="sm:w-[60%] min-w-0 text-sm tabular-nums break-words {{ $isEmpty ? 'text-secondary/50' : 'font-medium text-foreground' }}">
+                    <div class="flex flex-row items-baseline justify-between gap-4 sm:gap-6 py-3">
+                        <dt class="w-[42%] sm:w-[40%] shrink-0 text-[13px] text-secondary pr-2">{{ $item[0] }}</dt>
+                        <dd class="flex-1 sm:flex-none sm:w-[60%] min-w-0 text-right sm:text-left text-sm tabular-nums break-words {{ $isEmpty ? 'text-secondary/50' : 'font-medium text-foreground' }}">
                             {{ $isEmpty ? '–' : $item[1] }}
                             @if (!$isEmpty && filled($item[2] ?? null))
                             <span class="ml-1.5 text-xs font-normal text-secondary">{{ $item[2] }}</span>

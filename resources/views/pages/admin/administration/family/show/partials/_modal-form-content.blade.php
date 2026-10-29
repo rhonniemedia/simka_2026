@@ -25,10 +25,7 @@ fn (Gender $g) => ['value' => $g->value, 'label' => $g->label()],
 Gender::cases()
 );
 
-$professionOptions = array_map(
-fn (Profession $p) => ['value' => $p->value, 'label' => $p->label()],
-Profession::cases()
-);
+$professionOptions = Profession::optionsForSelect();
 
 $studyingOptions = [
 ['value' => '1', 'label' => 'Ya, Masih Sekolah/Kuliah'],

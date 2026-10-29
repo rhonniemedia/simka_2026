@@ -102,4 +102,4 @@ $purpose = ['label' => 'Data pribadi', 'icon' => 'user'];
 $photoUrl = filled($staff->photo) ? \Storage::url($staff->photo) : null;
 @endphp
 
-@include('pages.admin.personnel.data.partials._detail-layout', compact('staff', 'fullName', 'purpose', 'sections', 'photoUrl'))
+@include('pages.admin.master.employees.partials._detail-layout', compact('staff', 'fullName', 'purpose', 'sections', 'photoUrl'))
