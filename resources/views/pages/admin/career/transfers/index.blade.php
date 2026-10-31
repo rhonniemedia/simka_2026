@@ -5,7 +5,7 @@
 @section('page_subtitle', 'Kelola perubahan status pegawai: pindah, mengundurkan diri, meninggal, diberhentikan, hingga pensiun')
 
 @section('content')
-<div class="w-full min-w-0 max-w-[1600px] mx-auto px-4 py-5 md:px-6 md:py-6 2xl:px-8 2xl:py-8"
+<div class="w-full px-5 py-6 md:px-8 md:py-8"
     x-data="{
         filterModalOpen: false,
         isFilterActive: {{ (!empty($filterStatus)) ? 'true' : 'false' }},

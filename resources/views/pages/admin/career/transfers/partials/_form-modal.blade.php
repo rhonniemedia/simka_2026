@@ -1,10 +1,26 @@
-{{-- File: resources/views/pages/admin/personnel/transfers/partials/_form-modal.blade.php --}}
+{{-- File: resources/views/pages/admin/career/transfers/partials/_form-modal.blade.php
+     Dipakai untuk Mutasi, Reaktivasi (create) dan Edit data SK (kirim $staff + $history untuk mode edit). --}}
 @php
-$isReaktivasi = $mode === 'reaktivasi';
-$modalTitle = $isReaktivasi ? 'Aktifkan Kembali Pegawai' : 'Mutasi Pegawai';
-$modalDesc = $isReaktivasi
-? 'Pulihkan status kepegawaian pegawai'
-: 'Ubah status kepegawaian pegawai';
+// Mode edit: controller mengirim $staff & $history (riwayat status terakhir pegawai).
+$history = $history ?? null;
+$staff = $staff ?? null;
+$isEdit = $history !== null && $staff !== null;
+$isReaktivasi = !$isEdit && ($mode ?? null) === 'reaktivasi';
+
+$modalTitle = $isEdit ? 'Edit Data Mutasi' : ($isReaktivasi ? 'Aktifkan Kembali Pegawai' : 'Mutasi Pegawai');
+$modalDesc = $isEdit
+? $staff->name
+: ($isReaktivasi ? 'Pulihkan status kepegawaian pegawai' : 'Ubah status kepegawaian pegawai');
+
+if ($isEdit) {
+$formUrl = route('admin.personnel.mutation.update', $staff->id);
+$editStatusLabel = \App\Http\Controllers\Admin\Career\TransferController::STATUS_LABELS[$history->to_status] ?? $history->to_status;
+$currentSk = $history->documents->first();
+$fmtDate = fn($d) => $d ? \Carbon\Carbon::parse($d)->format('Y-m-d') : '';
+} else {
+$formUrl = route('admin.personnel.mutation.store');
+$currentSk = null;
+}
 
 // x-ui.select / x-ui.searchable-select membutuhkan daftar [['value' => ..., 'label' => ...]].
 $staffSelectOptions = collect($staffOptions ?? [])
@@ -29,11 +45,11 @@ $errorClass = 'text-[11px] text-error mt-1.5 font-medium';
         saving: false,
         errors: {},
         fileError: '',
-        staff_id: '{{ old('staff_id') }}',
-        to_status: '{{ old('to_status') }}',
-        decree_number: '{{ old('decree_number') }}',
-        decree_date: '{{ old('decree_date') }}',
-        effective_date: '{{ old('effective_date') }}',
+        staff_id: '{{ $isEdit ? $staff->id : old('staff_id') }}',
+        to_status: '{{ $isEdit ? $history->to_status : old('to_status') }}',
+        decree_number: @js($isEdit ? (string) $history->decree_number : (string) old('decree_number')),
+        decree_date: '{{ $isEdit ? $fmtDate($history->decree_date) : old('decree_date') }}',
+        effective_date: '{{ $isEdit ? $fmtDate($history->effective_date) : old('effective_date') }}',
         isReaktivasi: {{ $isReaktivasi ? 'true' : 'false' }},
         close() {
             this.open = false;
@@ -64,7 +80,7 @@ $errorClass = 'text-[11px] text-error mt-1.5 font-medium';
         <div class="flex items-start sm:items-center justify-between gap-3 px-4 sm:px-6 py-4 border-b border-border bg-slate-50/50 shrink-0">
             <div class="flex items-center gap-3 sm:gap-4 min-w-0">
                 <div class="size-10 sm:size-12 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center shrink-0 shadow-sm">
-                    <i data-lucide="{{ $isReaktivasi ? 'rotate-ccw' : 'arrow-right-left' }}" class="size-5 sm:size-6"></i>
+                    <i data-lucide="{{ $isEdit ? 'file-pen-line' : ($isReaktivasi ? 'rotate-ccw' : 'arrow-right-left') }}" class="size-5 sm:size-6"></i>
                 </div>
                 <div class="min-w-0">
                     <h3 class="font-bold text-foreground text-base sm:text-lg leading-tight truncate">{{ $modalTitle }}</h3>
@@ -78,7 +94,7 @@ $errorClass = 'text-[11px] text-error mt-1.5 font-medium';
         </div>
 
         {{-- Form: status "Menyimpan..." dan pembacaan error 422 dipasang di <form> --}}
-        <form hx-post="{{ route('admin.personnel.mutation.store') }}"
+        <form hx-post="{{ $formUrl }}"
             hx-encoding="multipart/form-data"
             hx-target="#staff-container" hx-select="#staff-container" hx-swap="outerHTML"
             @htmx:before-request="saving = true"
@@ -89,11 +105,28 @@ $errorClass = 'text-[11px] text-error mt-1.5 font-medium';
             "
             class="flex flex-col flex-1 min-h-0">
             @csrf
+            @if ($isEdit)
+            @method('PUT')
+            @else
             <input type="hidden" name="mode" value="{{ $mode }}">
+            @endif
 
             {{-- ============================ BODY ============================ --}}
             <div class="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 space-y-4 [scrollbar-gutter:stable]">
 
+                @if ($isEdit)
+                {{-- Mode edit: pegawai & status tujuan tidak dapat diubah --}}
+                <div>
+                    <label class="{{ $labelClass }}">Pegawai</label>
+                    <input type="text" value="{{ $staff->name }}" readonly tabindex="-1"
+                        class="w-full bg-muted/50 border border-border rounded-xl px-3.5 py-2.5 text-sm text-foreground cursor-default focus:outline-none">
+                </div>
+                <div>
+                    <label class="{{ $labelClass }}">Status Tujuan</label>
+                    <input type="text" value="{{ $editStatusLabel }}" readonly tabindex="-1"
+                        class="w-full bg-muted/50 border border-border rounded-xl px-3.5 py-2.5 text-sm text-foreground cursor-default focus:outline-none">
+                </div>
+                @else
                 {{-- Pegawai (dapat dicari) --}}
                 <div @change="staff_id = $event.target.value">
                     <label class="{{ $labelClass }}">Pegawai <span class="text-error">*</span></label>
@@ -125,6 +158,7 @@ $errorClass = 'text-[11px] text-error mt-1.5 font-medium';
                     <p class="text-xs font-medium text-emerald-800">Status tujuan: <strong>Aktif</strong></p>
                 </div>
                 @endif
+                @endif
 
                 {{-- Nomor SK --}}
                 <div>
@@ -155,6 +189,21 @@ $errorClass = 'text-[11px] text-error mt-1.5 font-medium';
                 {{-- Berkas SK --}}
                 <div>
                     <label class="{{ $labelClass }}">Berkas SK <span class="text-secondary font-normal">(PDF, maksimal 1 MB, opsional)</span></label>
+                    @if ($isEdit)
+                    @if ($currentSk)
+                    <p class="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-secondary">
+                        <a href="{{ route('admin.personnel.documents.preview', $currentSk->id) }}" target="_blank" rel="noopener"
+                            class="inline-flex items-center gap-1 font-medium text-blue-600 hover:underline">
+                            <i data-lucide="file-text" class="size-3.5"></i> Lihat berkas saat ini
+                        </a>
+                        <span>· Pilih berkas baru untuk menggantinya.</span>
+                    </p>
+                    @else
+                    <p class="mb-2 flex items-center gap-1 text-xs text-amber-600">
+                        <i data-lucide="file-x" class="size-3.5"></i> SK belum diunggah.
+                    </p>
+                    @endif
+                    @endif
                     <input type="file" name="file" accept="application/pdf,.pdf" x-ref="sk"
                         @change="fileError = ''; errors.file = null; const f = $event.target.files[0]; if (f && f.type !== 'application/pdf') { fileError = 'Format berkas harus PDF.'; $event.target.value = ''; } else if (f && f.size > 1048576) { fileError = 'Ukuran berkas maksimal 1 MB.'; $event.target.value = ''; }"
                         class="w-full rounded-xl border border-border px-3.5 py-2 text-sm bg-white file:mr-3 file:rounded-lg file:border-0 file:bg-primary/10 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-primary hover:file:bg-primary/15 cursor-pointer">
@@ -169,7 +218,7 @@ $errorClass = 'text-[11px] text-error mt-1.5 font-medium';
                         <span x-text="fileError"></span>
                         Pilih berkas lain, atau
                         <button type="button" class="underline cursor-pointer" @click="$refs.sk.value = ''; fileError = ''">hapus pilihan</button>
-                        untuk menyimpan tanpa berkas.
+                        {{ $isEdit ? 'untuk mempertahankan berkas saat ini.' : 'untuk menyimpan tanpa berkas.' }}
                     </p>
                     <p class="{{ $errorClass }}" x-show="err('file')" x-cloak x-text="err('file')"></p>
                 </div>
@@ -179,7 +228,7 @@ $errorClass = 'text-[11px] text-error mt-1.5 font-medium';
                     <label class="{{ $labelClass }}">Catatan</label>
                     <textarea name="note" rows="3"
                         placeholder="Opsional, mis. instansi tujuan untuk kasus pindah"
-                        class="{{ $inputClass }} resize-none">{{ old('note') }}</textarea>
+                        class="{{ $inputClass }} resize-none">{{ old('note', $isEdit ? $history->note : null) }}</textarea>
                     <p class="{{ $errorClass }}" x-show="err('note')" x-cloak x-text="err('note')"></p>
                 </div>
             </div>

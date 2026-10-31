@@ -43,8 +43,7 @@ class DataController extends Controller
     private const STALE_DRAFT_DAYS = 7;
 
     private const FORM_VIEW = 'pages.admin.master.employees.partials._edit-personal';
-    private const DETAIL_PERSONAL_VIEW = 'pages.admin.master.employees.partials._detail-personal';
-    private const DETAIL_EMPLOYMENT_VIEW = 'pages.admin.master.employees.partials._detail-employment';
+    private const DETAIL_VIEW = 'pages.admin.master.employees.partials._detail';
 
     /** Kolom staff_data yang diisi pada tiap step. */
     private const STAFF_FIELDS = [
@@ -183,14 +182,11 @@ class DataController extends Controller
         return $this->index($request);
     }
 
-    public function detailPersonal($id)
-    {
-        $staff = Data::with(['vault', 'employmentStatus', 'position'])->findOrFail($id);
-
-        return view(self::DETAIL_PERSONAL_VIEW, compact('staff'));
-    }
-
-    public function detailEmployment($id)
+    /**
+     * Modal detail pegawai (data pribadi + data kepegawaian dalam satu modal bertab).
+     * Tab awal dipilih lewat ?tab=personal|employment.
+     */
+    public function detail(Request $request, $id, ?string $tab = null)
     {
         $staff = Data::with(['vault', 'employmentStatus', 'personnelType', 'position'])->findOrFail($id);
 
@@ -198,7 +194,20 @@ class DataController extends Controller
             ? CoreConcentration::find($staff->concentration_id)
             : null;
 
-        return view(self::DETAIL_EMPLOYMENT_VIEW, compact('staff', 'concentration'));
+        $initialTab = $tab ?? $request->query('tab', 'personal');
+
+        return view(self::DETAIL_VIEW, compact('staff', 'concentration', 'initialTab'));
+    }
+
+    // Alias lama: tetap berfungsi, membuka modal yang sama pada tab terkait.
+    public function detailPersonal(Request $request, $id)
+    {
+        return $this->detail($request, $id, 'personal');
+    }
+
+    public function detailEmployment(Request $request, $id)
+    {
+        return $this->detail($request, $id, 'employment');
     }
 
     /*

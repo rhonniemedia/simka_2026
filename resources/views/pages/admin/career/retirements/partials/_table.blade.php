@@ -46,6 +46,11 @@ default => null,
 'canProcess' => $calc['can_process'],
 'docs' => $s->retirementDocuments ?? collect(),
 'processUrl' => route('admin.personnel.retirement.process', $s->id),
+'editUrl' => route('admin.personnel.retirement.edit', $s->id),
+'detailUrl' => route('admin.personnel.data.detail', $s->id),
+'isRetired' => $calc['state'] === 'retired',
+// Berkas SK pensiun (bila sudah diunggah) untuk menu "Lihat SK".
+'sk' => ($s->retirementDocuments ?? collect())->first(),
 ];
 };
 @endphp
@@ -75,7 +80,6 @@ default => null,
                     </th>
                     <th class="w-[10%] px-4 py-3 text-sm font-bold text-secondary tracking-wider">
                         Aksi
-                        <div class="text-[11px] font-normal normal-case">Detil | Proses</div>
                     </th>
                 </tr>
             </thead>
@@ -134,27 +138,90 @@ default => null,
                         @endif
                     </td>
 
-                    {{-- 4. Aksi (10%) --}}
-                    <td class="px-4 py-4">
-                        <div class="flex items-center gap-2">
-                            {{-- Tombol Detil --}}
-                            <a href="#" class="inline-flex items-center justify-center size-9 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors" title="Lihat Detil">
-                                <i data-lucide="eye" class="size-4"></i>
-                            </a>
+                    {{-- 4. Aksi (14%) --}}
+                    <td class="px-4 py-4 min-w-[120px]">
+                        @if ($v['canProcess'] || $v['isRetired'])
+                        <div x-data="{
+                                open: false, menuX: 0, menuY: 0,
+                                toggle() {
+                                    if (this.open) { this.open = false; return; }
+                                    this.open = true;
+                                    this.$nextTick(() => {
+                                        const btn = this.$refs.button.getBoundingClientRect();
+                                        const menu = this.$refs.menu.getBoundingClientRect();
+                                        const spaceBelow = window.innerHeight - btn.bottom;
+                                        const spaceAbove = btn.top;
+                                        const dropUp = spaceBelow < menu.height && spaceAbove > menu.height;
+                                        this.menuX = btn.right - menu.width;
+                                        this.menuY = dropUp ? (btn.top - menu.height - 4) : (btn.bottom + 4);
+                                    });
+                                }
+                            }"
+                            @click.outside="open = false" @scroll.window="open = false" @resize.window="open = false"
+                            class="relative inline-block text-left">
 
-                            {{-- Tombol Proses --}}
-                            @if ($v['canProcess'])
-                            <button type="button"
-                                hx-get="{{ $v['processUrl'] }}"
-                                hx-target="#modal-container"
-                                hx-swap="innerHTML"
-                                class="inline-flex items-center justify-center size-9 rounded-lg bg-primary text-white hover:bg-primary/90 shadow-sm shadow-primary/30 transition-colors cursor-pointer focus:outline-none" title="Proses">
-                                <i data-lucide="user-minus" class="size-4 pointer-events-none"></i>
+                            <button x-ref="button" type="button" @click="toggle()" title="Aksi"
+                                class="inline-flex items-center gap-2 h-9 px-3.5 rounded-lg border border-border bg-white text-secondary hover:bg-muted hover:text-foreground transition-all focus:outline-none cursor-pointer whitespace-nowrap">
+                                <span class="text-sm font-medium">Aksi</span>
+                                <i data-lucide="chevron-down" class="size-4 transition-transform duration-200" :class="{ 'rotate-180': open }"></i>
                             </button>
-                            @else
-                            <div class="size-9"></div> {{-- Placeholder if no process --}}
-                            @endif
+
+                            <div x-ref="menu" x-show="open" x-cloak
+                                x-transition:enter="transition ease-out duration-100" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
+                                x-transition:leave="transition ease-in duration-75" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
+                                :style="`top: ${menuY}px; left: ${menuX}px;`"
+                                class="fixed z-[9999] w-48 rounded-xl border border-border bg-white shadow-lg py-2 flex flex-col text-left origin-top-right">
+
+                                @if ($v['canProcess'])
+                                <p class="px-4 pt-1 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-secondary">Proses</p>
+                                <button type="button" @click="open = false"
+                                    hx-get="{{ $v['processUrl'] }}"
+                                    hx-target="#modal-container" hx-swap="innerHTML"
+                                    class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors cursor-pointer text-left">
+                                    <i data-lucide="user-minus" class="size-4 text-secondary pointer-events-none"></i> Proses Pensiun
+                                </button>
+                                @endif
+
+                                @if ($v['isRetired'])
+                                <p class="px-4 pt-1 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-secondary">Detail</p>
+                                <button type="button" @click="open = false"
+                                    hx-get="{{ $v['detailUrl'] }}"
+                                    hx-target="#modal-container" hx-swap="innerHTML"
+                                    class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors cursor-pointer text-left">
+                                    <i data-lucide="id-card" class="size-4 text-secondary pointer-events-none"></i> Detail Pegawai
+                                </button>
+                                @if ($v['sk'])
+                                <a href="{{ route('admin.personnel.documents.preview', $v['sk']->id) }}" target="_blank" rel="noopener" @click="open = false"
+                                    class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer text-left">
+                                    <i data-lucide="file-text" class="size-4 pointer-events-none"></i> Lihat SK
+                                </a>
+                                @endif
+
+                                <div class="my-2 border-t border-border"></div>
+
+                                <p class="px-4 pt-1 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-secondary">Edit & Delete</p>
+                                <button type="button" @click="open = false"
+                                    hx-get="{{ $v['editUrl'] }}"
+                                    hx-target="#modal-container" hx-swap="innerHTML"
+                                    class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors cursor-pointer text-left">
+                                    <i data-lucide="file-pen-line" class="size-4 text-secondary pointer-events-none"></i> Edit Data
+                                </button>
+
+                                {{-- Hapus belum tersedia: sengaja dinonaktifkan --}}
+                                <button type="button" disabled aria-disabled="true" title="Fitur hapus belum tersedia"
+                                    class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-red-600 opacity-40 cursor-not-allowed text-left">
+                                    <i data-lucide="trash-2" class="size-4 pointer-events-none"></i> Hapus Data
+                                </button>
+                                @endif
+
+                                @if (! $v['canProcess'] && ! $v['isRetired'])
+                                <p class="px-4 py-2 text-xs text-secondary">Belum ada aksi tersedia.</p>
+                                @endif
+                            </div>
                         </div>
+                        @else
+                        <span class="text-secondary/50">–</span>
+                        @endif
                     </td>
                 </tr>
                 @empty
@@ -220,22 +287,56 @@ default => null,
                     </div>
                     @endif
 
-                    <div class="mt-3 flex gap-2">
-                        <a href="#" class="flex-1 inline-flex items-center justify-center gap-1.5 h-10 rounded-xl bg-slate-100 text-slate-700 text-sm font-semibold hover:bg-slate-200 transition-colors">
-                            <i data-lucide="eye" class="size-4"></i> Detil
-                        </a>
-
+                    @if ($v['canProcess'] || $v['isRetired'])
+                    <div class="mt-3 flex items-center justify-end gap-2 border-t border-border pt-3">
                         @if ($v['canProcess'])
                         <button type="button"
                             hx-get="{{ $v['processUrl'] }}"
                             hx-target="#modal-container"
                             hx-swap="innerHTML"
-                            class="flex-1 inline-flex items-center justify-center gap-1.5 h-10 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary/90 shadow-sm shadow-primary/30 transition-colors cursor-pointer focus:outline-none">
-                            <i data-lucide="user-minus" class="size-4 pointer-events-none"></i>
+                            class="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-primary text-xs font-semibold text-white hover:bg-primary/90 shadow-sm shadow-primary/30 transition-colors cursor-pointer focus:outline-none">
+                            <i data-lucide="user-minus" class="size-3.5 pointer-events-none"></i>
                             Proses
                         </button>
                         @endif
+
+                        @if ($v['isRetired'])
+                        <button type="button"
+                            hx-get="{{ $v['detailUrl'] }}"
+                            hx-target="#modal-container"
+                            hx-swap="innerHTML"
+                            class="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-border bg-white text-xs font-medium text-secondary hover:bg-muted transition-colors cursor-pointer">
+                            <i data-lucide="id-card" class="size-3.5 pointer-events-none"></i>
+                            Detail
+                        </button>
+
+                        @if ($v['sk'])
+                        <a href="{{ route('admin.personnel.documents.preview', $v['sk']->id) }}" target="_blank" rel="noopener"
+                            class="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-blue-200 bg-blue-50 text-xs font-medium text-blue-600 hover:bg-blue-100 transition-colors cursor-pointer" title="Lihat SK">
+                            <i data-lucide="file-text" class="size-3.5"></i>
+                            Lihat
+                        </a>
+                        @endif
+
+                        <span class="h-5 w-px bg-border mx-0.5" aria-hidden="true"></span>
+
+                        <button type="button"
+                            hx-get="{{ $v['editUrl'] }}"
+                            hx-target="#modal-container"
+                            hx-swap="innerHTML"
+                            class="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-border bg-white text-xs font-medium text-secondary hover:bg-muted transition-colors cursor-pointer">
+                            <i data-lucide="file-pen-line" class="size-3.5"></i>
+                            Edit
+                        </button>
+
+                        <button type="button" disabled aria-disabled="true" title="Fitur hapus belum tersedia"
+                            class="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-red-200 bg-red-50 text-xs font-medium text-red-600 opacity-40 cursor-not-allowed">
+                            <i data-lucide="trash-2" class="size-3.5"></i>
+                            Hapus
+                        </button>
+                        @endif
                     </div>
+                    @endif
                 </div>
             </div>
         </div>

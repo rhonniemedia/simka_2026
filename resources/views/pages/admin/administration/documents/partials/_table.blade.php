@@ -86,9 +86,9 @@
                         <div class="min-w-0">
                             <div class="font-semibold text-foreground text-sm truncate">{{ $item->staff->name ?? '-' }}</div>
                             <div class="flex items-center gap-1.5 text-xs text-secondary mt-1 truncate">
-                                <i data-lucide="upload" class="size-3 shrink-0 pointer-events-none"></i>
+                                <i data-lucide="cloud-upload" class="size-3 shrink-0 pointer-events-none"></i>
                                 <span class="truncate">{{ $item->creator->name ?? $item->creator->username ?? 'Admin' }}</span>
-                                <i data-lucide="calendar" class="size-3 shrink-0 pointer-events-none"></i>
+                                <i data-lucide="calendar-days" class="size-3 shrink-0 pointer-events-none"></i>
                                 <span class="truncate">{{ $item->document_date?->translatedFormat('d M Y') ?? '-' }}</span>
                             </div>
                         </div>
@@ -100,10 +100,6 @@
                         <div class="flex items-center gap-1.5 mt-1.5">
                             <span class="size-1.5 rounded-full {{ $badge['dot'] }}"></span>
                             <span class="text-xs font-bold {{ $badge['text'] }}">{{ $badge['label'] }}</span>
-                        </div>
-                        <div class="mt-1.5 flex items-center gap-1 text-[11px] {{ $link['text'] }} truncate" title="{{ $link['label'] }}">
-                            <i data-lucide="{{ $link['icon'] }}" class="size-3 shrink-0"></i>
-                            <span class="truncate">{{ $link['label'] }}</span>
                         </div>
                     </td>
 
@@ -199,10 +195,6 @@
                         </div>
                     </div>
                     <div class="text-xs text-secondary mt-0.5 truncate">{{ $item->staff->name ?? '-' }} &bull; {{ $item->category->name ?? '-' }}</div>
-                    <div class="mt-0.5 flex items-center gap-1 text-[11px] {{ $link['text'] }} truncate">
-                        <i data-lucide="{{ $link['icon'] }}" class="size-3 shrink-0"></i>
-                        <span class="truncate">{{ $link['label'] }}</span>
-                    </div>
                     <div class="flex items-center justify-between mt-1.5">
                         <div class="flex items-center gap-1.5">
                             <span class="size-1.5 rounded-full {{ $badge['dot'] }}"></span>

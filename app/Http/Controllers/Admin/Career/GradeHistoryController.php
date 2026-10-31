@@ -25,7 +25,7 @@ class GradeHistoryController extends Controller
         $search = $request->search;
 
         // Mengambil data riwayat pangkat beserta relasi pegawai dan master golongan
-        $query = GradeHistory::with(['staff', 'grade'])
+        $query = GradeHistory::with(['staff', 'grade', 'documents.category'])
             ->when($search, function ($q) use ($search) {
                 $q->where(function ($w) use ($search) {
                     $w->whereHas('staff', fn($s) => $s->where('name', 'like', "%{$search}%"))

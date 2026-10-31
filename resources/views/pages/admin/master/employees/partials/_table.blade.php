@@ -108,11 +108,8 @@
                                 class="fixed z-[9999] w-56 rounded-xl border border-border bg-white shadow-lg py-3 flex flex-col text-left origin-top-right">
 
                                 <p class="px-4 pt-1 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-secondary">Detail</p>
-                                <button type="button" @click="open = false" hx-get="{{ route('admin.personnel.data.detail-personal', $r->id) }}" hx-target="#modal-container" hx-swap="innerHTML" class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors cursor-pointer text-left">
-                                    <i data-lucide="user" class="size-4 text-secondary pointer-events-none"></i> Data Pegawai
-                                </button>
-                                <button type="button" @click="open = false" hx-get="{{ route('admin.personnel.data.detail-employment', $r->id) }}" hx-target="#modal-container" hx-swap="innerHTML" class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors cursor-pointer text-left">
-                                    <i data-lucide="briefcase" class="size-4 text-secondary pointer-events-none"></i> Detail Kepegawaian
+                                <button type="button" @click="open = false" hx-get="{{ route('admin.personnel.data.detail', $r->id) }}" hx-target="#modal-container" hx-swap="innerHTML" class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors cursor-pointer text-left">
+                                    <i data-lucide="id-card" class="size-4 text-secondary pointer-events-none"></i> Detail Pegawai
                                 </button>
 
                                 <div class="my-2 border-t border-border"></div>
@@ -251,11 +248,8 @@
                         class="fixed z-[9999] w-56 rounded-xl border border-border bg-white shadow-lg py-3 flex flex-col text-left origin-top-right">
 
                         <p class="px-4 pt-1 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-secondary">Detail</p>
-                        <button type="button" @click="open = false" hx-get="{{ route('admin.personnel.data.detail-personal', $r->id) }}" hx-target="#modal-container" hx-swap="innerHTML" class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors cursor-pointer text-left">
-                            <i data-lucide="user" class="size-4 text-secondary pointer-events-none"></i> Data Pegawai
-                        </button>
-                        <button type="button" @click="open = false" hx-get="{{ route('admin.personnel.data.detail-employment', $r->id) }}" hx-target="#modal-container" hx-swap="innerHTML" class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors cursor-pointer text-left">
-                            <i data-lucide="briefcase" class="size-4 text-secondary pointer-events-none"></i> Detail Kepegawaian
+                        <button type="button" @click="open = false" hx-get="{{ route('admin.personnel.data.detail', $r->id) }}" hx-target="#modal-container" hx-swap="innerHTML" class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors cursor-pointer text-left">
+                            <i data-lucide="id-card" class="size-4 text-secondary pointer-events-none"></i> Detail Pegawai
                         </button>
 
                         <div class="my-2 border-t border-border"></div>

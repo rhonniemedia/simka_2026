@@ -1,16 +1,15 @@
 {{--
-    File: resources/views/pages/admin/personnel/data/partials/_detail-layout.blade.php
+    File: resources/views/pages/admin/master/employees/partials/_detail-layout.blade.php
 
-    Layout bersama modal detail pegawai. Dipakai oleh _detail-personal dan _detail-employment.
+    Layout modal detail pegawai dengan tab. Dipakai oleh _detail.blade.php.
 
-    Variabel yang dibutuhkan:
-      $staff    : model Data (dengan relasi position & employmentStatus bila ada)
-      $fullName : nama beserta gelar
-      $purpose  : ['label' => 'Data pribadi', 'icon' => 'user']  (badge jenis data)
-      $sections : [['title' => ..., 'icon' => ..., 'items' => [[label, nilai, (opsional) keterangan], ...]], ...]
-
-    Opsional:
-      $photoUrl : URL pas foto pegawai. Bila diisi, foto tampil menggantikan inisial.
+    Variabel:
+      $staff      : model Data
+      $fullName   : nama beserta gelar
+      $tabs       : [['key' => 'personal', 'label' => ..., 'icon' => ..., 'sections' => [...]], ...]
+                    sections: [['title', 'icon', 'items' => [[label, nilai, (opsional) keterangan], ...]], ...]
+      $initialTab : key tab yang aktif saat modal dibuka
+      $photoUrl   : (opsional) URL pas foto
 --}}
 @php
 $initials = collect(preg_split('/\s+/', trim((string) $staff->name)))
@@ -22,14 +21,20 @@ $initials = collect(preg_split('/\s+/', trim((string) $staff->name)))
 $positionName = $staff->position?->name;
 $statusChip = $staff->employmentStatus?->alias ?? $staff->employmentStatus?->name;
 $photoUrl = $photoUrl ?? null;
+$initialTab = $initialTab ?? ($tabs[0]['key'] ?? 'personal');
 @endphp
 
 <div x-data="{
         open: false,
+        tab: '{{ $initialTab }}',
         close() {
             const container = this.$root.closest('#modal-container');
             this.open = false;
             setTimeout(() => { if (container) container.innerHTML = ''; }, 150);
+        },
+        setTab(key) {
+            this.tab = key;
+            this.$nextTick(() => { if (this.$refs.body) this.$refs.body.scrollTop = 0; });
         }
     }"
     x-init="setTimeout(() => open = true, 10)"
@@ -39,9 +44,8 @@ $photoUrl = $photoUrl ?? null;
     <x-ui.modal show="open" maxWidth="2xl">
 
         {{-- ============================ HEADER ============================ --}}
-        <div class="flex items-start justify-between gap-3 px-4 sm:px-6 py-4 border-b border-border bg-slate-50/50 shrink-0">
+        <div class="flex items-start justify-between gap-3 px-4 sm:px-6 py-4 bg-slate-50/50 shrink-0">
             <div class="flex items-center gap-4 min-w-0">
-                {{-- Avatar berproporsi 3,3:4 (aspect-[33/40]), siap untuk pas foto. Tinggi mengikuti lebar: 96px (mobile) / 112px (desktop). --}}
                 <div class="relative w-[3.7125rem] sm:w-[4.33125rem] aspect-[33/40] shrink-0 overflow-hidden rounded-xl bg-blue-100 text-blue-700 shadow-sm flex items-center justify-center text-base sm:text-lg font-bold tracking-tight select-none">
                     @if (filled($photoUrl))
                     <img src="{{ $photoUrl }}" alt="Foto {{ $staff->name }}" class="absolute inset-0 size-full object-cover">
@@ -50,24 +54,19 @@ $photoUrl = $photoUrl ?? null;
                     @endif
                 </div>
 
-                {{-- Nama, jabatan, dan badge disusun di samping avatar --}}
                 <div class="min-w-0">
                     <h3 class="text-base sm:text-lg font-bold text-foreground leading-snug break-words">{{ $fullName }}</h3>
                     @if (filled($positionName))
                     <p class="mt-0.5 text-xs sm:text-sm text-secondary truncate">{{ $positionName }}</p>
                     @endif
 
+                    @if (filled($statusChip))
                     <div class="mt-2.5 flex flex-wrap items-center gap-2">
-                        <span class="inline-flex items-center gap-1.5 rounded-full bg-blue-100 px-2.5 py-1 text-xs font-semibold text-blue-700">
-                            <i data-lucide="{{ $purpose['icon'] }}" class="size-3.5"></i>
-                            {{ $purpose['label'] }}
-                        </span>
-                        @if (filled($statusChip))
                         <span class="inline-flex items-center rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-foreground ring-1 ring-border">
                             {{ $statusChip }}
                         </span>
-                        @endif
                     </div>
+                    @endif
                 </div>
             </div>
 
@@ -77,32 +76,55 @@ $photoUrl = $photoUrl ?? null;
             </button>
         </div>
 
-        {{-- ============================ ISI ============================ --}}
-        <div class="flex-1 min-h-0 overflow-y-auto px-5 sm:px-8 py-6 space-y-8">
-            @foreach ($sections as $section)
-            <section>
-                <div class="flex items-center gap-2.5">
-                    <span class="size-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                        <i data-lucide="{{ $section['icon'] }}" class="size-4"></i>
-                    </span>
-                    <h4 class="text-sm font-bold text-foreground">{{ $section['title'] }}</h4>
-                </div>
+        {{-- ============================ TAB ============================ --}}
+        <div class="shrink-0 border-b border-border bg-slate-50/50 px-4 sm:px-6">
+            <div class="flex gap-1 -mb-px overflow-x-auto" role="tablist" aria-label="Detail pegawai">
+                @foreach ($tabs as $t)
+                <button type="button" role="tab" id="detail-tab-{{ $t['key'] }}"
+                    @click="setTab('{{ $t['key'] }}')"
+                    :aria-selected="tab === '{{ $t['key'] }}'"
+                    :class="tab === '{{ $t['key'] }}'
+                        ? 'border-primary text-primary'
+                        : 'border-transparent text-secondary hover:text-foreground hover:border-border'"
+                    class="flex items-center gap-2 whitespace-nowrap border-b-2 px-3 sm:px-4 py-3 text-sm font-semibold transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded-t-lg">
+                    <i data-lucide="{{ $t['icon'] }}" class="size-4"></i>
+                    {{ $t['label'] }}
+                </button>
+                @endforeach
+            </div>
+        </div>
 
-                <dl class="mt-2 divide-y divide-border/60">
-                    @foreach ($section['items'] as $item)
-                    @php $isEmpty = blank($item[1]) || $item[1] === '-'; @endphp
-                    <div class="flex flex-row items-baseline justify-between gap-4 sm:gap-6 py-3">
-                        <dt class="w-[42%] sm:w-[40%] shrink-0 text-[13px] text-secondary pr-2">{{ $item[0] }}</dt>
-                        <dd class="flex-1 sm:flex-none sm:w-[60%] min-w-0 text-right sm:text-left text-sm tabular-nums break-words {{ $isEmpty ? 'text-secondary/50' : 'font-medium text-foreground' }}">
-                            {{ $isEmpty ? '–' : $item[1] }}
-                            @if (!$isEmpty && filled($item[2] ?? null))
-                            <span class="ml-1.5 text-xs font-normal text-secondary">{{ $item[2] }}</span>
-                            @endif
-                        </dd>
+        {{-- ============================ ISI ============================ --}}
+        <div x-ref="body" class="flex-1 min-h-0 overflow-y-auto px-5 sm:px-8 py-6">
+            @foreach ($tabs as $t)
+            <div x-show="tab === '{{ $t['key'] }}'" @if ($t['key'] !==$initialTab) x-cloak @endif
+                role="tabpanel" aria-labelledby="detail-tab-{{ $t['key'] }}" class="space-y-8">
+                @foreach ($t['sections'] as $section)
+                <section>
+                    <div class="flex items-center gap-2.5">
+                        <span class="size-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                            <i data-lucide="{{ $section['icon'] }}" class="size-4"></i>
+                        </span>
+                        <h4 class="text-sm font-bold text-foreground">{{ $section['title'] }}</h4>
                     </div>
-                    @endforeach
-                </dl>
-            </section>
+
+                    <dl class="mt-2 divide-y divide-border/60">
+                        @foreach ($section['items'] as $item)
+                        @php $isEmpty = blank($item[1]) || $item[1] === '-'; @endphp
+                        <div class="flex flex-row items-baseline justify-between gap-4 sm:gap-6 py-3">
+                            <dt class="w-[42%] sm:w-[40%] shrink-0 text-[13px] text-secondary pr-2">{{ $item[0] }}</dt>
+                            <dd class="flex-1 sm:flex-none sm:w-[60%] min-w-0 text-right sm:text-left text-sm tabular-nums break-words {{ $isEmpty ? 'text-secondary/50' : 'font-medium text-foreground' }}">
+                                {{ $isEmpty ? '–' : $item[1] }}
+                                @if (!$isEmpty && filled($item[2] ?? null))
+                                <span class="ml-1.5 text-xs font-normal text-secondary">{{ $item[2] }}</span>
+                                @endif
+                            </dd>
+                        </div>
+                        @endforeach
+                    </dl>
+                </section>
+                @endforeach
+            </div>
             @endforeach
         </div>
 

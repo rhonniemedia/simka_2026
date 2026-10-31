@@ -1,4 +1,4 @@
-{{-- File: resources/views/pages/admin/personnel/transfers/partials/_table.blade.php --}}
+{{-- File: resources/views/pages/admin/career/transfers/partials/_table.blade.php --}}
 <div id="staff-container"
     hx-get="{{ request()->fullUrl() }}"
     hx-trigger="refreshStaffTransferData from:body"
@@ -24,8 +24,8 @@
                         <div class="text-[11px] font-normal normal-case">Nama | NIK</div>
                     </th>
                     <th class="w-[30%] px-4 py-3 text-sm font-bold text-secondary tracking-wider">
-                        Status & Surat Keputusan
-                        <div class="text-[11px] font-normal normal-case">Status | Nomor SK</div>
+                        Surat Keputusan & Status
+                        <div class="text-[11px] font-normal normal-case">Nomor SK | Status</div>
                     </th>
                     <th class="w-[30%] px-4 py-3 text-sm font-bold text-secondary tracking-wider">
                         Penetapan
@@ -33,7 +33,7 @@
                     </th>
                     <th class="w-[10%] px-4 py-3 text-sm font-bold text-secondary tracking-wider">
                         Aksi
-                        <div class="text-[11px] font-normal normal-case">Lihat | Edit | Delete</div>
+                        <div class="text-[11px] font-normal normal-case">Lihat | Edit | Hapus</div>
                     </th>
                 </tr>
             </thead>
@@ -43,6 +43,8 @@
                 $badge = $statusBadge[$staff->status] ?? ['bg' => 'bg-slate-100', 'text' => 'text-secondary', 'dot' => 'bg-slate-400'];
                 $docs = $staff->latestStatusDocuments ?? collect();
                 $sk = $docs->first();
+                // Pensiun diubah lewat menu Pensiun.
+                $canEdit = $staff->status !== 'retired';
                 @endphp
                 <tr id="row-staff-transfer-{{ $staff->id }}" class="group transition-colors hover:bg-muted/40">
                     {{-- Kolom 1: Pegawai --}}
@@ -58,22 +60,28 @@
                         </div>
                     </td>
 
-                    {{-- Kolom 2: Status & Surat Keputusan --}}
-                    <td class="px-5 py-4 min-w-[200px]">
-                        <div>
-                            <span class="inline-flex items-center gap-1.5 rounded-full {{ $badge['bg'] }} {{ $badge['text'] }} px-2.5 py-1 text-xs font-semibold">
-                                <span class="size-1.5 rounded-full {{ $badge['dot'] }}"></span>
-                                {{ \App\Http\Controllers\Admin\Career\TransferController::STATUS_LABELS[$staff->status] ?? $staff->status }}
-                            </span>
-                        </div>
-                        <div class="flex items-center gap-1.5 text-sm font-medium text-foreground whitespace-nowrap mt-2">
+                    {{-- Kolom 2: Surat Keputusan & Status --}}
+                    <td class="px-5 py-4 min-w-[220px]">
+                        {{-- Nomor SK; ikon menandai ada/tidaknya berkas --}}
+                        <div class="flex items-start gap-2">
                             @if ($sk)
-                            <i data-lucide="file-text" class="size-4 text-emerald-600 shrink-0" title="Berkas SK tersedia"></i>
+                            <i data-lucide="file-check-2" class="size-4 mt-0.5 text-emerald-600 shrink-0" title="Berkas SK tersedia"></i>
                             @else
-                            <i data-lucide="file-x" class="size-4 text-amber-500 shrink-0" title="SK belum diunggah"></i>
+                            <i data-lucide="file-x" class="size-4 mt-0.5 text-amber-500 shrink-0" title="SK belum diunggah"></i>
                             @endif
-                            <span>{{ $staff->latest_decree_number ?? '-' }}</span>
+
+                            @if (filled($staff->latest_decree_number))
+                            <p class="text-sm font-semibold text-foreground leading-snug break-words">{{ $staff->latest_decree_number }}</p>
+                            @else
+                            <p class="text-sm italic text-secondary/60 leading-snug">Nomor SK belum diisi</p>
+                            @endif
                         </div>
+
+                        {{-- Status: teks berwarna dengan titik, tanpa badge --}}
+                        <p class="mt-1.5 pl-6 flex items-center gap-2 text-xs font-semibold {{ $badge['text'] }}">
+                            <span class="size-2 rounded-full {{ $badge['dot'] }}"></span>
+                            {{ \App\Http\Controllers\Admin\Career\TransferController::STATUS_LABELS[$staff->status] ?? $staff->status }}
+                        </p>
                     </td>
 
                     {{-- Kolom 3: TMT & Catatan --}}
@@ -120,8 +128,13 @@
                                 :style="`top: ${menuY}px; left: ${menuX}px;`"
                                 class="fixed z-[9999] w-48 rounded-xl border border-border bg-white shadow-lg py-2 flex flex-col text-left origin-top-right">
 
-                                <p class="px-4 pt-1 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-secondary">Aksi Mutasi</p>
-
+                                <p class="px-4 pt-1 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-secondary">Detail</p>
+                                <button type="button" @click="open = false"
+                                    hx-get="{{ route('admin.personnel.data.detail', $staff->id) }}"
+                                    hx-target="#modal-container" hx-swap="innerHTML"
+                                    class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors cursor-pointer text-left">
+                                    <i data-lucide="id-card" class="size-4 text-secondary pointer-events-none"></i> Detail Pegawai
+                                </button>
                                 @if ($sk)
                                 <a href="{{ route('admin.personnel.documents.preview', $sk->id) }}" target="_blank" rel="noopener" @click="open = false"
                                     class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer text-left w-[calc(100%-1rem)]">
@@ -129,12 +142,28 @@
                                 </a>
                                 @endif
 
-                                {{-- Contoh opsi edit / batalkan jika rutenya tersedia --}}
-                                <a href="{{ route('admin.personnel.data.edit', $staff->id) }}"
-                                    class="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-border bg-white text-xs font-medium text-secondary hover:bg-muted transition-colors cursor-pointer shadow-sm" title="Profil / Edit Pegawai">
-                                    <i data-lucide="user" class="size-3.5"></i>
-                                    Profil
-                                </a>
+                                <div class="my-2 border-t border-border"></div>
+
+                                <p class="px-4 pt-1 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-secondary">Edit & Delete</p>
+                                @if ($canEdit)
+                                <button type="button" @click="open = false"
+                                    hx-get="{{ route('admin.personnel.mutation.edit', $staff->id) }}"
+                                    hx-target="#modal-container" hx-swap="innerHTML"
+                                    class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors cursor-pointer text-left">
+                                    <i data-lucide="file-pen-line" class="size-4 text-secondary pointer-events-none"></i> Edit Data
+                                </button>
+                                @else
+                                <button type="button" disabled aria-disabled="true" title="Data pensiun diubah lewat menu Pensiun"
+                                    class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-foreground opacity-40 cursor-not-allowed text-left">
+                                    <i data-lucide="file-pen-line" class="size-4 text-secondary pointer-events-none"></i> Edit Data
+                                </button>
+                                @endif
+
+                                {{-- Hapus belum tersedia: sengaja dinonaktifkan --}}
+                                <button type="button" disabled aria-disabled="true" title="Fitur hapus belum tersedia"
+                                    class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-red-600 opacity-40 cursor-not-allowed text-left">
+                                    <i data-lucide="trash-2" class="size-4 pointer-events-none"></i> Hapus Data
+                                </button>
                             </div>
                         </div>
                     </td>
@@ -162,6 +191,7 @@
         $badge = $statusBadge[$staff->status] ?? ['bg' => 'bg-slate-100', 'text' => 'text-secondary', 'dot' => 'bg-slate-400'];
         $docs = $staff->latestStatusDocuments ?? collect();
         $sk = $docs->first();
+        $canEdit = $staff->status !== 'retired';
         @endphp
         <div id="card-staff-transfer-{{ $staff->id }}" class="px-5 py-4 active:bg-muted/40 transition-colors">
             <div class="flex items-start gap-3">
@@ -213,6 +243,14 @@
 
             {{-- Tombol Aksi Mobile --}}
             <div class="mt-3 flex items-center justify-end gap-2 border-t border-border pt-3">
+                <button type="button"
+                    hx-get="{{ route('admin.personnel.data.detail', $staff->id) }}"
+                    hx-target="#modal-container"
+                    hx-swap="innerHTML"
+                    class="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-border bg-white text-xs font-medium text-secondary hover:bg-muted transition-colors cursor-pointer">
+                    <i data-lucide="id-card" class="size-3.5 pointer-events-none"></i>
+                    Detail
+                </button>
                 @if ($sk)
                 <a href="{{ route('admin.personnel.documents.preview', $sk->id) }}" target="_blank" rel="noopener"
                     class="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-blue-200 bg-blue-50 text-xs font-medium text-blue-600 hover:bg-blue-100 transition-colors cursor-pointer shadow-sm" title="Lihat SK">
@@ -220,11 +258,28 @@
                     Lihat
                 </a>
                 @endif
-                <a href="{{ route('admin.personnel.data.edit', $staff->id) }}"
-                    class="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-border bg-white text-xs font-medium text-secondary hover:bg-muted transition-colors cursor-pointer shadow-sm" title="Profil / Edit Pegawai">
-                    <i data-lucide="user" class="size-3.5"></i>
-                    Profil
-                </a>
+                <span class="h-5 w-px bg-border mx-0.5" aria-hidden="true"></span>
+                @if ($canEdit)
+                <button type="button"
+                    hx-get="{{ route('admin.personnel.mutation.edit', $staff->id) }}"
+                    hx-target="#modal-container"
+                    hx-swap="innerHTML"
+                    class="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-border bg-white text-xs font-medium text-secondary hover:bg-muted transition-colors cursor-pointer">
+                    <i data-lucide="file-pen-line" class="size-3.5"></i>
+                    Edit
+                </button>
+                @else
+                <button type="button" disabled aria-disabled="true" title="Data pensiun diubah lewat menu Pensiun"
+                    class="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-border bg-white text-xs font-medium text-secondary opacity-40 cursor-not-allowed">
+                    <i data-lucide="file-pen-line" class="size-3.5"></i>
+                    Edit
+                </button>
+                @endif
+                <button type="button" disabled aria-disabled="true" title="Fitur hapus belum tersedia"
+                    class="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-red-200 bg-red-50 text-xs font-medium text-red-600 opacity-40 cursor-not-allowed">
+                    <i data-lucide="trash-2" class="size-3.5"></i>
+                    Hapus
+                </button>
             </div>
         </div>
         @empty

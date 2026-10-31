@@ -107,28 +107,7 @@ class RetirementController extends Controller
     public function store(Request $request, string $id)
     {
         try {
-            $validated = $request->validate(
-                [
-                    'decree_number' => ['nullable', 'string', 'max:255'],
-                    'decree_date' => ['nullable', 'date'],
-                    'note' => ['nullable', 'string', 'max:1000'],
-                    'file' => ['nullable', 'file', 'mimes:pdf', 'max:' . StaffDocumentService::MAX_SIZE_KB],
-                ],
-                [
-                    'string' => ':attribute harus berupa teks.',
-                    'max' => ':attribute maksimal :max karakter.',
-                    'date' => ':attribute harus berupa tanggal yang valid.',
-                    'file.mimes' => 'Berkas SK harus berformat PDF.',
-                    'file.max' => 'Ukuran berkas SK maksimal 1 MB.',
-                    'file.uploaded' => 'Berkas SK gagal diunggah. Pastikan ukurannya maksimal 1 MB.',
-                ],
-                [
-                    'decree_number' => 'Nomor SK',
-                    'decree_date' => 'Tanggal SK',
-                    'note' => 'Catatan',
-                    'file' => 'Berkas SK',
-                ]
-            );
+            $validated = $this->validatedDecree($request);
 
             // Riwayat pensiun dan berkas SK disimpan dalam satu transaksi:
             // jika berkas ditolak, perubahan status ikut dibatalkan.
@@ -184,6 +163,124 @@ class RetirementController extends Controller
             $outcome['name'] . ' berhasil diproses pensiun, TMT ' . $this->formatDate($outcome['tmt']) . '.',
             200,
             true
+        );
+    }
+
+    /*
+    |--------------------------------------------------------------------
+    | 4. MODAL EDIT
+    |--------------------------------------------------------------------
+    | Mengubah data SK (nomor, tanggal, berkas, catatan) dari pensiun yang
+    | sudah diproses. Status dan TMT tidak ikut berubah.
+    */
+
+    public function edit(string $id)
+    {
+        $row = $this->buildRows($id)[0] ?? null;
+
+        if ($row === null) {
+            abort(404);
+        }
+
+        $history = $row['calc']['state'] === 'retired' ? $this->latestRetirementHistory($id) : null;
+
+        if ($history === null) {
+            return $this->notEditableResponse();
+        }
+
+        return view(self::FORM_MODAL_VIEW, [
+            'row' => $row,
+            'history' => $history,
+        ]);
+    }
+
+    public function update(Request $request, string $id)
+    {
+        try {
+            $validated = $this->validatedDecree($request);
+
+            $outcome = DB::transaction(function () use ($request, $id, $validated) {
+                Data::completed()->whereKey($id)->lockForUpdate()->firstOrFail();
+
+                $row = $this->buildRows($id)[0] ?? null;
+                $history = ($row !== null && $row['calc']['state'] === 'retired')
+                    ? $this->latestRetirementHistory($id)
+                    : null;
+
+                if ($history === null) {
+                    return ['ok' => false, 'message' => 'Data pensiun pegawai ini tidak ditemukan.'];
+                }
+
+                $history->update([
+                    'decree_number' => $validated['decree_number'] ?? null,
+                    'decree_date' => $validated['decree_date'] ?? null,
+                    'note' => $validated['note'] ?? null,
+                ]);
+
+                // Berkas baru menggantikan SK pensiun yang lama.
+                if ($request->hasFile('file')) {
+                    $oldDocuments = $history->documents
+                        ->filter(fn($d) => $d->category?->code === self::SK_CATEGORY);
+
+                    $history->attachDocument($request->file('file'), self::SK_CATEGORY);
+
+                    $oldDocuments->each->delete();
+                }
+
+                return ['ok' => true, 'name' => $row['staff']->name];
+            });
+        } catch (ValidationException $e) {
+            return $this->validationErrorResponse($e);
+        }
+
+        if (! $outcome['ok']) {
+            return $this->alertResponse($request, 'warning', 'Tidak dapat diubah', $outcome['message'], 422, true);
+        }
+
+        return $this->alertResponse(
+            $request,
+            'success',
+            'Berhasil!',
+            'Data pensiun ' . $outcome['name'] . ' berhasil diperbarui.',
+            200,
+            true
+        );
+    }
+
+    private function latestRetirementHistory(string $staffId): ?StaffStatusHistory
+    {
+        return StaffStatusHistory::with('documents.category')
+            ->where('staff_id', $staffId)
+            ->where('to_status', RetirementList::RETIRED_STATUS)
+            ->orderByDesc('effective_date')
+            ->orderByDesc('created_at')
+            ->first();
+    }
+
+    /** Aturan validasi SK yang sama untuk proses (create) dan edit. */
+    private function validatedDecree(Request $request): array
+    {
+        return $request->validate(
+            [
+                'decree_number' => ['nullable', 'string', 'max:255'],
+                'decree_date' => ['nullable', 'date'],
+                'note' => ['nullable', 'string', 'max:1000'],
+                'file' => ['nullable', 'file', 'mimes:pdf', 'max:' . StaffDocumentService::MAX_SIZE_KB],
+            ],
+            [
+                'string' => ':attribute harus berupa teks.',
+                'max' => ':attribute maksimal :max karakter.',
+                'date' => ':attribute harus berupa tanggal yang valid.',
+                'file.mimes' => 'Berkas SK harus berformat PDF.',
+                'file.max' => 'Ukuran berkas SK maksimal 1 MB.',
+                'file.uploaded' => 'Berkas SK gagal diunggah. Pastikan ukurannya maksimal 1 MB.',
+            ],
+            [
+                'decree_number' => 'Nomor SK',
+                'decree_date' => 'Tanggal SK',
+                'note' => 'Catatan',
+                'file' => 'Berkas SK',
+            ]
         );
     }
 
@@ -367,6 +464,18 @@ class RetirementController extends Controller
                 'icon' => 'warning',
                 'title' => 'Tidak dapat diproses',
                 'text' => $this->notProcessableMessage($row),
+            ],
+            'refreshRetirementData' => true,
+        ]));
+    }
+
+    private function notEditableResponse()
+    {
+        return response('', 204)->header('HX-Trigger', json_encode([
+            'showAlert' => [
+                'icon' => 'warning',
+                'title' => 'Tidak dapat diubah',
+                'text' => 'Pegawai ini belum diproses pensiun.',
             ],
             'refreshRetirementData' => true,
         ]));

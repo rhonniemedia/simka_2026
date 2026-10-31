@@ -246,6 +246,111 @@ class TransferController extends Controller
 
     /*
     |--------------------------------------------------------------------
+    | Edit data SK (status terakhir pegawai)
+    |--------------------------------------------------------------------
+    | Yang dapat diubah: nomor SK, tanggal SK, TMT, catatan, dan berkas.
+    | Pegawai dan status tujuan tetap. Pensiun diubah lewat menu Pensiun.
+    */
+
+    public function edit(string $id)
+    {
+        $staff = Data::completed()->findOrFail($id);
+        $history = $this->editableHistory($staff);
+
+        if ($history === null) {
+            return $this->notEditableResponse();
+        }
+
+        return view(self::FORM_VIEW, [
+            'mode' => 'edit',
+            'staff' => $staff,
+            'history' => $history,
+            'staffOptions' => collect(),
+            'statusOptions' => collect(),
+        ]);
+    }
+
+    public function update(Request $request, string $id)
+    {
+        try {
+            $validated = $request->validate(
+                $this->rules([]),
+                $this->messages(),
+                $this->attributes()
+            );
+
+            $outcome = DB::transaction(function () use ($request, $id, $validated) {
+                $staff = Data::completed()->whereKey($id)->lockForUpdate()->firstOrFail();
+                $history = $this->editableHistory($staff);
+
+                if ($history === null) {
+                    return false;
+                }
+
+                $history->update([
+                    'decree_number'  => $validated['decree_number'],
+                    'decree_date'    => $validated['decree_date'],
+                    'effective_date' => $validated['effective_date'],
+                    'note'           => $validated['note'] ?? null,
+                ]);
+
+                // Berkas baru menggantikan SK lama pada peristiwa status ini.
+                if ($request->hasFile('file')) {
+                    $oldDocuments = $history->documents;
+
+                    $history->attachDocument($request->file('file'), self::SK_CATEGORY[$history->to_status]);
+
+                    $oldDocuments->each->delete();
+                }
+
+                // TMT di data pegawai mengikuti TMT riwayat terakhir.
+                $staff->forceFill([
+                    'status_effective_date' => $validated['effective_date'],
+                    'updated_by' => Auth::id(),
+                ])->save();
+
+                return true;
+            });
+        } catch (ValidationException $e) {
+            return $this->validationErrorResponse($e);
+        }
+
+        if (! $outcome) {
+            return $this->notEditableResponse();
+        }
+
+        return $this->respondWithSuccess($request, 'Data mutasi berhasil diperbarui.');
+    }
+
+    /** Riwayat status terakhir yang sesuai status pegawai saat ini; null bila tidak boleh diedit di sini. */
+    private function editableHistory(Data $staff): ?StaffStatusHistory
+    {
+        if (! in_array($staff->status, self::OUT_STATUSES, true) || $staff->status === 'retired') {
+            return null;
+        }
+
+        return StaffStatusHistory::with('documents.category')
+            ->where('staff_id', $staff->id)
+            ->where('to_status', $staff->status)
+            ->orderByDesc('effective_date')
+            ->orderByDesc('created_at')
+            ->first();
+    }
+
+    private function notEditableResponse()
+    {
+        return response('', 204)->header('HX-Trigger', json_encode([
+            'showAlert' => [
+                'icon' => 'warning',
+                'title' => 'Tidak dapat diubah',
+                'text' => 'Data mutasi pegawai ini tidak dapat diubah dari halaman ini.',
+            ],
+            'refreshStaffTransferData' => true,
+        ]));
+    }
+
+    /*
+    |--------------------------------------------------------------------
     | Riwayat status & berkas SK
     |--------------------------------------------------------------------
     */
