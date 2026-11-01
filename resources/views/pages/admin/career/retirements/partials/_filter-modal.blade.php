@@ -90,7 +90,7 @@
     </div>
 
     {{-- Footer --}}
-    <div class="px-4 sm:px-6 py-4 border-t border-border bg-gray-50/50 flex flex-col-reverse sm:flex-row items-center justify-between shrink-0 gap-3">
+    <div class="px-4 sm:px-6 py-4 border-t border-border bg-gray-50/50 flex flex-col-reverse sm:flex-row items-center justify-end shrink-0 gap-3">
         <button type="button"
             @click="
                 $dispatch('reset-filters');

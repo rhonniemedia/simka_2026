@@ -155,6 +155,9 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'app.access'])->grou
             // Opsi data riwayat yang bisa ditautkan ke dokumen (dipanggil via fetch dari form)
             Route::get('/linkable', [DocumentController::class, 'linkable'])->name('linkable');
 
+            // Dokumen milik satu pegawai (dimuat via HTMX saat accordion "Per Pegawai" dibuka)
+            Route::get('/staff/{staff}', [DocumentController::class, 'staffDocuments'])->name('staff');
+
             Route::post('/', [DocumentController::class, 'store'])->name('store');
             Route::get('/{id}/edit', [DocumentController::class, 'edit'])->name('edit');
             Route::put('/{id}', [DocumentController::class, 'update'])->name('update');

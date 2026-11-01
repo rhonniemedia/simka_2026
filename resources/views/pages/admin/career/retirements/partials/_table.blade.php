@@ -66,20 +66,28 @@ default => null,
         <table class="w-full text-left table-fixed">
             <thead>
                 <tr class="border-b border-border">
-                    <th class="w-[30%] px-4 py-3 text-sm font-bold text-secondary tracking-wider">
+                    <x-ui.sortable-th column="name" :sort="$sort ?? null" :direction="$direction ?? 'asc'"
+                        target="#retirement-container" class="w-[30%]">
                         Data Pegawai
                         <div class="text-[11px] font-normal normal-case">Nama | Jabatan ASN</div>
-                    </th>
-                    <th class="w-[30%] px-4 py-3 text-sm font-bold text-secondary tracking-wider">
+                    </x-ui.sortable-th>
+
+                    <x-ui.sortable-th column="tmt" :sort="$sort ?? null" :direction="$direction ?? 'asc'"
+                        target="#retirement-container" class="w-[30%]">
                         Pensiun
                         <div class="text-[11px] font-normal normal-case">TMT | Batas usia</div>
-                    </th>
-                    <th class="w-[30%] px-4 py-3 text-sm font-bold text-secondary tracking-wider">
+                    </x-ui.sortable-th>
+
+                    <x-ui.sortable-th column="status" :sort="$sort ?? null" :direction="$direction ?? 'asc'"
+                        target="#retirement-container" class="w-[30%]">
                         Status
                         <div class="text-[11px] font-normal normal-case">Status | TMT</div>
-                    </th>
+                    </x-ui.sortable-th>
+
+                    {{-- Kolom yang tidak disortir tetap <th> biasa --}}
                     <th class="w-[10%] px-4 py-3 text-sm font-bold text-secondary tracking-wider">
                         Aksi
+                        <div class="text-[11px] font-normal normal-case">Detil | Edit</div>
                     </th>
                 </tr>
             </thead>

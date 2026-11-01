@@ -27,28 +27,7 @@
         </div>
 
         {{-- Grup Tombol Aksi --}}
-        <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-3">
-            <button type="button"
-                title="Tambah Data KGB"
-                class="flex items-center justify-center gap-2 px-3 py-2.5 sm:px-5 bg-amber-600 hover:bg-amber-700 text-white rounded-full font-semibold text-sm transition-all duration-300 cursor-pointer shadow-sm shadow-amber-600/30 whitespace-nowrap">
-                <i data-lucide="plus" class="size-4 shrink-0"></i>
-                <span>Tambah Data</span>
-            </button>
-
-            <button type="button"
-                title="Download data Excel"
-                class="flex items-center justify-center gap-2 px-3 py-2.5 sm:px-5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full font-semibold text-sm transition-all duration-300 cursor-pointer shadow-sm shadow-emerald-600/30 whitespace-nowrap">
-                <i data-lucide="file-box" class="size-4 shrink-0"></i>
-                <span>Download</span>
-            </button>
-
-            <button type="button"
-                title="Cetak laporan"
-                class="flex items-center justify-center gap-2 px-3 py-2.5 sm:px-5 bg-blue-600 hover:bg-blue-700 text-white rounded-full font-semibold text-sm transition-all duration-300 cursor-pointer shadow-sm shadow-blue-600/30 whitespace-nowrap">
-                <i data-lucide="printer" class="size-4 shrink-0"></i>
-                <span>Laporan</span>
-            </button>
-
+        <div class="flex items-center">
             <a href="{{ route('admin.personnel.periodic-salary.index') }}"
                 title="Segarkan halaman"
                 onclick="document.getElementById('refresh-icon').classList.add('animate-spin');"

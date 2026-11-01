@@ -7,8 +7,9 @@ use App\Models\AsnPositionHistory;
 use App\Models\Data;
 use App\Models\EmploymentStatus;
 use App\Models\StaffStatusHistory;
-use App\Services\Staff\StaffDocumentService;
 use App\Services\Personnel\RetirementList;
+use App\Services\Staff\StaffDocumentService;
+use App\Support\TableSort;
 use Carbon\Carbon;
 use DateTimeImmutable;
 use Illuminate\Http\JsonResponse;
@@ -36,6 +37,15 @@ class RetirementController extends Controller
     /** Status data pegawai yang ditampilkan: aktif, dan yang sudah diproses pensiun. */
     private const LISTED_STATUSES = ['active', 'retired'];
 
+    /** Urutan status saat disortir naik: yang paling mendesak lebih dulu. */
+    private const STATE_RANK = [
+        'reached' => 0,
+        'soon'    => 1,
+        'not_yet' => 2,
+        'unknown' => 3,
+        'retired' => 4,
+    ];
+
     /*
     |--------------------------------------------------------------------
     | 1. DAFTAR
@@ -46,15 +56,34 @@ class RetirementController extends Controller
     {
         $filters = $this->filtersFrom($request);
 
+        // Tanpa default: urutan bawaan RetirementList dipakai sampai header diklik
+        $sorter = TableSort::make($request, [
+            'name'   => null,
+            'tmt'    => null,
+            'status' => null,
+        ], default: null, defaultDirection: 'asc');
+
         $allRows = $this->buildRows();
         $rows = RetirementList::sort(RetirementList::filter($allRows, $filters));
+
+        // Daftar disusun di PHP (tanggal lahir terenkripsi), jadi sortir juga di array.
+        // Nilai null (mis. TMT kosong) selalu di akhir.
+        $rows = $sorter->sortArray($rows, [
+            'name'   => fn($r) => $r['staff']->name,
+            'tmt'    => fn($r) => ($r['tmt'] ?? ($r['calc']['tmt'] ?? null))?->getTimestamp(),
+            'status' => fn($r) => self::STATE_RANK[$r['calc']['state'] ?? 'unknown'] ?? 99,
+            'id'     => fn($r) => (string) $r['staff']->id,
+        ], then: $sorter->key() === 'status'
+            ? ['tmt', 'name', 'id']
+            : ['name', 'id']);
+
         $paginator = $this->paginate($rows, $request);
 
         // Berkas SK pensiun untuk pegawai yang sudah pensiun di halaman ini
         $this->attachRetirementDocuments($paginator);
 
         if ($request->header('HX-Request')) {
-            return view(self::TABLE_VIEW, ['rows' => $paginator]);
+            return view(self::TABLE_VIEW, ['rows' => $paginator] + $sorter->viewData());
         }
 
         return view(self::INDEX_VIEW, [
@@ -69,7 +98,7 @@ class RetirementController extends Controller
             'employmentOptions' => $this->employmentOptions(),
             'positionTypeOptions' => $this->positionTypeOptions(),
             'yearOptions' => RetirementList::yearOptions($allRows),
-        ]);
+        ] + $sorter->viewData());
     }
 
     /*
@@ -97,11 +126,6 @@ class RetirementController extends Controller
     |--------------------------------------------------------------------
     | 3. SIMPAN
     |--------------------------------------------------------------------
-    | Sama seperti fitur Mutasi: perubahan status ditulis ke riwayat
-    | (staff_status_histories) dan ke data pegawai dalam satu transaksi.
-    |
-    | Status & TMT tidak diambil dari input: keduanya dihitung ulang di
-    | server. Baris pegawai dikunci agar tidak diproses dua kali.
     */
 
     public function store(Request $request, string $id)
@@ -109,8 +133,6 @@ class RetirementController extends Controller
         try {
             $validated = $this->validatedDecree($request);
 
-            // Riwayat pensiun dan berkas SK disimpan dalam satu transaksi:
-            // jika berkas ditolak, perubahan status ikut dibatalkan.
             $outcome = DB::transaction(function () use ($request, $id, $validated) {
                 Data::completed()->whereKey($id)->lockForUpdate()->firstOrFail();
 
@@ -142,8 +164,6 @@ class RetirementController extends Controller
                     $history->attachDocument($request->file('file'), self::SK_CATEGORY);
                 }
 
-                // status & status_effective_date di staff_data diperbarui
-                // otomatis oleh model StaffStatusHistory.
                 $staff->update(['updated_by' => Auth::id()]);
 
                 return ['ok' => true, 'name' => $staff->name, 'tmt' => $tmt];
@@ -170,8 +190,6 @@ class RetirementController extends Controller
     |--------------------------------------------------------------------
     | 4. MODAL EDIT
     |--------------------------------------------------------------------
-    | Mengubah data SK (nomor, tanggal, berkas, catatan) dari pensiun yang
-    | sudah diproses. Status dan TMT tidak ikut berubah.
     */
 
     public function edit(string $id)
@@ -217,7 +235,6 @@ class RetirementController extends Controller
                     'note' => $validated['note'] ?? null,
                 ]);
 
-                // Berkas baru menggantikan SK pensiun yang lama.
                 if ($request->hasFile('file')) {
                     $oldDocuments = $history->documents
                         ->filter(fn($d) => $d->category?->code === self::SK_CATEGORY);
@@ -314,13 +331,6 @@ class RetirementController extends Controller
     |--------------------------------------------------------------------
     */
 
-    /**
-     * Semua pegawai yang masuk daftar pensiun (kecuali honorer) beserta
-     * hasil perhitungannya. Perhitungan dilakukan di PHP karena tanggal
-     * lahir terenkripsi.
-     *
-     * @return array<int, array>
-     */
     private function buildRows(?string $onlyStaffId = null): array
     {
         $query = Data::completed()
@@ -338,7 +348,6 @@ class RetirementController extends Controller
             return [];
         }
 
-        // Jabatan ASN aktif; bila ada lebih dari satu, ambil yang TMT-nya terbaru.
         $activePositions = AsnPositionHistory::with('asnPosition')
             ->whereIn('staff_id', $staffList->pluck('id'))
             ->where('is_active', true)
@@ -367,7 +376,6 @@ class RetirementController extends Controller
         try {
             return $staff->vault?->dob;
         } catch (Throwable) {
-            // Data terenkripsi rusak / kunci berbeda: perlakukan sebagai tidak diketahui.
             return null;
         }
     }
@@ -453,10 +461,6 @@ class RetirementController extends Controller
             : 'Pegawai ini belum mencapai batas usia pensiun.';
     }
 
-    /**
-     * Modal tidak dibuka (tombol basi / diakses langsung): tampilkan pemberitahuan
-     * dan segarkan tabel agar barisnya mengikuti kondisi terbaru.
-     */
     private function notProcessableResponse(array $row)
     {
         return response('', 204)->header('HX-Trigger', json_encode([
@@ -503,13 +507,8 @@ class RetirementController extends Controller
         return redirect()->route('admin.personnel.retirement.index');
     }
 
-    /**
-     * Format sama dengan modul Mutasi: JSON { message, errors } agar modal
-     * dapat menampilkan pesan di bawah masing-masing field.
-     */
     private function validationErrorResponse(ValidationException $e): JsonResponse
     {
-        // Pesan dari service berkas (kunci selain field form) ditampilkan di bawah field berkas.
         $known = ['decree_number', 'decree_date', 'note', 'file'];
         $errors = [];
 

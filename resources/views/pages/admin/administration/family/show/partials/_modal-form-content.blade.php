@@ -70,7 +70,7 @@ $errorClass = 'text-[11px] text-error mt-1.5 font-medium';
             </p>
         </div>
     </div>
-    <button type="button" @click="open = false; setTimeout(() => $el.closest('#modal-container').innerHTML = '', 150)"
+    <button type="button" @click="$dispatch('close-modal')"
         class="size-8 sm:size-9 flex items-center justify-center rounded-lg border border-border bg-white text-secondary hover:bg-error/10 hover:text-error hover:border-error/30 transition-colors cursor-pointer shrink-0">
         <i data-lucide="x" class="size-4 pointer-events-none"></i>
     </button>
@@ -103,11 +103,13 @@ $errorClass = 'text-[11px] text-error mt-1.5 font-medium';
             return this.errors[field]?.[0] ?? null;
         }
     }"
-    @htmx:before-request="saving = true"
+    @htmx:before-request="if ($event.target === $el) saving = true"
     @htmx:after-request="
-        saving = false;
-        setErrors($event.detail.xhr);
-        if (typeof lucide !== 'undefined') lucide.createIcons();
+        if ($event.target === $el) {
+            saving = false;
+            setErrors($event.detail.xhr);
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
     "
     class="flex flex-col flex-1 min-h-0">
     @csrf
@@ -143,7 +145,8 @@ $errorClass = 'text-[11px] text-error mt-1.5 font-medium';
                     value="{{ old('nik', $familyMember->nik ?? '') }}"
                     placeholder="Nomor Induk Kependudukan"
                     hx-post="{{ $checkNikUrl }}"
-                    hx-trigger="keyup changed delay:600ms, blur"
+                    hx-trigger="input changed delay:600ms"
+                    hx-sync="this:replace"
                     hx-target="#nik-check-result"
                     hx-swap="innerHTML"
                     hx-include="[name='nik'], [name='ignore_relation_id']"
@@ -274,7 +277,7 @@ $errorClass = 'text-[11px] text-error mt-1.5 font-medium';
 
     {{-- Footer Modal --}}
     <div class="px-4 sm:px-6 py-4 border-t border-border bg-slate-50/50 flex flex-col-reverse sm:flex-row items-center justify-end gap-2.5 sm:gap-2 shrink-0">
-        <button type="button" @click="open = false; setTimeout(() => $el.closest('#modal-container').innerHTML = '', 150)"
+        <button type="button" @click="$dispatch('close-modal')"
             class="w-full sm:w-auto flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-xl border border-border bg-white text-secondary text-sm font-semibold hover:bg-muted hover:border-gray-300 transition-all cursor-pointer">
             <i data-lucide="x-circle" class="size-4"></i>
             <span>Batal</span>

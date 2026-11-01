@@ -9,18 +9,25 @@
         <table class="w-full text-left border-collapse">
             <thead>
                 <tr class="border-b border-border">
-                    <th class="w-[30%] px-4 py-3 text-sm font-bold text-secondary tracking-wider">
+                    <x-ui.sortable-th column="name" :sort="$sort ?? null" :direction="$direction ?? 'asc'"
+                        target="#periodic-salary-container" class="w-[30%]">
                         Data Pegawai
                         <div class="text-[11px] font-normal normal-case">Nama | Nomor Induk Kependudukan</div>
-                    </th>
-                    <th class="w-[30%] px-4 py-3 text-sm font-bold text-secondary tracking-wider">
+                    </x-ui.sortable-th>
+
+                    <x-ui.sortable-th column="effective_date" :sort="$sort ?? null" :direction="$direction ?? 'asc'"
+                        target="#periodic-salary-container" class="w-[30%]">
                         Berkala Terakhir
                         <div class="text-[11px] font-normal normal-case">TMT | Masa Kerja</div>
-                    </th>
-                    <th class="w-[30%] px-4 py-3 text-sm font-bold text-secondary tracking-wider">
+                    </x-ui.sortable-th>
+
+                    <x-ui.sortable-th column="next_date" :sort="$sort ?? null" :direction="$direction ?? 'asc'"
+                        target="#periodic-salary-container" class="w-[30%]">
                         Berkala Berikutnya
                         <div class="text-[11px] font-normal normal-case">TMT Berikutnya | Tahun Ke</div>
-                    </th>
+                    </x-ui.sortable-th>
+
+                    {{-- Kolom yang tidak disortir tetap <th> biasa --}}
                     <th class="w-[10%] px-4 py-3 text-sm font-bold text-secondary tracking-wider">
                         Tautan
                         <div class="text-[11px] font-normal normal-case">Dokumen</div>

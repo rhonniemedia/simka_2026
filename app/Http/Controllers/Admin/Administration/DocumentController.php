@@ -23,33 +23,83 @@ class DocumentController extends Controller
         $filterVerification = $request->input('filter_verification');
         $filterDateFrom     = $request->input('filter_date_from');
         $filterDateTo       = $request->input('filter_date_to');
+        $viewMode           = $request->input('view') === 'staff' ? 'staff' : 'all';
 
-        $documents = Document::query()
-            ->with(['staff', 'category'])
-            ->when($search, function ($query, $search) {
-                $query->whereHas('staff', function ($q) use ($search) {
-                    $q->where('name', 'like', "%{$search}%");
-                });
-            })
-            ->categoryId($filterCategory)
-            ->verificationStatus($filterVerification)
-            ->when($filterDateFrom, fn($query, $value) => $query->whereDate('document_date', '>=', $value))
-            ->when($filterDateTo, fn($query, $value) => $query->whereDate('document_date', '<=', $value))
-            ->orderByDesc('created_at')
-            ->paginate(10)
-            ->withQueryString();
+        $documents = null;
+        $staffList = null;
+
+        if ($viewMode === 'staff') {
+            $table = (new Data)->getTable();
+            $hasFilters = filled($filterCategory) || filled($filterVerification)
+                || filled($filterDateFrom) || filled($filterDateTo);
+
+            $staffList = Data::query()
+                ->select("{$table}.*")
+                ->addSelect([
+                    'documents_count' => $this->applyFilters(
+                        Document::query()->selectRaw('count(*)')->whereColumn('staff_id', "{$table}.id"),
+                        $request
+                    ),
+                ])
+                ->when($search, fn($q, $s) => $q->where('name', 'like', "%{$s}%"))
+                // Kalau ada filter aktif, tampilkan hanya pegawai yang punya dokumen sesuai filter
+                ->when($hasFilters, fn($q) => $q->whereIn(
+                    'id',
+                    $this->applyFilters(Document::query(), $request)->select('staff_id')
+                ))
+                ->orderBy('name')
+                ->paginate(10)
+                ->withQueryString();
+        } else {
+            $documents = $this->applyFilters(
+                Document::query()
+                    ->with(['staff', 'category'])
+                    ->when($search, fn($query, $s) => $query->whereHas('staff', fn($q) => $q->where('name', 'like', "%{$s}%"))),
+                $request
+            )
+                ->orderByDesc('created_at')
+                ->paginate(10)
+                ->withQueryString();
+        }
 
         $categoryOptions = DocumentCategory::orderBy('name')->pluck('name', 'id');
 
         return view('pages.admin.administration.documents.index', [
-            'documents'           => $documents,
-            'search'              => $search,
-            'filterCategory'      => $filterCategory,
-            'filterVerification'  => $filterVerification,
-            'filterDateFrom'      => $filterDateFrom,
-            'filterDateTo'        => $filterDateTo,
-            'categoryOptions'     => $categoryOptions,
+            'viewMode'           => $viewMode,
+            'documents'          => $documents,
+            'staffList'          => $staffList,
+            'search'             => $search,
+            'filterCategory'     => $filterCategory,
+            'filterVerification' => $filterVerification,
+            'filterDateFrom'     => $filterDateFrom,
+            'filterDateTo'       => $filterDateTo,
+            'categoryOptions'    => $categoryOptions,
         ]);
+    }
+
+    // Dokumen milik satu pegawai (dimuat saat accordion dibuka)
+    public function staffDocuments(Request $request, $staff)
+    {
+        $documents = $this->applyFilters(
+            Document::query()->with('category')->where('staff_id', $staff),
+            $request
+        )
+            ->orderByDesc('document_date')
+            ->orderByDesc('created_at')
+            ->get();
+
+        return view('pages.admin.administration.documents.partials._staff-documents', [
+            'documents' => $documents,
+        ]);
+    }
+
+    private function applyFilters($query, Request $request)
+    {
+        return $query
+            ->categoryId($request->input('filter_category'))
+            ->verificationStatus($request->input('filter_verification'))
+            ->when($request->input('filter_date_from'), fn($q, $v) => $q->whereDate('document_date', '>=', $v))
+            ->when($request->input('filter_date_to'), fn($q, $v) => $q->whereDate('document_date', '<=', $v));
     }
 
     public function create()
@@ -219,6 +269,23 @@ class DocumentController extends Controller
                 ->toArray(),
         ];
     }
+
+    // private function formOptions(): array
+    // {
+    //     return [
+    //         'staffOptions' => Data::orderBy('name')->get(['id', 'name'])
+    //             ->map(fn($s) => ['value' => $s->id, 'label' => $s->name])
+    //             ->toArray(),
+    //         'categoryOptions' => DocumentCategory::where(function ($query) {
+    //             $query->where('linked_table', '')
+    //                 ->orWhereNull('linked_table');
+    //         })
+    //             ->orderBy('name')
+    //             ->get(['id', 'name'])
+    //             ->map(fn($c) => ['value' => $c->id, 'label' => $c->name])
+    //             ->toArray(),
+    //     ];
+    // }
 
     private function validated(Request $request, bool $isCreate): array
     {

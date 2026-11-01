@@ -7,8 +7,15 @@
 @section('content')
 <div class="w-full px-5 py-6 md:px-8 md:py-8"
     x-data="{ 
-        filterModalOpen: false
-    }">
+        filterModalOpen: false,
+        isFilterActive: {{ (!empty($filterGradeId) || !empty($filterYear)) ? 'true' : 'false' }},
+        checkFilterStatus() {
+            const gradeId = document.querySelector('[name=filter_grade_id]')?.value || '';
+            const year = document.querySelector('[name=filter_year]')?.value || '';
+            this.isFilterActive = (gradeId !== '' || year !== '');
+        }
+    }"
+    @htmx:after-request.document="checkFilterStatus()">
 
     {{-- 1. PAGE HEADER --}}
     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
@@ -18,15 +25,8 @@
         </div>
 
         {{-- Grup Tombol Aksi --}}
-        <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-3">
-            <button type="button"
-                title="Tambah Data Pangkat"
-                class="flex items-center justify-center gap-2 px-3 py-2.5 sm:px-5 bg-amber-600 hover:bg-amber-700 text-white rounded-full font-semibold text-sm transition-all duration-300 cursor-pointer shadow-sm shadow-amber-600/30 whitespace-nowrap">
-                <i data-lucide="plus" class="size-4 shrink-0"></i>
-                <span>Tambah Data</span>
-            </button>
-
-            <a href="{{ route('admin.personnel.promotions.index') }}"
+        <div class="flex items-center">
+            <a href="{{ route('admin.personnel.periodic-salary.index') }}"
                 title="Segarkan halaman"
                 onclick="document.getElementById('refresh-icon').classList.add('animate-spin');"
                 class="flex items-center justify-center gap-2 px-3 py-2.5 sm:px-4 ring-1 ring-border hover:ring-primary rounded-full text-foreground font-semibold text-sm transition-all bg-white cursor-pointer whitespace-nowrap">
@@ -51,7 +51,9 @@
                 </div>
             </div>
 
+            {{-- Bagian Kanan: Pencarian & Tombol Filter --}}
             <div class="flex items-center gap-2 w-full sm:w-auto" x-data="{ searchQuery: '{{ $search ?? '' }}' }">
+
                 {{-- INPUT PENCARIAN --}}
                 <div class="relative flex-1 sm:w-56 md:w-64 flex items-center">
                     <i data-lucide="search" class="absolute left-3.5 size-4 transition-colors pointer-events-none"
@@ -69,6 +71,7 @@
                         hx-target="#promotions-container"
                         hx-select="#promotions-container"
                         hx-swap="outerHTML"
+                        hx-include="#promotion-filter-form"
                         hx-push-url="true"
                         class="h-11 w-full bg-white border rounded-xl pl-10 pr-10 text-sm focus:outline-none focus:border-primary transition-all"
                         :class="searchQuery.length > 0 ? 'border-primary/50 text-foreground font-medium' : 'border-border text-foreground'">
@@ -82,12 +85,32 @@
                         <i data-lucide="x" class="size-3"></i>
                     </button>
                 </div>
+
+                {{-- TOMBOL FILTER (Menyerupai Referensi) --}}
+                <button
+                    type="button"
+                    @click="filterModalOpen = true"
+                    title="Filter"
+                    class="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border bg-white hover:bg-muted transition-colors cursor-pointer focus:outline-none">
+                    <i data-lucide="filter" class="size-4 text-secondary"></i>
+                    <span
+                        x-show="isFilterActive"
+                        x-cloak
+                        class="absolute -top-1 -right-1 flex h-3 w-3">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-3 w-3 bg-primary border-2 border-white"></span>
+                    </span>
+                </button>
+
             </div>
         </div>
 
         @include('pages.admin.career.grades.partials._table', compact('histories'))
 
     </div>
+
+    {{-- MODAL FILTER --}}
+    @include('pages.admin.career.grades.partials._filter-modal')
 
     <div id="modal-container"></div>
 </div>

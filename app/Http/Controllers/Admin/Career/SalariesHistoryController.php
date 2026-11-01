@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\Data;
 use App\Models\PeriodicSalaryHistory;
 use App\Services\Staff\StaffDocumentService;
+use App\Support\TableSort;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
@@ -22,10 +24,69 @@ class SalariesHistoryController extends Controller
 
     public function index(Request $request)
     {
+        // Ambil input sebagai string aman (array / nilai aneh dianggap kosong)
+        $input = function (string $key) use ($request): string {
+            $value = $request->input($key, '');
+
+            return is_string($value) ? trim($value) : '';
+        };
+
+        $search       = $input('search');
+        $filterStatus = $input('filter_verification_status');
+        $filterYear   = $input('filter_year');
+
+        // Whitelist nilai filter
+        $filterStatus = in_array($filterStatus, ['verified', 'draft', 'rejected'], true) ? $filterStatus : '';
+        $filterYear   = ctype_digit($filterYear) ? $filterYear : '';
+
+        $model = new PeriodicSalaryHistory;
+
+        $sorter = TableSort::make($request, [
+            'name'           => ['relation' => 'staff', 'column' => 'name'],
+            'effective_date' => 'effective_date',
+            'next_date'      => function (Builder $q, string $dir) use ($model) {
+                $g     = $q->getQuery()->getGrammar();
+                $staff = new Data;
+
+                $effective = $g->wrap($model->qualifyColumn('effective_date'));
+                $staffFk   = $g->wrap($model->qualifyColumn('staff_id'));
+                $start     = '(select ' . $g->wrap($staff->qualifyColumn('prior_service_period_effective_date'))
+                    . ' from ' . $g->wrapTable($staff->getTable())
+                    . ' where ' . $g->wrap($staff->getQualifiedKeyName()) . ' = ' . $staffFk
+                    . ' limit 1)';
+
+                // 1) Baris yang tampil "-" (tanpa tanggal mulai tugas, atau masa kerja >= 32 tahun)
+                //    selalu di akhir. 384 bulan = batas 31 tahun yang dipakai di transformasi.
+                $q->orderByRaw(
+                    "case when {$start} is null or timestampdiff(month, {$start}, {$effective}) >= 384 then 1 else 0 end"
+                );
+
+                // 2) Sisanya urut TMT (TMT berikutnya = TMT + 2 tahun, urutannya sama)
+                $q->orderBy($model->qualifyColumn('effective_date'), $dir);
+            },
+        ], default: 'effective_date', defaultDirection: 'desc');
+
+        $statusColumn = $model->qualifyColumn('verification_status');
+
         // Mengambil data gaji berkala beserta data pegawai terkait (dan berkas SK-nya)
-        $histories = PeriodicSalaryHistory::with(['staff.vault', 'documents.category'])
-            ->latest('effective_date')
-            ->paginate(10);
+        $query = PeriodicSalaryHistory::with(['staff.vault', 'documents.category'])
+            ->when($search !== '', fn($q) => $q->whereHas(
+                'staff',
+                fn($s) => $s->where('name', 'like', "%{$search}%")
+            ))
+            // "Draf" = semua yang bukan terverifikasi / ditolak (sama dengan label di tabel)
+            ->when($filterStatus === 'draft', fn($q) => $q->where(
+                fn($w) => $w->whereNull($statusColumn)->orWhereNotIn($statusColumn, ['verified', 'rejected'])
+            ))
+            ->when(in_array($filterStatus, ['verified', 'rejected'], true), fn($q) => $q->where($statusColumn, $filterStatus))
+            ->when($filterYear !== '', fn($q) => $q->whereYear($model->qualifyColumn('effective_date'), $filterYear));
+
+        // Sortir: saat sortir nama, riwayat milik satu pegawai dikelompokkan, terbaru di atas
+        $sorter->apply($query, then: $sorter->key() === 'name'
+            ? ['staff_id', ['effective_date', 'desc']]
+            : []);
+
+        $histories = $query->paginate(10)->withQueryString();
 
         // Transformasi data untuk menghitung masa kerja dan KGB berikutnya
         $histories->getCollection()->transform(function ($history) {
@@ -57,11 +118,16 @@ class SalariesHistoryController extends Controller
             return $history;
         });
 
+        $filterVerificationStatus = $filterStatus;
+
         if ($request->header('HX-Request')) {
-            return view('pages.admin.career.salaries.partials._table', compact('histories'));
+            return view('pages.admin.career.salaries.partials._table', compact('histories') + $sorter->viewData());
         }
 
-        return view('pages.admin.career.salaries.index', compact('histories'));
+        return view(
+            'pages.admin.career.salaries.index',
+            compact('histories', 'search', 'filterVerificationStatus', 'filterYear') + $sorter->viewData()
+        );
     }
 
     public function show(Request $request, $id)

@@ -19,8 +19,8 @@ class TransferController extends Controller
     private const TABLE_VIEW = 'pages.admin.career.transfers.partials._table';
     private const FORM_VIEW = 'pages.admin.career.transfers.partials._form-modal';
 
-    /** Semua status "keluar" (selain aktif) yang tampil di daftar ini. Pensiun tetap ikut ditampilkan (read-only), meski perubahannya lewat menu Pensiun sendiri. */
-    private const OUT_STATUSES = ['transferred', 'resigned', 'retired', 'deceased', 'dismissed'];
+    /** Status "keluar" (selain aktif) yang tampil di daftar ini. Pensiun tidak termasuk: ditangani menu Pensiun sendiri. */
+    private const OUT_STATUSES = ['transferred', 'resigned', 'deceased', 'dismissed'];
 
     /** Pilihan status tujuan pada tombol "Mutasi". Pensiun sengaja tidak dimasukkan (menu terpisah). */
     private const MUTATION_TARGET_STATUSES = ['transferred', 'resigned', 'deceased', 'dismissed'];
@@ -61,6 +61,11 @@ class TransferController extends Controller
 
     public function index(Request $request)
     {
+        $search = trim((string) $request->input('search', ''));
+        $hasSearch = $search !== '';
+        // Escape wildcard LIKE (\, %, _) agar input pengguna dicari apa adanya.
+        $like = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $search) . '%';
+
         $year = $request->input('year');
         $filterStatus = $request->input('filter_status');
         $filterEmploymentStatus = $request->input('filter_employment_status');
@@ -68,6 +73,7 @@ class TransferController extends Controller
         $query = Data::completed()
             ->with(['vault'])
             ->whereIn('status', self::OUT_STATUSES)
+            ->when($hasSearch, fn($q) => $q->where('name', 'like', $like))
             ->addSelect([
                 'latest_decree_number' => StaffStatusHistory::select('decree_number')
                     ->whereColumn('staff_id', 'staff_data.id')
@@ -87,6 +93,9 @@ class TransferController extends Controller
             // Tanpa batasan tahun sama sekali.
         } elseif (!empty($year)) {
             $query->whereYear('status_effective_date', $year);
+        } elseif ($hasSearch) {
+            // Saat mencari tanpa memilih tahun, cari di semua periode agar pegawai
+            // yang dimutasi lebih dari 1 tahun lalu tetap ditemukan.
         } else {
             // Default: 1 tahun terakhir dari sekarang.
             $query->where('status_effective_date', '>=', now()->subYear()->startOfDay());
@@ -100,13 +109,19 @@ class TransferController extends Controller
             $query->where('employment_id', $filterEmploymentStatus);
         }
 
-        $staffList = $query->orderByDesc('status_effective_date')->paginate(10)->withQueryString();
+        $staffList = $query->orderByDesc('status_effective_date')->paginate(10)
+            ->withPath(route('admin.personnel.mutation.index'))
+            ->withQueryString();
 
         // Berkas SK dari peristiwa status terakhir tiap pegawai di halaman ini
         $this->attachLatestDocuments($staffList);
 
-        if ($request->header('HX-Request')) {
-            return view(self::TABLE_VIEW, compact('staffList'));
+        // Partial hanya untuk request htmx biasa. Restore riwayat (tombol Back/Forward)
+        // harus mendapat halaman penuh.
+        if ($request->header('HX-Request') && ! $request->header('HX-History-Restore-Request')) {
+            return response()
+                ->view(self::TABLE_VIEW, compact('staffList'))
+                ->header('Vary', 'HX-Request');
         }
 
         // Daftar tahun untuk dropdown filter: dari tahun status_effective_date
@@ -125,14 +140,15 @@ class TransferController extends Controller
             ->orderBy('code')
             ->get(['id', 'name']);
 
-        return view('pages.admin.career.transfers.index', compact(
+        return response()->view('pages.admin.career.transfers.index', compact(
             'staffList',
+            'search',
             'year',
             'filterStatus',
             'filterEmploymentStatus',
             'yearOptions',
             'employmentOptions'
-        ));
+        ))->header('Vary', 'HX-Request');
     }
 
     /*
@@ -450,7 +466,11 @@ class TransferController extends Controller
     private function respondWithSuccess(Request $request, string $message)
     {
         if ($request->header('HX-Request')) {
-            $table = $this->index($request)->render();
+            // Request simpan adalah POST; pulihkan pencarian/filter/halaman dari URL halaman saat ini.
+            parse_str((string) parse_url((string) $request->header('HX-Current-URL'), PHP_URL_QUERY), $current);
+            $request->merge(\Illuminate\Support\Arr::only($current, ['search', 'year', 'filter_status', 'filter_employment_status', 'page']));
+
+            $table = $this->index($request)->getContent();
 
             return response($table)
                 ->header('HX-Trigger', json_encode([

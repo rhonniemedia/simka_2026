@@ -1,6 +1,6 @@
 {{-- File: resources/views/pages/admin/career/transfers/partials/_table.blade.php --}}
 <div id="staff-container"
-    hx-get="{{ request()->fullUrl() }}"
+    hx-get="{{ $staffList->url($staffList->currentPage()) }}"
     hx-trigger="refreshStaffTransferData from:body"
     hx-swap="outerHTML">
 
@@ -55,7 +55,7 @@
                             </div>
                             <div class="min-w-0">
                                 <p class="font-semibold text-foreground text-sm truncate">{{ $staff->name }}</p>
-                                <p class="text-xs text-secondary mt-1 font-mono tracking-wide">{{ $staff->vault?->nik ?? '-' }}</p>
+                                <p class="text-xs text-secondary mt-1 tracking-wide">{{ $staff->vault?->nik ?? '-' }}</p>
                             </div>
                         </div>
                     </td>

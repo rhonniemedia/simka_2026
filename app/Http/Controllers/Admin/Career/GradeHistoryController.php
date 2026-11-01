@@ -7,6 +7,7 @@ use App\Models\Data;
 use App\Models\Grade;
 use App\Models\GradeHistory;
 use App\Services\Staff\StaffDocumentService;
+use App\Support\TableSort;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
@@ -22,10 +23,20 @@ class GradeHistoryController extends Controller
 
     public function index(Request $request)
     {
-        $search = $request->search;
+        $search        = $request->search;
+        $filterGradeId = $request->filter_grade_id;
+        $filterYear    = $request->filter_year;
 
-        // Mengambil data riwayat pangkat beserta relasi pegawai dan master golongan
-        $query = GradeHistory::with(['staff', 'grade', 'documents.category'])
+        $sorter = TableSort::make($request, [
+            'name'           => ['relation' => 'staff', 'column' => 'name'],
+            'grade'          => ['relation' => 'grade', 'column' => 'grade_code'],
+            'effective_date' => 'effective_date',
+        ], default: 'effective_date', defaultDirection: 'desc');
+
+        $model = new GradeHistory;
+
+        // Mengambil data riwayat pangkat beserta relasi
+        $query = GradeHistory::with(['staff.vault', 'grade', 'documents.category'])
             ->when($search, function ($q) use ($search) {
                 $q->where(function ($w) use ($search) {
                     $w->whereHas('staff', fn($s) => $s->where('name', 'like', "%{$search}%"))
@@ -35,16 +46,32 @@ class GradeHistoryController extends Controller
                         });
                 });
             })
-            ->orderBy('effective_date', 'desc');
+            ->when($filterGradeId, fn($q) => $q->where($model->qualifyColumn('grade_id'), $filterGradeId))
+            ->when($filterYear, fn($q) => $q->whereYear($model->qualifyColumn('effective_date'), $filterYear));
+
+        // Sortir: saat sortir nama, riwayat milik satu pegawai dikelompokkan, terbaru di atas
+        $sorter->apply($query, then: $sorter->key() === 'name'
+            ? ['staff_id', ['effective_date', 'desc']]
+            : [['effective_date', 'desc']]);
 
         $histories = $query->paginate(10)->withQueryString();
 
-        // Jika request dari HTMX (pencarian/pagination), kembalikan partial table saja
-        if ($request->header('HX-Request')) {
-            return view('pages.admin.career.grades.partials._table', compact('histories'));
+        $grades = Grade::orderBy('grade_code')->get();
+
+        $yearOptions = [];
+        $currentYear = date('Y');
+        for ($i = 0; $i < 5; $i++) {
+            $yearOptions[] = $currentYear - $i;
         }
 
-        return view('pages.admin.career.grades.index', compact('histories', 'search'));
+        if ($request->header('HX-Request')) {
+            return view('pages.admin.career.grades.partials._table', compact('histories') + $sorter->viewData());
+        }
+
+        return view(
+            'pages.admin.career.grades.index',
+            compact('histories', 'search', 'grades', 'filterGradeId', 'yearOptions', 'filterYear') + $sorter->viewData()
+        );
     }
 
     public function show(Request $request, $id)

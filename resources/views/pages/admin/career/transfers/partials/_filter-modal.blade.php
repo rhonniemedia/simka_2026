@@ -12,7 +12,6 @@ $yearSelectOptions = collect($yearOptions ?? [])
 $statusSelectOptions = [
 ['value' => 'transferred', 'label' => 'Pindah'],
 ['value' => 'resigned', 'label' => 'Mengundurkan Diri'],
-['value' => 'retired', 'label' => 'Pensiun'],
 ['value' => 'deceased', 'label' => 'Meninggal Dunia'],
 ['value' => 'dismissed', 'label' => 'Diberhentikan'],
 ];
@@ -86,7 +85,7 @@ $employmentSelectOptions = collect($employmentOptions ?? [])
         </div>
 
         {{-- Footer --}}
-        <div class="px-4 sm:px-6 py-4 border-t border-border bg-gray-50/50 flex flex-col-reverse sm:flex-row items-center justify-between shrink-0 gap-3">
+        <div class="px-4 sm:px-6 py-4 border-t border-border bg-gray-50/50 flex flex-col-reverse sm:flex-row items-center justify-end shrink-0 gap-3">
             {{-- Reset: kosongkan semua x-ui.select lewat event, lalu kirim ulang filter. --}}
             <button type="button"
                 @click="

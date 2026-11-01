@@ -1,8 +1,8 @@
 @php
 $relationLabels = [];
-foreach ($existing->relations ?? [] as $relation) {
-$enumLabel = \App\Enums\Staff\FamilyRelation::tryFrom($relation->relationship)?->label() ?? $relation->relationship;
-$staffName = $relation->staff?->name ?? '-';
+foreach ($existing->relations ?? [] as $existingRelation) {
+$enumLabel = \App\Enums\Staff\FamilyRelation::tryFrom($existingRelation->relationship)?->label() ?? $existingRelation->relationship;
+$staffName = $existingRelation->staff?->name ?? '-';
 $relationLabels[] = "{$enumLabel} dari {$staffName}";
 }
 
