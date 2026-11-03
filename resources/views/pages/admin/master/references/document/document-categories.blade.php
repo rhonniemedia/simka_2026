@@ -79,7 +79,7 @@
                                 </div>
                                 <div class="flex items-center gap-1.5 text-xs text-secondary mt-0.5 whitespace-nowrap">
                                     <span class="inline-block size-1.5 rounded-full bg-emerald-500 shrink-0"></span>
-                                    Grup: <span class="font-medium text-foreground">{{ $formatGroup($item->group) }}</span>
+                                    Grup: <span class="font-medium text-foreground">{{ $formatGroup($item->group_code) }}</span>
                                 </div>
                                 @if($item->code)
                                 <div class="text-[11px] text-secondary mt-0.5 font-mono">Kode: {{ $item->code }}</div>
@@ -147,7 +147,7 @@
             <div class="min-w-0 flex-1">
                 <div class="text-sm font-semibold text-foreground truncate">{{ $item->name }}</div>
                 <div class="text-xs text-secondary mt-0.5 truncate">
-                    <span class="font-medium text-foreground">{{ $formatGroup($item->group) }}</span>
+                    <span class="font-medium text-foreground">{{ $formatGroup($item->group_code) }}</span>
                     &bull; {{ $item->is_active ? 'Aktif' : 'Nonaktif' }}
                     @if($item->requires_document_number)
                     &bull; Wajib Nomor

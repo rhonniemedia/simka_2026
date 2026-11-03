@@ -22,7 +22,7 @@ class EmployeeDocumentController extends Controller
         }
 
         // Diurutkan berdasarkan group, kemudian data terbaru
-        $documentCategories = DocumentCategory::orderBy('group', 'asc')
+        $documentCategories = DocumentCategory::orderBy('group_code', 'asc')
             ->latest()
             ->paginate(10);
 
@@ -98,7 +98,7 @@ class EmployeeDocumentController extends Controller
         $validated = $request->validate([
             'name'  => ['required', 'string', 'max:255', $nameRule],
             'code'  => ['nullable', 'string', 'max:50', 'alpha_dash', Rule::unique(DocumentCategory::class, 'code')->ignore($id)],
-            'group' => ['required', Rule::enum(DocumentGroup::class)],
+            'group_code' => ['required', Rule::enum(DocumentGroup::class)],
             'linked_table' => ['nullable', Rule::in(array_keys(DocumentCategory::LINKABLE_TABLES))],
             'requires_document_number' => ['sometimes', 'boolean'],
             'is_active'                => ['sometimes', 'boolean'],

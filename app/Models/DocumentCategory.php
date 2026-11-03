@@ -35,9 +35,21 @@ class DocumentCategory extends Model
     protected function casts(): array
     {
         return [
-            'group'     => DocumentGroup::class,
-            'is_active' => 'boolean',
+            'group_code'               => DocumentGroup::class,
+            'is_active'                => 'boolean',
             'requires_document_number' => 'boolean',
+            'requires_document_date'   => 'boolean',
+            'sort_order'               => 'integer',
         ];
+    }
+
+    public function scopeActive($query)
+    {
+        return $query->where('is_active', true);
+    }
+
+    public function scopeOrdered($query)
+    {
+        return $query->orderBy('sort_order');
     }
 }
