@@ -7,6 +7,9 @@
 @section('content')
 <div class="px-5 py-8 md:p-8"
     x-data="{
+        viewMode: '{{ request('view', 'all') }}',
+        viewDropdownOpen: false,
+        searchQuery: '{{ $search ?? '' }}',
         filterModalOpen: false,
         isFilterActive: {{ (!empty($filterCategory) || !empty($filterVerification) || !empty($filterLink) || !empty($filterDateFrom) || !empty($filterDateTo)) ? 'true' : 'false' }},
         checkFilterStatus() {
@@ -28,7 +31,10 @@
             <p class="text-sm text-secondary">Pantau kelengkapan dan status verifikasi dokumen pegawai.</p>
         </div>
 
+        {{-- Tombol Tambah dikontrol instan oleh Alpine.js via x-show="viewMode === 'all'" --}}
         <button type="button"
+            x-show="viewMode === 'all'"
+            x-cloak
             hx-get="{{ route('admin.personnel.documents.create') }}"
             hx-target="#modal-container"
             hx-swap="innerHTML"
@@ -56,23 +62,21 @@
                 </div>
             </div>
 
-            {{-- Bagian Kanan: Pencarian & Filter --}}
-            <div class="flex items-center gap-2 w-full sm:w-auto" x-data="{ searchQuery: '{{ $search ?? '' }}', viewDropdownOpen: false, viewMode: '{{ request('view', 'all') }}' }">
+            {{-- Bagian Kanan: Switch Tampilan, Pencarian & Filter --}}
+            <div class="flex items-center gap-2 w-full sm:w-auto">
 
                 {{-- SWITCH TAMPILAN (DROPDOWN) --}}
                 <div class="relative" @click.away="viewDropdownOpen = false">
 
-                    {{-- Tombol Pemicu Dropdown (Dinamis berdasarkan viewMode) --}}
+                    {{-- Tombol Pemicu Dropdown --}}
                     <button type="button"
                         @click="viewDropdownOpen = !viewDropdownOpen"
                         class="flex items-center justify-between gap-3 px-3.5 h-11 rounded-xl bg-white border border-border text-sm font-semibold text-foreground hover:bg-muted transition-all cursor-pointer focus:outline-none focus:border-primary">
 
                         <div class="flex items-center gap-2">
-                            {{-- Ikon Dinamis --}}
                             <i data-lucide="files" x-show="viewMode === 'all'" class="size-4 text-primary shrink-0"></i>
                             <i data-lucide="users" x-show="viewMode === 'staff'" class="size-4 text-primary shrink-0" x-cloak></i>
 
-                            {{-- Label Teks Dinamis --}}
                             <span x-text="viewMode === 'all' ? 'Semua Dokumen' : 'Per Pegawai'"></span>
                         </div>
 
@@ -122,7 +126,7 @@
                     </div>
                 </div>
 
-                {{-- INPUT PENCARIAN (berdasarkan nama pegawai) --}}
+                {{-- INPUT PENCARIAN --}}
                 <div class="relative flex-1 sm:flex-none w-56 md:w-64 flex items-center">
                     <i data-lucide="search" class="absolute left-3.5 size-4 transition-colors pointer-events-none"
                         :class="searchQuery.length > 0 ? 'text-primary' : 'text-secondary'"></i>
@@ -165,12 +169,6 @@
                     <span
                         x-show="isFilterActive"
                         x-cloak
-                        x-transition:enter="transition ease-out duration-200 transform"
-                        x-transition:enter-start="opacity-0 scale-50"
-                        x-transition:enter-end="opacity-100 scale-100"
-                        x-transition:leave="transition ease-in duration-150 transform"
-                        x-transition:leave-start="opacity-100 scale-100"
-                        x-transition:leave-end="opacity-0 scale-50"
                         class="absolute -top-1 -right-1 flex h-3 w-3">
                         <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
                         <span class="relative inline-flex rounded-full h-3 w-3 bg-primary border-2 border-white"></span>
@@ -178,7 +176,6 @@
                 </button>
             </div>
 
-            {{-- Script untuk render ulang Lucide Icons setelah HTMX swap --}}
             @push('scripts')
             <script>
                 document.addEventListener('DOMContentLoaded', () => {
@@ -191,6 +188,7 @@
             @endpush
         </div>
 
+        {{-- Partial tabel dinamis tergantung mode tampilan --}}
         @if (($viewMode ?? 'all') === 'staff')
         @include('pages.admin.administration.documents.partials._staff-list', ['staffList' => $staffList])
         @else
@@ -199,6 +197,7 @@
 
     </div>
 
+    {{-- Modal Filter --}}
     @include('pages.admin.administration.documents.partials._filter-modal', [
     'filterCategory' => $filterCategory ?? '',
     'filterVerification' => $filterVerification ?? '',

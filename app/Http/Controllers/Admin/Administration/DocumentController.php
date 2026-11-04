@@ -16,6 +16,7 @@ use Throwable;
 
 class DocumentController extends Controller
 {
+    // Bagian method index dalam DocumentController.php
     public function index(Request $request)
     {
         $search             = $request->input('search');
@@ -33,8 +34,10 @@ class DocumentController extends Controller
             $hasFilters = filled($filterCategory) || filled($filterVerification)
                 || filled($filterDateFrom) || filled($filterDateTo);
 
+            // Menggunakan eager loading dan struktur query yang meniru modul pendidikan
             $staffList = Data::query()
                 ->select("{$table}.*")
+                ->with(['vault']) // Memuat vault untuk NIK jika diperlukan
                 ->addSelect([
                     'documents_count' => $this->applyFilters(
                         Document::query()->selectRaw('count(*)')->whereColumn('staff_id', "{$table}.id"),
@@ -42,7 +45,6 @@ class DocumentController extends Controller
                     ),
                 ])
                 ->when($search, fn($q, $s) => $q->where('name', 'like', "%{$s}%"))
-                // Kalau ada filter aktif, tampilkan hanya pegawai yang punya dokumen sesuai filter
                 ->when($hasFilters, fn($q) => $q->whereIn(
                     'id',
                     $this->applyFilters(Document::query(), $request)->select('staff_id')
@@ -77,6 +79,33 @@ class DocumentController extends Controller
         ]);
     }
 
+    // Menampilkan halaman detail dokumen milik satu pegawai secara utuh (menggantikan atau menyesuaikan staffDocuments yang lama)
+    public function show(Request $request, $staffId)
+    {
+        // Mengambil data pegawai beserta relasi vault (untuk NIK)
+        $staff = Data::with(['vault'])->findOrFail($staffId);
+
+        // Mengambil dokumen milik pegawai tersebut dengan menerapkan filter jika ada
+        $documents = $this->applyFilters(
+            Document::query()->with(['category', 'creator'])->where('staff_id', $staffId),
+            $request
+        )
+            ->orderByDesc('document_date')
+            ->orderByDesc('created_at')
+            ->paginate(10)
+            ->withQueryString();
+
+        return view('pages.admin.administration.documents.partials._show', [
+            'staff'     => $staff,
+            'documents' => $documents,
+            // Sertakan variabel filter jika diperlukan di view
+            'filterCategory'     => $request->input('filter_category'),
+            'filterVerification' => $request->input('filter_verification'),
+            'filterDateFrom'     => $request->input('filter_date_from'),
+            'filterDateTo'       => $request->input('filter_date_to'),
+        ]);
+    }
+
     // Dokumen milik satu pegawai (dimuat saat accordion dibuka)
     public function staffDocuments(Request $request, $staff)
     {
@@ -107,15 +136,6 @@ class DocumentController extends Controller
         return view('pages.admin.administration.documents.partials._document-form', $this->formOptions());
     }
 
-    public function edit($id)
-    {
-        $item = Document::findOrFail($id);
-        return view('pages.admin.administration.documents.partials._document-form', array_merge(
-            $this->formOptions(),
-            ['item' => $item]
-        ));
-    }
-
     public function store(Request $request)
     {
         $validated = $this->validated($request, isCreate: true);
@@ -138,21 +158,48 @@ class DocumentController extends Controller
         return $this->respondWithSuccess('Dokumen berhasil ditambahkan.');
     }
 
+    public function edit($id)
+    {
+        $item = Document::with('category')->findOrFail($id);
+
+        // Cek apakah dokumen ini bertaut ke data riwayat tertentu
+        $isLinked = filled($item->linked_record_id) || filled($item->category?->linked_table);
+
+        return view('pages.admin.administration.documents.partials._document-form', array_merge(
+            $this->formOptions(),
+            [
+                'item'     => $item,
+                'isLinked' => $isLinked, // Kirim status tautan ke view
+            ]
+        ));
+    }
+
     public function update(Request $request, $id)
     {
-        $item = Document::findOrFail($id);
+        $item = Document::with('category')->findOrFail($id);
+        $isLinked = filled($item->linked_record_id) || filled($item->category?->linked_table);
+
+        // JIKA DOKUMEN BERTAUT: Hanya izinkan mengubah verification_status
+        if ($isLinked) {
+            $validated = $request->validate([
+                'verification_status' => 'required|in:draft,verified,rejected',
+            ]);
+
+            $item->update([
+                'verification_status' => $validated['verification_status'],
+                'updated_by'          => Auth::id(),
+            ]);
+
+            return $this->respondWithSuccess('Status verifikasi dokumen berhasil diperbarui.');
+        }
+
+        // JIKA DOKUMEN MANDIRI: Jalankan proses update penuh seperti biasa
         $validated = $this->validated($request, isCreate: false);
 
         $payload = array_merge($validated, ['updated_by' => Auth::id()]);
         unset($payload['file']);
 
-        // File baru diupload -> ganti file lama. Kalau tidak, biarkan
-        // file_path/metadata lama tetap seperti sebelumnya.
         if ($request->hasFile('file')) {
-            // Berkas lama bisa saja sudah hilang dari penyimpanan; delete()
-            // pada disk 'throw' => true tetap aman karena hanya mengembalikan
-            // false/true untuk file yang tidak ada, tapi dibungkus agar update
-            // tidak gagal hanya karena berkas lama bermasalah.
             try {
                 if (filled($item->file_path)) {
                     Storage::disk('documents')->delete($item->file_path);
@@ -264,39 +311,41 @@ class DocumentController extends Controller
             'staffOptions' => Data::orderBy('name')->get(['id', 'name'])
                 ->map(fn($s) => ['value' => $s->id, 'label' => $s->name])
                 ->toArray(),
-            'categoryOptions' => DocumentCategory::orderBy('name')->get(['id', 'name'])
+
+            // Mengambil kategori dokumen mandiri dan mengurutkannya berdasarkan sort_order
+            'categoryOptions' => DocumentCategory::where(function ($query) {
+                $query->where('linked_table', '')
+                    ->orWhereNull('linked_table');
+            })
+                ->orderBy('sort_order') // Diurutkan berdasarkan sort_order
+                ->orderBy('name')       // Urutan cadangan jika sort_order bernilai sama
+                ->get(['id', 'name'])
                 ->map(fn($c) => ['value' => $c->id, 'label' => $c->name])
                 ->toArray(),
         ];
     }
 
-    // private function formOptions(): array
-    // {
-    //     return [
-    //         'staffOptions' => Data::orderBy('name')->get(['id', 'name'])
-    //             ->map(fn($s) => ['value' => $s->id, 'label' => $s->name])
-    //             ->toArray(),
-    //         'categoryOptions' => DocumentCategory::where(function ($query) {
-    //             $query->where('linked_table', '')
-    //                 ->orWhereNull('linked_table');
-    //         })
-    //             ->orderBy('name')
-    //             ->get(['id', 'name'])
-    //             ->map(fn($c) => ['value' => $c->id, 'label' => $c->name])
-    //             ->toArray(),
-    //     ];
-    // }
-
     private function validated(Request $request, bool $isCreate): array
     {
         return $request->validate([
-            'staff_id'                    => 'required|uuid|exists:staff_data,id',
-            'staff_document_category_id'  => 'required|uuid|exists:staff_document_categories,id',
-            'document_name'               => 'required|string|max:255',
-            'document_number'             => 'nullable|string|max:255',
-            'document_date'               => 'nullable|date',
-            'verification_status'         => 'required|in:draft,verified,rejected',
-            'file'                        => ($isCreate ? 'required' : 'nullable') . '|file|mimes:pdf,jpg,jpeg,png|max:10240',
+            'staff_id'                   => 'required|uuid|exists:staff_data,id',
+            // Pastikan kategori yang dipilih valid DAN tidak memiliki linked_table (harus mandiri)
+            'staff_document_category_id' => [
+                'required',
+                'uuid',
+                'exists:staff_document_categories,id',
+                function ($attribute, $value, $fail) {
+                    $category = DocumentCategory::find($value);
+                    if ($category && filled($category->linked_table)) {
+                        $fail('Kategori dokumen ini terikat pada data riwayat khusus dan harus diunggah melalui menu terkait.');
+                    }
+                },
+            ],
+            'document_name'              => 'required|string|max:255',
+            'document_number'            => 'nullable|string|max:255',
+            'document_date'              => 'nullable|date',
+            'verification_status'        => 'required|in:draft,verified,rejected',
+            'file'                       => ($isCreate ? 'required' : 'nullable') . '|file|mimes:pdf,jpg,jpeg,png|max:10240',
         ]);
     }
 
