@@ -25,7 +25,7 @@
                 <span>Tambah Dokumen</span>
             </button>
             {{-- Tombol Kembali (Bulat di sebelah kanan tombol tambah) --}}
-            <a href="{{ route('admin.personnel.documents.index', ['view' => 'staff']) }}"
+            <a href="{{ $backUrl }}"
                 title="Kembali"
                 class="flex items-center justify-center size-[42px] shrink-0 rounded-full bg-white border border-border text-secondary hover:text-green-500 hover:border-green-500 transition-colors duration-300 cursor-pointer">
                 <i data-lucide="arrow-left" class="size-4 sm:size-5"></i>
@@ -63,8 +63,18 @@
 
     {{-- 3. TABEL DATA DOKUMEN --}}
     <div class="bg-white rounded-2xl border border-border p-5">
-        <div class="mb-5">
-            <h2 class="text-lg font-bold text-foreground">Daftar Dokumen Pegawai</h2>
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-5">
+            <div>
+                <h2 class="text-lg font-bold text-foreground">Daftar Dokumen Pegawai</h2>
+                <p class="text-xs sm:text-sm text-secondary mt-0.5">Cari berdasarkan nama atau nomor dokumen, atau gunakan filter.</p>
+            </div>
+
+            @include('pages.admin.administration.documents.partials._filter-bar', [
+            'actionUrl' => route('admin.personnel.documents.staff', $staff->id),
+            'showViewSwitch' => false,
+            'searchPlaceholder' => 'Cari nama / nomor dokumen...',
+            'persistParams' => $persistParams ?? [],
+            ])
         </div>
 
         <div id="documents-container" class="animate-fade-in"
@@ -74,7 +84,13 @@
             hx-select="#documents-container"
             hx-swap="outerHTML"
             hx-push-url="true"
-            data-no-loader>
+            data-no-loader
+            data-view="all"
+            data-filter-count="{{ $activeFilterCount ?? 0 }}"
+            data-search="{{ $search ?? '' }}">
+
+            {{-- Ringkasan filter aktif (server-side) --}}
+            @include('pages.admin.administration.documents.partials._active-filters')
 
             @php
             $verificationBadges = [
@@ -140,6 +156,9 @@
                                 <div class="text-xs text-secondary mt-1 truncate">
                                     Oleh: {{ $item->creator->name ?? $item->creator->username ?? 'Admin' }}
                                 </div>
+                                <div class="mt-1">
+                                    @include('pages.admin.administration.documents.partials._link-badge', ['item' => $item])
+                                </div>
                             </td>
                             <td class="px-4 py-4">
                                 <div x-data="{ open: false, menuX: 0, menuY: 0, toggle() { if(this.open) { this.open = false; return; } this.open = true; this.$nextTick(() => { const btn = this.$refs.button.getBoundingClientRect(); const menu = this.$refs.menu.getBoundingClientRect(); const spaceBelow = window.innerHeight - btn.bottom; const spaceAbove = btn.top; const dropUp = spaceBelow < menu.height && spaceAbove > menu.height; this.menuX = btn.right - menu.width; this.menuY = dropUp ? (btn.top - menu.height - 4) : (btn.bottom + 4); }); } }" @click.outside="open = false" @scroll.window="open = false" @resize.window="open = false" class="relative inline-block text-left">
@@ -178,7 +197,7 @@
                             <td colspan="4" class="px-4 py-16 text-center text-secondary">
                                 <div class="flex flex-col items-center gap-3">
                                     <i data-lucide="inbox" class="size-10 text-border"></i>
-                                    <p class="font-medium text-sm">Belum ada data dokumen untuk pegawai ini.</p>
+                                    <p class="font-medium text-sm">{{ (($activeFilterCount ?? 0) > 0 || filled($search ?? null)) ? 'Tidak ada dokumen yang sesuai pencarian atau filter.' : 'Belum ada data dokumen untuk pegawai ini.' }}</p>
                                 </div>
                             </td>
                         </tr>
@@ -231,6 +250,9 @@
                                 </div>
                             </div>
                             <div class="text-xs text-secondary mt-0.5 truncate">{{ $item->category->name ?? '-' }} &bull; {{ $item->document_date?->translatedFormat('d M Y') ?? '-' }}</div>
+                            <div class="mt-1">
+                                @include('pages.admin.administration.documents.partials._link-badge', ['item' => $item])
+                            </div>
                             <div class="flex items-center justify-between mt-1.5">
                                 <div class="flex items-center gap-1.5">
                                     <span class="size-1.5 rounded-full {{ $badge['dot'] }}"></span>
@@ -242,7 +264,7 @@
                 </div>
                 @empty
                 <div class="px-4 py-16 text-center text-secondary">
-                    <p class="font-medium text-sm">Belum ada data dokumen untuk pegawai ini.</p>
+                    <p class="font-medium text-sm">{{ (($activeFilterCount ?? 0) > 0 || filled($search ?? null)) ? 'Tidak ada dokumen yang sesuai pencarian atau filter.' : 'Belum ada data dokumen untuk pegawai ini.' }}</p>
                 </div>
                 @endforelse
             </div>

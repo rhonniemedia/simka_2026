@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -72,5 +73,27 @@ class Document extends Model
     public function scopeCategoryId($query, ?string $categoryId)
     {
         return $categoryId ? $query->where('staff_document_category_id', $categoryId) : $query;
+    }
+
+    public function scopeLinkStatus(Builder $query, ?string $status): Builder
+    {
+        return match ($status) {
+            'linked' => $query->whereNotNull('linked_record_id'),
+
+            'unlinked' => $query->whereNull('linked_record_id')
+                ->whereHas('category', fn(Builder $c) => $c
+                    ->whereNotNull('linked_table')
+                    ->where('linked_table', '!=', '')),
+
+            'standalone' => $query->whereNull('linked_record_id')
+                ->where(fn(Builder $q) => $q
+                    ->whereDoesntHave('category')
+                    ->orWhereHas('category', fn(Builder $c) => $c
+                        ->where(fn(Builder $w) => $w
+                            ->whereNull('linked_table')
+                            ->orWhere('linked_table', '')))),
+
+            default => $query,
+        };
     }
 }

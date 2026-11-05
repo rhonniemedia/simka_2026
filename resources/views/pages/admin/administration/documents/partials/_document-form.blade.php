@@ -91,7 +91,7 @@ $verificationOptions = [
                     <x-ui.searchable-select
                         name="staff_id"
                         :options="$staffOptions"
-                        :value="old('staff_id', $item?->staff_id ?? '')"
+                        :value="old('staff_id', $item?->staff_id ?? ($selectedStaffId ?? ''))"
                         placeholder="Cari nama pegawai..." />
                 </div>
 

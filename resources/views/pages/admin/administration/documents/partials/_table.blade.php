@@ -5,7 +5,13 @@
     hx-select="#documents-container"
     hx-swap="outerHTML"
     hx-push-url="true"
-    data-no-loader>
+    data-no-loader
+    data-view="{{ $viewMode ?? 'all' }}"
+    data-filter-count="{{ $activeFilterCount ?? 0 }}"
+    data-search="{{ $search ?? '' }}">
+
+    {{-- Ringkasan filter aktif (server-side) --}}
+    @include('pages.admin.administration.documents.partials._active-filters')
 
     @php
     $verificationBadges = [
@@ -13,27 +19,6 @@
     'verified' => ['dot' => 'bg-emerald-500', 'text' => 'text-emerald-700', 'label' => 'Terverifikasi'],
     'rejected' => ['dot' => 'bg-red-500', 'text' => 'text-red-700', 'label' => 'Ditolak'],
     ];
-
-    // Keterangan tautan: "Terkait dengan" / "Belum bertaut" / "Mandiri".
-    $linkInfo = function ($item) {
-    if ($item->linked_record_id) {
-    $label = null;
-
-    try {
-    $label = $item->linkedRecord?->documentLabel();
-    } catch (\Throwable $e) {
-    $label = null;
-    }
-
-    return $label
-    ? ['text' => 'text-slate-600', 'icon' => 'link', 'label' => $label]
-    : ['text' => 'text-amber-600', 'icon' => 'unlink', 'label' => 'Data terkait tidak ditemukan'];
-    }
-
-    return filled($item->category?->linked_table)
-    ? ['text' => 'text-amber-600', 'icon' => 'unlink', 'label' => 'Belum bertaut']
-    : ['text' => 'text-secondary', 'icon' => 'file', 'label' => 'Mandiri'];
-    };
     @endphp
 
     {{-- ============ DESKTOP TABLE ============ --}}
@@ -63,7 +48,6 @@
                 @forelse ($documents as $item)
                 @php
                 $badge = $verificationBadges[$item->verification_status] ?? $verificationBadges['draft'];
-                $link = $linkInfo($item);
                 @endphp
                 <tr class="border-b border-border hover:bg-muted/50 transition-colors">
                     {{-- Dokumen: ikon PDF + nama + tanggal --}}
@@ -100,6 +84,9 @@
                         <div class="flex items-center gap-1.5 mt-1.5">
                             <span class="size-1.5 rounded-full {{ $badge['dot'] }}"></span>
                             <span class="text-xs font-bold {{ $badge['text'] }}">{{ $badge['label'] }}</span>
+                        </div>
+                        <div class="mt-1.5">
+                            @include('pages.admin.administration.documents.partials._link-badge', ['item' => $item])
                         </div>
                     </td>
 
@@ -141,7 +128,7 @@
                     <td colspan="4" class="px-4 py-16 text-center text-secondary">
                         <div class="flex flex-col items-center gap-3">
                             <i data-lucide="inbox" class="size-10 text-border"></i>
-                            <p class="font-medium">Belum ada data dokumen.</p>
+                            <p class="font-medium">{{ ($activeFilterCount ?? 0) > 0 ? 'Tidak ada dokumen yang sesuai filter.' : 'Belum ada data dokumen.' }}</p>
                         </div>
                     </td>
                 </tr>
@@ -155,7 +142,6 @@
         @forelse ($documents as $item)
         @php
         $badge = $verificationBadges[$item->verification_status] ?? $verificationBadges['draft'];
-        $link = $linkInfo($item);
         @endphp
         <div class="py-3.5">
             <div class="flex items-start gap-3">
@@ -195,6 +181,9 @@
                         </div>
                     </div>
                     <div class="text-xs text-secondary mt-0.5 truncate">{{ $item->staff->name ?? '-' }} &bull; {{ $item->category->name ?? '-' }}</div>
+                    <div class="mt-1">
+                        @include('pages.admin.administration.documents.partials._link-badge', ['item' => $item])
+                    </div>
                     <div class="flex items-center justify-between mt-1.5">
                         <div class="flex items-center gap-1.5">
                             <span class="size-1.5 rounded-full {{ $badge['dot'] }}"></span>
@@ -207,7 +196,7 @@
         </div>
         @empty
         <div class="px-4 py-16 text-center text-secondary">
-            <p class="font-medium text-sm">Belum ada data dokumen.</p>
+            <p class="font-medium text-sm">{{ ($activeFilterCount ?? 0) > 0 ? 'Tidak ada dokumen yang sesuai filter.' : 'Belum ada data dokumen.' }}</p>
         </div>
         @endforelse
     </div>

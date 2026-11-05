@@ -16,36 +16,45 @@ use Throwable;
 
 class DocumentController extends Controller
 {
-    // Bagian method index dalam DocumentController.php
     public function index(Request $request)
     {
-        $search             = $request->input('search');
-        $filterCategory     = $request->input('filter_category');
-        $filterVerification = $request->input('filter_verification');
-        $filterDateFrom     = $request->input('filter_date_from');
-        $filterDateTo       = $request->input('filter_date_to');
-        $viewMode           = $request->input('view') === 'staff' ? 'staff' : 'all';
+        $this->normalizeFilters($request);
+
+        $search   = $request->input('search');
+        $viewMode = $request->input('view') === 'staff' ? 'staff' : 'all';
 
         $documents = null;
         $staffList = null;
 
         if ($viewMode === 'staff') {
-            $table = (new Data)->getTable();
-            $hasFilters = filled($filterCategory) || filled($filterVerification)
-                || filled($filterDateFrom) || filled($filterDateTo);
+            $table      = (new Data)->getTable();
+            $hasFilters = $this->activeFilterCount($request) > 0;
+            $missing    = $request->input('filter_presence') === 'missing';
 
-            // Menggunakan eager loading dan struktur query yang meniru modul pendidikan
+            // Dua mode, memakai filter yang sama:
+            //  has     (bawaan): pegawai yang PUNYA >= 1 dokumen sesuai filter; documents_count = jumlah yang cocok.
+            //  missing         : pegawai yang TIDAK punya satu pun dokumen sesuai filter
+            //                    (tanpa filter lain = pegawai tanpa dokumen sama sekali);
+            //                    total_documents_count = seluruh berkas pegawai itu, sebagai konteks.
             $staffList = Data::query()
                 ->select("{$table}.*")
-                ->with(['vault']) // Memuat vault untuk NIK jika diperlukan
+                ->with(['vault'])
                 ->addSelect([
                     'documents_count' => $this->applyFilters(
                         Document::query()->selectRaw('count(*)')->whereColumn('staff_id', "{$table}.id"),
                         $request
                     ),
                 ])
+                ->when($missing, fn($q) => $q->addSelect([
+                    'total_documents_count' => Document::query()->selectRaw('count(*)')->whereColumn('staff_id', "{$table}.id"),
+                ]))
                 ->when($search, fn($q, $s) => $q->where('name', 'like', "%{$s}%"))
-                ->when($hasFilters, fn($q) => $q->whereIn(
+                ->when($missing, fn($q) => $q->whereNotIn(
+                    'id',
+                    // whereNotNull: NOT IN dengan nilai NULL membuat seluruh hasil kosong
+                    $this->applyFilters(Document::query(), $request)->whereNotNull('staff_id')->select('staff_id')
+                ))
+                ->when(! $missing && $hasFilters, fn($q) => $q->whereIn(
                     'id',
                     $this->applyFilters(Document::query(), $request)->select('staff_id')
                 ))
@@ -55,7 +64,7 @@ class DocumentController extends Controller
         } else {
             $documents = $this->applyFilters(
                 Document::query()
-                    ->with(['staff', 'category'])
+                    ->with(['staff', 'category', 'creator', 'linkedRecord'])
                     ->when($search, fn($query, $s) => $query->whereHas('staff', fn($q) => $q->where('name', 'like', "%{$s}%"))),
                 $request
             )
@@ -64,30 +73,34 @@ class DocumentController extends Controller
                 ->withQueryString();
         }
 
-        $categoryOptions = DocumentCategory::orderBy('name')->pluck('name', 'id');
-
-        return view('pages.admin.administration.documents.index', [
-            'viewMode'           => $viewMode,
-            'documents'          => $documents,
-            'staffList'          => $staffList,
-            'search'             => $search,
-            'filterCategory'     => $filterCategory,
-            'filterVerification' => $filterVerification,
-            'filterDateFrom'     => $filterDateFrom,
-            'filterDateTo'       => $filterDateTo,
-            'categoryOptions'    => $categoryOptions,
-        ]);
+        return view('pages.admin.administration.documents.index', array_merge(
+            $this->filterViewData($request, $viewMode),
+            [
+                'viewMode'  => $viewMode,
+                'documents' => $documents,
+                'staffList' => $staffList,
+                'search'    => $search,
+            ]
+        ));
     }
 
-    // Menampilkan halaman detail dokumen milik satu pegawai secara utuh (menggantikan atau menyesuaikan staffDocuments yang lama)
+    // Halaman detail dokumen milik satu pegawai (route: admin.personnel.documents.staff)
     public function show(Request $request, $staffId)
     {
-        // Mengambil data pegawai beserta relasi vault (untuk NIK)
-        $staff = Data::with(['vault'])->findOrFail($staffId);
+        $this->normalizeFilters($request);
 
-        // Mengambil dokumen milik pegawai tersebut dengan menerapkan filter jika ada
+        $search = $request->input('search');
+        $staff  = Data::with(['vault'])->findOrFail($staffId);
+
         $documents = $this->applyFilters(
-            Document::query()->with(['category', 'creator'])->where('staff_id', $staffId),
+            Document::query()
+                ->with(['category', 'creator', 'linkedRecord'])
+                ->where('staff_id', $staffId)
+                // Di halaman ini pencarian berlaku pada dokumen (nama / nomor), bukan nama pegawai.
+                ->when($search, fn($query, $s) => $query->where(
+                    fn($w) => $w->where('document_name', 'like', "%{$s}%")
+                        ->orWhere('document_number', 'like', "%{$s}%")
+                )),
             $request
         )
             ->orderByDesc('document_date')
@@ -95,45 +108,141 @@ class DocumentController extends Controller
             ->paginate(10)
             ->withQueryString();
 
-        return view('pages.admin.administration.documents.partials._show', [
-            'staff'     => $staff,
-            'documents' => $documents,
-            // Sertakan variabel filter jika diperlukan di view
-            'filterCategory'     => $request->input('filter_category'),
-            'filterVerification' => $request->input('filter_verification'),
-            'filterDateFrom'     => $request->input('filter_date_from'),
-            'filterDateTo'       => $request->input('filter_date_to'),
-        ]);
+        $backParam = $this->resolveBackParam($request);
+
+        return view('pages.admin.administration.documents.partials._show', array_merge(
+            $this->filterViewData($request),
+            [
+                'staff'         => $staff,
+                'documents'     => $documents,
+                'search'        => $search,
+                // Tujuan tombol "Kembali": daftar asal (lengkap dengan pencarian, filter, halaman).
+                'backUrl'       => $backParam ?? route('admin.personnel.documents.index', ['view' => 'staff']),
+                // Parameter yang harus ikut di setiap request filter halaman ini.
+                'persistParams' => $backParam ? ['back' => $backParam] : [],
+            ]
+        ));
     }
 
-    // Dokumen milik satu pegawai (dimuat saat accordion dibuka)
-    public function staffDocuments(Request $request, $staff)
-    {
-        $documents = $this->applyFilters(
-            Document::query()->with('category')->where('staff_id', $staff),
-            $request
-        )
-            ->orderByDesc('document_date')
-            ->orderByDesc('created_at')
-            ->get();
-
-        return view('pages.admin.administration.documents.partials._staff-documents', [
-            'documents' => $documents,
-        ]);
-    }
+    /*
+    |--------------------------------------------------------------------
+    | Filter (dipakai tab Semua Dokumen, tab Per Pegawai, dan halaman detail)
+    |--------------------------------------------------------------------
+    */
 
     private function applyFilters($query, Request $request)
     {
         return $query
             ->categoryId($request->input('filter_category'))
             ->verificationStatus($request->input('filter_verification'))
+            ->linkStatus($request->input('filter_link'))
             ->when($request->input('filter_date_from'), fn($q, $v) => $q->whereDate('document_date', '>=', $v))
             ->when($request->input('filter_date_to'), fn($q, $v) => $q->whereDate('document_date', '<=', $v));
     }
 
-    public function create()
+    /**
+     * Membersihkan input filter SEBELUM dipakai: nilai tidak valid dibuang
+     * (jadi dianggap tidak ada filter) dan rentang tanggal terbalik ditukar.
+     * Dengan begitu query, hitungan filter aktif, dan tampilan selalu konsisten.
+     */
+    private function normalizeFilters(Request $request): void
     {
-        return view('pages.admin.administration.documents.partials._document-form', $this->formOptions());
+        $dateOk = fn($v) => is_string($v) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $v) === 1;
+
+        $from = $request->input('filter_date_from');
+        $to   = $request->input('filter_date_to');
+        $from = $dateOk($from) ? $from : null;
+        $to   = $dateOk($to) ? $to : null;
+
+        if ($from && $to && $from > $to) {
+            [$from, $to] = [$to, $from];
+        }
+
+        $category     = $request->input('filter_category');
+        $verification = $request->input('filter_verification');
+        $link         = $request->input('filter_link');
+
+        $request->merge([
+            'filter_category'     => is_string($category) && Str::isUuid($category) ? $category : null,
+            'filter_verification' => in_array($verification, ['draft', 'verified', 'rejected'], true) ? $verification : null,
+            'filter_link'         => in_array($link, ['linked', 'unlinked', 'standalone'], true) ? $link : null,
+            // 'has' = perilaku bawaan, jadi tidak perlu disimpan sebagai filter
+            'filter_presence'     => $request->input('filter_presence') === 'missing' ? 'missing' : null,
+            'filter_date_from'    => $from,
+            'filter_date_to'      => $to,
+        ]);
+    }
+
+    // Jumlah kelompok filter yang aktif (rentang tanggal dihitung satu).
+    // filter_presence hanya relevan di tab Per Pegawai, jadi baru dihitung bila diminta.
+    private function activeFilterCount(Request $request, bool $includePresence = false): int
+    {
+        $count = 0;
+
+        if ($includePresence && $request->input('filter_presence') === 'missing') {
+            $count++;
+        }
+
+        foreach (['filter_category', 'filter_verification', 'filter_link'] as $key) {
+            if (filled($request->input($key))) {
+                $count++;
+            }
+        }
+
+        if (filled($request->input('filter_date_from')) || filled($request->input('filter_date_to'))) {
+            $count++;
+        }
+
+        return $count;
+    }
+
+    // Data filter yang dikirim ke view (modal, indikator, chip filter aktif).
+    private function filterViewData(Request $request, string $viewMode = 'all'): array
+    {
+        return [
+            'filterPresence'     => $request->input('filter_presence'),
+            'filterCategory'     => $request->input('filter_category'),
+            'filterVerification' => $request->input('filter_verification'),
+            'filterLink'         => $request->input('filter_link'),
+            'filterDateFrom'     => $request->input('filter_date_from'),
+            'filterDateTo'       => $request->input('filter_date_to'),
+            'activeFilterCount'  => $this->activeFilterCount($request, $viewMode === 'staff'),
+            'categoryOptions'    => DocumentCategory::orderBy('name')->pluck('name', 'id'),
+        ];
+    }
+
+    /**
+     * Parameter "back" (URL daftar asal) hanya diterima bila mengarah ke halaman
+     * index dokumen. Yang dipakai hanya path + query-nya, jadi tidak bisa dipakai
+     * untuk mengarahkan pengguna ke situs lain (open redirect).
+     */
+    private function resolveBackParam(Request $request): ?string
+    {
+        $back = $request->input('back');
+
+        if (! is_string($back) || $back === '') {
+            return null;
+        }
+
+        $indexPath = parse_url(route('admin.personnel.documents.index'), PHP_URL_PATH);
+        $parts     = parse_url($back);
+
+        if ($parts === false || ($parts['path'] ?? null) !== $indexPath) {
+            return null;
+        }
+
+        return $indexPath . (isset($parts['query']) ? '?' . $parts['query'] : '');
+    }
+
+    public function create(Request $request)
+    {
+        // Dari halaman detail pegawai, tombol Tambah mengirim ?staff_id=... supaya pegawai terpilih otomatis.
+        $staffId = $request->input('staff_id');
+
+        return view('pages.admin.administration.documents.partials._document-form', array_merge(
+            $this->formOptions(),
+            ['selectedStaffId' => is_string($staffId) && Str::isUuid($staffId) ? $staffId : null]
+        ));
     }
 
     public function store(Request $request)
@@ -345,7 +454,7 @@ class DocumentController extends Controller
             'document_number'            => 'nullable|string|max:255',
             'document_date'              => 'nullable|date',
             'verification_status'        => 'required|in:draft,verified,rejected',
-            'file'                       => ($isCreate ? 'required' : 'nullable') . '|file|mimes:pdf,jpg,jpeg,png|max:10240',
+            'file'                       => ($isCreate ? 'required' : 'nullable') . '|file|mimes:pdf|max:1024',
         ]);
     }
 
@@ -355,8 +464,8 @@ class DocumentController extends Controller
     private function storeFile(UploadedFile $file, string $staffId): string
     {
         $uuid = (string) Str::uuid();
-        $extension = $file->getClientOriginalExtension();
-        $storedPath = "{$staffId}/{$uuid}.{$extension}";
+        // Hanya PDF yang lolos validasi, jadi ekstensi dikunci 'pdf' (bukan dari nama file kiriman pengguna).
+        $storedPath = "{$staffId}/{$uuid}.pdf";
 
         /** @var FilesystemAdapter $disk */
         $disk = Storage::disk('documents');

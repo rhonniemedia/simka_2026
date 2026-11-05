@@ -1,3 +1,7 @@
+{{--
+    Modal filter. Dipakai lewat _filter-bar (yang menyediakan state Alpine `filterModalOpen`).
+    Param: $actionUrl, $showViewSwitch, $persistParams
+--}}
 <x-ui.modal show="filterModalOpen" maxWidth="lg">
 
     {{-- Header --}}
@@ -19,6 +23,14 @@
     {{-- Form filter --}}
     <div id="documents-filter-form" class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 sm:space-y-6">
 
+        {{-- Parameter non-filter yang harus selalu ikut agar konteks halaman tidak hilang --}}
+        @if ($showViewSwitch ?? false)
+        <input type="hidden" name="view" :value="viewMode">
+        @endif
+        @foreach (($persistParams ?? []) as $pKey => $pVal)
+        <input type="hidden" name="{{ $pKey }}" value="{{ $pVal }}">
+        @endforeach
+
         @php
         $catOptions = [];
         if (isset($categoryOptions)) {
@@ -38,7 +50,35 @@
         ['value' => 'verified', 'label' => 'Terverifikasi'],
         ['value' => 'rejected', 'label' => 'Ditolak'],
         ];
+
+        $presenceOptions = [
+        ['value' => 'has', 'label' => 'Memiliki dokumen sesuai filter'],
+        ['value' => 'missing', 'label' => 'Belum memiliki dokumen sesuai filter'],
+        ];
         @endphp
+
+        {{-- Grup: Tampilan Per Pegawai (hanya muncul di tab Per Pegawai) --}}
+        @if ($showViewSwitch ?? false)
+        <div x-show="viewMode === 'staff'" x-cloak class="space-y-3 pb-5 border-b border-border/70">
+            <p class="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-secondary">
+                <i data-lucide="users" class="size-3.5"></i>
+                Tampilan Per Pegawai
+            </p>
+            <div>
+                <label class="block text-sm text-foreground mb-2">Tampilkan pegawai yang</label>
+                <x-ui.select
+                    name="filter_presence"
+                    :options="$presenceOptions"
+                    value="{{ $filterPresence ?? '' }}"
+                    placeholder="Memiliki dokumen sesuai filter" />
+                <p class="mt-1.5 text-[11px] leading-relaxed text-secondary">
+                    Pilih <span class="font-semibold">Belum memiliki</span> untuk mencari kekurangan berkas. Contoh: kategori
+                    "Ijazah" + "Belum memiliki" = pegawai yang belum punya Ijazah. Tanpa filter lain = pegawai yang belum
+                    punya dokumen sama sekali.
+                </p>
+            </div>
+        </div>
+        @endif
 
         {{-- Grup: Kategori & Status --}}
         <div class="space-y-3">
@@ -70,6 +110,11 @@
                         :options="$linkOptions"
                         value="{{ $filterLink ?? '' }}"
                         placeholder="Semua" />
+                    <p class="mt-1.5 text-[11px] leading-relaxed text-secondary">
+                        <span class="font-semibold">Bertaut</span>: terhubung ke data riwayat.
+                        <span class="font-semibold">Belum bertaut</span>: kategorinya riwayat, tetapi belum terhubung.
+                        <span class="font-semibold">Mandiri</span>: unggahan bebas.
+                    </p>
                 </div>
             </div>
         </div>
@@ -99,10 +144,7 @@
     {{-- Footer --}}
     <div class="px-4 sm:px-6 py-4 border-t border-border bg-gray-50/50 flex flex-col-reverse sm:flex-row items-center justify-between shrink-0 gap-3">
         <button type="button"
-            @click="
-                $dispatch('reset-filters');
-                setTimeout(() => { document.getElementById('btn-apply-document-filter').click(); }, 50);
-            "
+            @click="filterModalOpen = false; resetFilters(@js($showViewSwitch ?? false) ? viewMode : null)"
             class="flex items-center justify-center gap-1.5 w-full sm:w-auto px-4 py-2.5 sm:py-2 rounded-xl border border-border bg-white text-secondary hover:bg-muted transition-colors cursor-pointer text-sm">
             <i data-lucide="rotate-ccw" class="size-3.5"></i>
             Reset Filter
@@ -110,7 +152,7 @@
 
         <button type="button"
             id="btn-apply-document-filter"
-            hx-get="{{ route('admin.personnel.documents.index') }}"
+            hx-get="{{ $actionUrl }}"
             hx-include="#documents-filter-form, [name='search']"
             hx-target="#documents-container" hx-select="#documents-container" hx-swap="outerHTML" hx-push-url="true"
             @click="filterModalOpen = false"
