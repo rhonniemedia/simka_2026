@@ -158,7 +158,6 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'app.access'])->grou
             // Dokumen milik satu pegawai (dimuat via HTMX saat accordion "Per Pegawai" dibuka)
             // Di dalam grup Route::prefix('documents')->name('documents.')
             Route::get('/staff/{staff}', [DocumentController::class, 'show'])->name('staff');
-            // Route::get('/staff/{staff}', [DocumentController::class, 'staffDocuments'])->name('staff');
 
             Route::post('/', [DocumentController::class, 'store'])->name('store');
             Route::get('/{id}/edit', [DocumentController::class, 'edit'])->name('edit');
@@ -187,8 +186,12 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'app.access'])->grou
         });
 
         // 6. Berkala (Kenaikan Gaji Berkala)
-        Route::prefix('periodic-salary')->name('periodic-salary.')
-            ->group(fn() => $staffHistory(SalariesHistoryController::class));
+        Route::prefix('periodic-salary')->name('periodic-salary.')->group(function () use ($staffHistory) {
+            // Harus sebelum /{id} milik $staffHistory
+            Route::get('/pdf', [SalariesHistoryController::class, 'generatePdf'])->name('pdf');
+
+            $staffHistory(SalariesHistoryController::class);
+        });
 
         // 7. Pensiun
         Route::prefix('retirement')->name('retirement.')->group(function () {

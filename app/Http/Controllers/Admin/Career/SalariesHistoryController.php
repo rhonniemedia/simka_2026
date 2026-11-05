@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin\Career;
 use App\Http\Controllers\Controller;
 use App\Models\Data;
 use App\Models\PeriodicSalaryHistory;
+use App\Services\PdfService;
 use App\Services\Staff\StaffDocumentService;
 use App\Support\TableSort;
 use Carbon\Carbon;
@@ -56,7 +57,7 @@ class SalariesHistoryController extends Controller
                     . ' limit 1)';
 
                 // 1) Baris yang tampil "-" (tanpa tanggal mulai tugas, atau masa kerja >= 32 tahun)
-                //    selalu di akhir. 384 bulan = batas 31 tahun yang dipakai di transformasi.
+                //    selalu di akhir. 384 bulan = batas 31 tahun yang dipakai di accessor.
                 $q->orderByRaw(
                     "case when {$start} is null or timestampdiff(month, {$start}, {$effective}) >= 384 then 1 else 0 end"
                 );
@@ -88,37 +89,16 @@ class SalariesHistoryController extends Controller
 
         $histories = $query->paginate(10)->withQueryString();
 
-        // Transformasi data untuk menghitung masa kerja dan KGB berikutnya
-        $histories->getCollection()->transform(function ($history) {
-            $tanggalMulaiTugas = $history->staff->prior_service_period_effective_date ?? null;
-
-            if ($history->effective_date && $tanggalMulaiTugas) {
-                $tmt = Carbon::parse($history->effective_date);
-                $tanggalAwal = Carbon::parse($tanggalMulaiTugas);
-
-                $masaKerjaBulan = $tanggalAwal->diffInMonths($tmt);
-                $masaKerjaTahun = floor($masaKerjaBulan / 12);
-                $months = $masaKerjaBulan % 12;
-
-                $history->masa_kerja = sprintf("%02d Tahun %02d Bulan", $masaKerjaTahun, $months);
-
-                if ($masaKerjaTahun <= 31) {
-                    $history->tmt_berikut = $tmt->copy()->addYears(2)->format('Y-m-d');
-                    $history->tahun_ke = $masaKerjaTahun + 2;
-                } else {
-                    $history->tmt_berikut = null;
-                    $history->tahun_ke = null;
-                }
-            } else {
-                $history->masa_kerja = '-';
-                $history->tmt_berikut = null;
-                $history->tahun_ke = '-';
-            }
-
-            return $history;
-        });
-
         $filterVerificationStatus = $filterStatus;
+
+        // Ambil daftar opsi tahun berdasarkan TMT BERIKUTNYA (effective_date + 2 tahun)
+        // Supaya dropdown filter menampilkan tahun KGB yang akan datang (misal: 2027)
+        $yearOptions = PeriodicSalaryHistory::query()
+            ->selectRaw('year(date_add(effective_date, interval 2 year)) as y')
+            ->whereNotNull('effective_date')
+            ->distinct()
+            ->orderByDesc('y')
+            ->pluck('y');
 
         if ($request->header('HX-Request')) {
             return view('pages.admin.career.salaries.partials._table', compact('histories') + $sorter->viewData());
@@ -126,7 +106,7 @@ class SalariesHistoryController extends Controller
 
         return view(
             'pages.admin.career.salaries.index',
-            compact('histories', 'search', 'filterVerificationStatus', 'filterYear') + $sorter->viewData()
+            compact('histories', 'search', 'filterVerificationStatus', 'filterYear', 'yearOptions') + $sorter->viewData()
         );
     }
 
@@ -139,34 +119,8 @@ class SalariesHistoryController extends Controller
             ->latest('effective_date')
             ->paginate(10);
 
-        $histories->getCollection()->transform(function ($history) use ($staff) {
-            $tanggalMulaiTugas = $staff->prior_service_period_effective_date ?? null;
-
-            if ($history->effective_date && $tanggalMulaiTugas) {
-                $tmt = Carbon::parse($history->effective_date);
-                $tanggalAwal = Carbon::parse($tanggalMulaiTugas);
-
-                $masaKerjaBulan = $tanggalAwal->diffInMonths($tmt);
-                $masaKerjaTahun = floor($masaKerjaBulan / 12);
-                $months = $masaKerjaBulan % 12;
-
-                $history->masa_kerja = sprintf("%02d Tahun %02d Bulan", $masaKerjaTahun, $months);
-
-                if ($masaKerjaTahun <= 31) {
-                    $history->tmt_berikut = $tmt->copy()->addYears(2)->format('Y-m-d');
-                    $history->tahun_ke = $masaKerjaTahun + 2;
-                } else {
-                    $history->tmt_berikut = null;
-                    $history->tahun_ke = null;
-                }
-            } else {
-                $history->masa_kerja = '-';
-                $history->tmt_berikut = null;
-                $history->tahun_ke = '-';
-            }
-
-            return $history;
-        });
+        // Menghindari query berulang di setiap baris dengan menetapkan relasi staff secara manual
+        $histories->getCollection()->each->setRelation('staff', $staff);
 
         if ($request->header('HX-Request')) {
             return view('pages.admin.career.salaries.show.partials._table', compact('staff', 'histories'));
@@ -307,9 +261,56 @@ class SalariesHistoryController extends Controller
         return redirect()->route('admin.personnel.periodic-salary.show', $staff_id);
     }
 
-    public function generatePdf(Request $request)
+    public function generatePdf(Request $request, PdfService $pdf)
     {
-        // Logika cetak PDF laporan KGB
+        $year = $request->input('year');
+        $year = is_string($year) && preg_match('/^\d{4}$/', $year) ? $year : null;
+        $table = (new PeriodicSalaryHistory)->getTable();
+
+        // 1. Subquery: Filter berdasarkan TMT BERIKUTNYA (effective_date + 2 tahun = $year)
+        $latestId = DB::table("{$table} as latest")
+            ->select('latest.id')
+            ->whereColumn('latest.staff_id', "{$table}.staff_id")
+            ->when($year, fn($q) => $q->whereRaw('year(date_add(latest.effective_date, interval 2 year)) = ?', [$year]))
+            ->orderByDesc('latest.effective_date')
+            ->limit(1);
+
+        $query = PeriodicSalaryHistory::with('staff.vault')
+            ->where("{$table}.id", '=', $latestId);
+
+        // 2. Map data
+        $rows = $query->get()->map(function ($h) {
+            return [
+                'name'        => $h->staff?->name ?? '-',
+                'nip'         => $h->staff?->vault?->nip ?: '-',
+                'tmt'         => $this->indonesianDate($h->effective_date),
+                'masa_kerja'  => $h->masa_kerja,
+                'tmt_berikut' => $this->indonesianDate($h->tmt_berikut),
+                'raw_next'    => $h->tmt_berikut,
+                'tahun_ke'    => $h->tahun_ke ?? '-',
+            ];
+        });
+
+        // 3. Urutkan berdasarkan TMT Berikutnya (terdekat ke terjauh)
+        $rows = $rows->sort(function ($a, $b) {
+            if ($a['raw_next'] === $b['raw_next']) return 0;
+            if ($a['raw_next'] === null) return 1;
+            if ($b['raw_next'] === null) return -1;
+            return $a['raw_next'] <=> $b['raw_next'];
+        })->values();
+
+        // 4. Return Output PDF dengan Judul PERIODE TAHUN MENDATANG
+        return $pdf->output(
+            'pages.admin.pdf.periodic_salary',
+            [
+                'title'   => 'Daftar Kenaikan Gaji Berkala',
+                'periode' => $year ?? 'Semua Tahun',
+                'school'  => config('school.name'),
+                'rows'    => $rows,
+            ],
+            'kgb-periode-' . ($year ?? 'semua') . '-' . now()->format('Ymd') . '.pdf',
+            $request->boolean('download'),
+        );
     }
 
     /*
@@ -317,6 +318,13 @@ class SalariesHistoryController extends Controller
     | Helper
     |--------------------------------------------------------------------
     */
+
+    private function indonesianDate($value): string
+    {
+        return filled($value)
+            ? Carbon::parse($value)->locale('id')->translatedFormat('j F Y')
+            : '-';
+    }
 
     /**
      * Aturan validasi bersama untuk tambah & ubah. $ignoreId diisi saat ubah

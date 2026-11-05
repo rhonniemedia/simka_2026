@@ -2,9 +2,11 @@
 
 namespace App\Providers;
 
+use App\Models\CoreSchool;
 use App\Models\EducationHistory;
 use App\Observers\EducationHistoryObserver;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -33,5 +35,18 @@ class AppServiceProvider extends ServiceProvider
             'staff_grade_histories'           => \App\Models\GradeHistory::class,
             'staff_status_histories'          => \App\Models\StaffStatusHistory::class,
         ]);
+
+        // === TAMBAHKAN KODE INI DI SINI ===
+        if (Schema::hasTable('core_schools')) {
+            $school = CoreSchool::first();
+
+            if ($school) {
+                config([
+                    'school.name' => $school->name,
+                    'school.npsn' => $school->npsn,
+                    'school.address' => $school->address,
+                ]);
+            }
+        }
     }
 }
