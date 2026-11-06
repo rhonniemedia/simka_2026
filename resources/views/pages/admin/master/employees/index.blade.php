@@ -46,12 +46,89 @@
                 <span>Download</span>
             </button>
 
-            <button type="button"
-                title="Cetak laporan"
-                class="flex items-center justify-center gap-2 px-3 py-2.5 sm:px-5 bg-blue-600 hover:bg-blue-700 text-white rounded-full font-semibold text-sm transition-all duration-300 cursor-pointer shadow-sm shadow-blue-600/30 whitespace-nowrap">
-                <i data-lucide="printer" class="size-4 shrink-0"></i>
-                <span>Laporan</span>
-            </button>
+            {{-- Laporan PDF (dropdown) --}}
+            @php
+            $reports = [
+            [
+            'key' => 'seniority',
+            'label' => 'Daftar Urut Kepangkatan',
+            'url' => route('admin.personnel.data.pdf.seniority'),
+            'filter' => null,
+            ],
+            [
+            'key' => 'employees',
+            'label' => 'Daftar Pegawai',
+            'url' => route('admin.personnel.data.pdf.employees'),
+            'filter' => [
+            'param' => 'employment',
+            'placeholder' => 'Semua status kepegawaian',
+            'options' => $employmentAliasOptions ?? [],
+            ],
+            ],
+            ];
+            @endphp
+            <div class="relative"
+                x-data="{
+                    open: false,
+                    filters: { employees: '' },
+                    openPdf(url, download = false, param = null, value = '') {
+                        if (!url || url === '#') { this.open = false; return; }
+
+                        const target = new URL(url, window.location.origin);
+                        if (param && value) target.searchParams.set(param, value);
+                        if (download) target.searchParams.set('download', '1');
+
+                        window.open(target.toString(), '_blank', 'noopener');
+                        this.open = false;
+                    }
+                }"
+                @click.outside="open = false"
+                @keydown.escape.window="open = false">
+
+                <button type="button" @click="open = !open"
+                    title="Cetak laporan"
+                    class="flex w-full items-center justify-center gap-2 px-3 py-2.5 sm:px-5 bg-blue-600 hover:bg-blue-700 text-white rounded-full font-semibold text-sm transition-all duration-300 cursor-pointer shadow-sm shadow-blue-600/30 whitespace-nowrap">
+                    <i data-lucide="printer" class="size-4 shrink-0"></i>
+                    <span>Laporan</span>
+                    <i data-lucide="chevron-down" class="size-4 shrink-0 transition-transform" :class="open ? 'rotate-180' : ''"></i>
+                </button>
+
+                <div x-show="open" x-cloak x-transition
+                    class="absolute right-0 z-20 mt-2 w-80 rounded-2xl border border-border bg-white p-2 shadow-lg">
+                    @foreach ($reports as $report)
+                    <div class="rounded-xl px-3 py-2 hover:bg-muted/60">
+                        <div class="flex items-center justify-between gap-2">
+                            <div class="flex items-center gap-2 min-w-0">
+                                <i data-lucide="file-text" class="size-4 shrink-0 text-secondary"></i>
+                                <span class="text-sm font-medium text-foreground truncate">{{ $report['label'] }}</span>
+                            </div>
+                            <div class="flex items-center gap-1 shrink-0">
+                                <button type="button" title="Tampilkan"
+                                    @click="openPdf(@js($report['url']), false, @js($report['filter']['param'] ?? null), filters[@js($report['key'])] ?? '')"
+                                    class="size-8 inline-flex items-center justify-center rounded-lg bg-primary/10 text-primary hover:bg-primary hover:text-white transition-colors cursor-pointer">
+                                    <i data-lucide="eye" class="size-4"></i>
+                                </button>
+                                <button type="button" title="Unduh"
+                                    @click="openPdf(@js($report['url']), true, @js($report['filter']['param'] ?? null), filters[@js($report['key'])] ?? '')"
+                                    class="size-8 inline-flex items-center justify-center rounded-lg ring-1 ring-border text-foreground hover:ring-primary transition-colors cursor-pointer">
+                                    <i data-lucide="download" class="size-4"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        @if ($report['filter'])
+                        <select x-model="filters[@js($report['key'])]"
+                            class="mt-2 h-9 w-full rounded-lg border border-border bg-white px-2.5 text-xs text-foreground focus:outline-none focus:border-primary">
+                            <option value="">{{ $report['filter']['placeholder'] }}</option>
+                            @foreach ($report['filter']['options'] as $id => $label)
+                            <option value="{{ $id }}">{{ $label }}</option>
+                            @endforeach
+                        </select>
+                        @endif
+                    </div>
+                    @endforeach
+                </div>
+            </div>
 
             <a href="{{ route('admin.personnel.data.index') }}"
                 title="Segarkan halaman"

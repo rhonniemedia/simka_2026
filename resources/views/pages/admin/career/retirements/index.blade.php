@@ -24,6 +24,67 @@
         </div>
 
         <div class="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-3">
+            {{-- Cetak PDF (dropdown pilih periode & status) --}}
+            <div class="relative"
+                x-data="{
+        open: false,
+        period: 'all',
+        status: '',
+        openPdf(download = false) {
+            const params = new URLSearchParams({ period: this.period, status: this.status });
+            if (download) params.set('download', '1');
+
+            window.open('{{ route('admin.personnel.retirement.pdf') }}?' + params.toString(), '_blank', 'noopener');
+            this.open = false;
+        }
+    }"
+                @click.outside="open = false"
+                @keydown.escape.window="open = false">
+
+                <button type="button" @click="open = !open"
+                    class="flex w-full items-center justify-center gap-2 px-3 py-2.5 sm:px-4 ring-1 ring-border hover:ring-primary rounded-full text-foreground font-semibold text-sm transition-all bg-white cursor-pointer whitespace-nowrap">
+                    <i data-lucide="printer" class="size-4 shrink-0"></i>
+                    <span>Cetak PDF</span>
+                </button>
+
+                <div x-show="open" x-cloak x-transition
+                    class="absolute right-0 z-20 mt-2 w-72 rounded-2xl border border-border bg-white p-4 shadow-lg space-y-3">
+
+                    <div>
+                        <label for="pdf-period" class="block text-xs font-semibold text-secondary mb-1.5">Periode</label>
+                        <select id="pdf-period" x-model="period"
+                            class="h-11 w-full rounded-xl border border-border bg-white px-3 text-sm text-foreground focus:outline-none focus:border-primary">
+                            <option value="all">Semua</option>
+                            <option value="one_year">1 tahun sebelum pensiun</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="pdf-status" class="block text-xs font-semibold text-secondary mb-1.5">Status pensiun</label>
+                        <select id="pdf-status" x-model="status"
+                            class="h-11 w-full rounded-xl border border-border bg-white px-3 text-sm text-foreground focus:outline-none focus:border-primary">
+                            <option value="">Semua status</option>
+                            @foreach ($retirementStatusOptions ?? [] as $opt)
+                            <option value="{{ $opt['value'] }}">{{ $opt['label'] }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="flex gap-2">
+                        <button type="button" @click="openPdf()"
+                            class="flex-1 h-10 inline-flex items-center justify-center gap-1.5 rounded-xl bg-primary text-white text-sm font-semibold cursor-pointer">
+                            <i data-lucide="eye" class="size-4 shrink-0"></i>
+                            Tampilkan
+                        </button>
+                        <button type="button" @click="openPdf(true)"
+                            class="h-10 px-3 inline-flex items-center justify-center gap-1.5 rounded-xl ring-1 ring-border hover:ring-primary text-sm font-semibold text-foreground cursor-pointer">
+                            <i data-lucide="download" class="size-4 shrink-0"></i>
+                            Unduh
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             <a href="{{ route('admin.personnel.retirement.index') }}"
                 title="Segarkan halaman"
                 onclick="document.getElementById('refresh-icon').classList.add('animate-spin');"

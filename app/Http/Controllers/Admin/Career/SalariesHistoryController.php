@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Data;
 use App\Models\PeriodicSalaryHistory;
 use App\Services\PdfService;
+use App\Services\SchoolProfile;
 use App\Services\Staff\StaffDocumentService;
 use App\Support\TableSort;
 use Carbon\Carbon;
@@ -305,7 +306,7 @@ class SalariesHistoryController extends Controller
             [
                 'title'   => 'Daftar Kenaikan Gaji Berkala',
                 'periode' => $year ?? 'Semua Tahun',
-                'school'  => config('school.name'),
+                'school'  => SchoolProfile::get()['name'],
                 'rows'    => $rows,
             ],
             'kgb-periode-' . ($year ?? 'semua') . '-' . now()->format('Ymd') . '.pdf',

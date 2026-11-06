@@ -7,7 +7,9 @@ use App\Models\AsnPositionHistory;
 use App\Models\Data;
 use App\Models\EmploymentStatus;
 use App\Models\StaffStatusHistory;
+use App\Services\PdfService;
 use App\Services\Personnel\RetirementList;
+use App\Services\SchoolProfile;
 use App\Services\Staff\StaffDocumentService;
 use App\Support\TableSort;
 use Carbon\Carbon;
@@ -262,6 +264,103 @@ class RetirementController extends Controller
             200,
             true
         );
+    }
+
+    /*
+|--------------------------------------------------------------------
+| Cetak PDF
+|--------------------------------------------------------------------
+*/
+
+    public function generatePdf(Request $request, PdfService $pdf)
+    {
+        // Periode: 'one_year' = akan pensiun dalam 1 tahun ke depan, selain itu = semua
+        $period = $request->input('period') === 'one_year' ? 'one_year' : 'all';
+
+        $statusInput = $request->input('status');
+        $status = is_string($statusInput)
+            && in_array($statusInput, array_column($this->retirementStatusOptions(), 'value'), true)
+            ? $statusInput
+            : '';
+
+        // Jalur yang sama dengan halaman daftar (tanpa paginasi), jadi hasilnya konsisten.
+        $rows = RetirementList::sort(
+            RetirementList::filter($this->buildRows(), ['retirement_status' => $status])
+        );
+
+        if ($period === 'one_year') {
+            $limit = new DateTimeImmutable('today +1 year');
+
+            // Belum diproses pensiun, TMT-nya valid, dan jatuh paling lambat 1 tahun dari hari ini
+            // (yang sudah melewati batas tetapi belum diproses ikut masuk).
+            $rows = array_values(array_filter(
+                $rows,
+                fn(array $r) => $r['calc']['state'] !== 'retired'
+                    && $r['tmt'] !== null
+                    && $r['tmt'] <= $limit
+            ));
+        }
+
+        $stateLabels = array_column($this->retirementStatusOptions(), 'label', 'value');
+
+        $data = array_map(function (array $r) use ($stateLabels) {
+            $staff = $r['staff'];
+            $calc  = $r['calc'];
+
+            $nip = $this->readVault($staff, 'nip');
+
+            return [
+                'name'        => $staff->name,
+                'nip'         => (! empty($nip) && strcasecmp($nip, 'tidak ada') !== 0) ? $nip : '-',
+                'dob'         => $this->pdfDate($calc['dob'] ?? null),
+                'age'         => ($calc['age'] ?? null) !== null ? $calc['age'] . ' tahun' : null,
+                'employment'  => $staff->employmentStatus->alias ?? $staff->employmentStatus?->name ?? '-',
+                'position'    => $r['position']?->name ?? '-',
+                'phone'       => $this->readVault($staff, 'phone_number') ?: '-',
+                'tmt'         => $this->pdfDate($r['tmt']),
+                'limit_age'   => $calc['limit_age'] ?? null,
+                'status'      => $stateLabels[$calc['state']] ?? '-',
+                'note'        => match ($calc['state']) {
+                    'reached' => ! empty($calc['limit_date']) ? 'Sejak ' . $this->pdfDate($calc['limit_date']) : null,
+                    'soon'    => '± ' . $calc['months_left'] . ' bulan lagi',
+                    default   => null,
+                },
+            ];
+        }, $rows);
+
+        return $pdf->output(
+            'pages.admin.pdf.retirement',
+            [
+                'title'       => 'Daftar Pensiun Pegawai',
+                'periode'     => $period === 'one_year' ? '1 Tahun Sebelum Pensiun' : 'Semua',
+                'statusLabel' => $status !== '' ? ($stateLabels[$status] ?? null) : null,
+                'printedAt'   => $this->pdfDate(new DateTimeImmutable('today')),
+                'school'      => SchoolProfile::get()['name'],
+                'rows'        => $data,
+            ],
+            'pensiun-' . ($period === 'one_year' ? '1-tahun' : 'semua') . '-' . now()->format('Ymd') . '.pdf',
+            $request->boolean('download'),
+            'a4',
+            'landscape'
+        );
+    }
+
+    /** Baca atribut terenkripsi di vault; null bila kosong atau gagal didekripsi. */
+    private function readVault(Data $staff, string $attribute): ?string
+    {
+        try {
+            return $staff->vault?->{$attribute};
+        } catch (Throwable) {
+            return null;
+        }
+    }
+
+    /** Tanggal Indonesia, mis. "1 Januari 2026" (null -> '-'). */
+    private function pdfDate(?\DateTimeInterface $date): string
+    {
+        return $date
+            ? Carbon::parse($date->format('Y-m-d'))->locale('id')->translatedFormat('j F Y')
+            : '-';
     }
 
     private function latestRetirementHistory(string $staffId): ?StaffStatusHistory

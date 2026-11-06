@@ -121,6 +121,7 @@ class DataController extends Controller
 
         // 6. Opsi untuk select filter
         $employmentOptions = DB::table('staff_employment_statuses')->orderBy('code')->pluck('name', 'id');
+        $employmentAliasOptions = DB::table('staff_employment_statuses')->orderBy('code')->pluck('alias', 'id');
         $personnelOptions = DB::table('staff_personnel_types')->orderBy('code')->pluck('name', 'id');
         $positionOptions = DB::table('staff_positions')->orderBy('code')->pluck('name', 'id');
 
@@ -142,6 +143,7 @@ class DataController extends Controller
                 'filterPosition',
                 'filterGender',
                 'employmentOptions',
+                'employmentAliasOptions',
                 'personnelOptions',
                 'positionOptions'
             ),

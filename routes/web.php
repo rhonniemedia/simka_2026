@@ -10,6 +10,7 @@ use App\Http\Controllers\Admin\Career\SalariesHistoryController;
 use App\Http\Controllers\Admin\Career\TransferController;
 use App\Http\Controllers\Admin\Dashboard\DashboardController;
 use App\Http\Controllers\Admin\Master\Employee\DataController;
+use App\Http\Controllers\Admin\Master\Employee\ReportController;
 use App\Http\Controllers\Admin\Master\Reference\EmployeeDocumentController;
 use App\Http\Controllers\Admin\Master\Reference\EmployeeEducationController;
 use App\Http\Controllers\Admin\Master\Reference\EmployeeGradeController;
@@ -126,6 +127,11 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'app.access'])->grou
         Route::prefix('data')->name('data.')->group(function () {
             Route::get('/', [DataController::class, 'index'])->name('index');
             Route::get('/create', [DataController::class, 'create'])->name('create');
+
+            // Laporan PDF
+            Route::get('/pdf/seniority', [ReportController::class, 'seniority'])->name('pdf.seniority');
+            Route::get('/pdf/employees', [ReportController::class, 'employees'])->name('pdf.employees');
+
             Route::get('/{id}/edit', [DataController::class, 'edit'])->name('edit');
             Route::delete('/{id}', [DataController::class, 'destroy'])->name('destroy');
 
@@ -196,6 +202,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'app.access'])->grou
         // 7. Pensiun
         Route::prefix('retirement')->name('retirement.')->group(function () {
             Route::get('/', [RetirementController::class, 'index'])->name('index');
+            Route::get('/pdf', [RetirementController::class, 'generatePdf'])->name('pdf');
 
             // Proses pensiun (Modal HTMX)
             Route::get('/{id}/process', [RetirementController::class, 'process'])->name('process');
