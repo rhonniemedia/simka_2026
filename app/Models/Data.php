@@ -32,6 +32,15 @@ class Data extends Model
     }
 
     /**
+     * Hanya pegawai dengan status "active".
+     * Kolom di-qualify dengan nama tabel supaya aman dipakai bersama join (mis. di getStats()).
+     */
+    public function scopeActive($query)
+    {
+        return $query->where($this->qualifyColumn('status'), 'active');
+    }
+
+    /**
      * Data yang baru tersimpan sebagian lewat form bertahap.
      */
     public function scopeDraft($query)

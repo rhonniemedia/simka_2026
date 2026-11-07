@@ -37,20 +37,26 @@ class FamilyController extends Controller
         // Disesuaikan dengan value pada method show (husband, wife)
         $spouseRelations = ['husband', 'wife'];
 
-        $query = Staff::with(['familyRelations' => function ($qRelation) use ($spouseRelations) {
-            // Memastikan data diambil dari relasi familyMember
-            $qRelation->whereIn('relationship', $spouseRelations)->with('familyMember');
-        }])
+        $query = Staff::completed()
+            ->active()
+            ->with(['familyRelations' => function ($qRelation) use ($spouseRelations) {
+                // Memastikan data diambil dari relasi familyMember
+                $qRelation->whereIn('relationship', $spouseRelations)->with('familyMember');
+            }])
+            // Pencarian dibungkus satu grup supaya OR di dalamnya
+            // tidak "bocor" dan melewati filter completed/active.
             ->when($search, function ($q) use ($search, $spouseRelations) {
-                $q->where('name', 'like', "%{$search}%")
-                    ->orWhereHas('familyRelations', function ($qRelation) use ($search, $spouseRelations) {
-                        // Penting: filter relationship DAN nama
-                        // familyMember harus dicek pada baris relasi yang SAMA
-                        $qRelation->whereIn('relationship', $spouseRelations)
-                            ->whereHas('familyMember', function ($qMember) use ($search) {
-                                $qMember->where('name', 'like', "%{$search}%");
-                            });
-                    });
+                $q->where(function ($w) use ($search, $spouseRelations) {
+                    $w->where('name', 'like', "%{$search}%")
+                        ->orWhereHas('familyRelations', function ($qRelation) use ($search, $spouseRelations) {
+                            // Penting: filter relationship DAN nama
+                            // familyMember harus dicek pada baris relasi yang SAMA
+                            $qRelation->whereIn('relationship', $spouseRelations)
+                                ->whereHas('familyMember', function ($qMember) use ($search) {
+                                    $qMember->where('name', 'like', "%{$search}%");
+                                });
+                        });
+                });
             })
             ->latest();
 
@@ -65,7 +71,7 @@ class FamilyController extends Controller
 
     public function show(Request $request, $id)
     {
-        $staff = Data::with(['vault', 'employmentStatus'])->findOrFail($id);
+        $staff = Data::completed()->active()->with(['vault', 'employmentStatus'])->findOrFail($id);
 
         $families = $staff->familyRelations()
             ->with([
@@ -86,7 +92,7 @@ class FamilyController extends Controller
 
     public function create(Request $request, $id)
     {
-        $staff = Data::findOrFail($id);
+        $staff = Data::completed()->active()->findOrFail($id);
 
         [$prefill, $linkToFamilyMemberId] = $this->resolvePrefillFromRequest($request);
 
@@ -116,7 +122,7 @@ class FamilyController extends Controller
      */
     public function checkNik(Request $request, $id)
     {
-        $staff = Data::findOrFail($id);
+        $staff = Data::completed()->active()->findOrFail($id);
         $nik = trim((string) $request->input('nik'));
 
         // Kalau sedang edit, jangan anggap match dengan dirinya sendiri.
@@ -165,7 +171,7 @@ class FamilyController extends Controller
 
     public function store(Request $request, $id)
     {
-        $staff = Data::findOrFail($id);
+        $staff = Data::completed()->active()->findOrFail($id);
 
         try {
             $validated = $request->validate($this->rules(withLink: true), $this->messages());
@@ -216,7 +222,7 @@ class FamilyController extends Controller
 
     public function edit(Request $request, $staff_id, $family_id)
     {
-        $staff = Data::findOrFail($staff_id);
+        $staff = Data::completed()->active()->findOrFail($staff_id);
         $relation = $staff->familyRelations()->with('familyMember')->findOrFail($family_id);
 
         [$prefill, $linkToFamilyMemberId] = $this->resolvePrefillFromRequest($request);
@@ -235,7 +241,7 @@ class FamilyController extends Controller
 
     public function update(Request $request, $staff_id, $family_id)
     {
-        $staff = Data::findOrFail($staff_id);
+        $staff = Data::completed()->active()->findOrFail($staff_id);
         $relation = $staff->familyRelations()->with('familyMember')->findOrFail($family_id);
 
         try {
@@ -291,8 +297,11 @@ class FamilyController extends Controller
 
     public function destroy(Request $request, $staff_id, $family_id)
     {
+        // Pastikan pegawainya masih lengkap & active (sama seperti show()).
+        // Dicek di luar try dan SEBELUM penghapusan supaya data tidak terhapus lalu 404.
+        $staff = Data::completed()->active()->findOrFail($staff_id);
+
         try {
-            $staff = Data::findOrFail($staff_id);
             $relation = $staff->familyRelations()->findOrFail($family_id);
             $familyMember = $relation->familyMember;
 

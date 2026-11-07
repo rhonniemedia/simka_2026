@@ -36,13 +36,13 @@ class EducationController extends Controller
         $filterGender = $request->input('filter_gender');
         $search = $request->input('search');
 
-        // 2. Inisiasi Query beserta relasinya
-        $query = Data::with([
+        // 2. Inisiasi Query beserta relasinya (hanya pegawai lengkap & active)
+        $query = Data::completed()->active()->with([
             'vault',
             'personnelType',
             'grade',
             'employmentStatus',
-            'highestEducation.level' // <-- Gunakan relasi yang baru
+            'highestEducation.level'
         ]);
 
         // 3. Logika Pencarian (Nama & Hash NIK/NIP/NUPTK)
@@ -80,7 +80,6 @@ class EducationController extends Controller
         $staff = $query->orderBy('name', 'asc')->paginate(10)->withQueryString();
 
         // 6. Siapkan Data Opsi untuk Select Filter menggunakan Model
-        // Mengubah DB::table menjadi panggilan Model jika memungkinkan, atau pertahankan standar Laravel
         $employmentOptions = EmploymentStatus::pluck('name', 'id') ?? collect();
         $personnelOptions = PersonnelType::pluck('name', 'id') ?? collect();
         $positionOptions = Position::pluck('name', 'id') ?? collect();
@@ -112,16 +111,16 @@ class EducationController extends Controller
 
     private function getStats(): array
     {
-        // Menghitung statistik pendidikan menggunakan query Eloquent
-        // Menggunakan distinct agar jika ada 1 pegawai memiliki 2 riwayat S1, tetap dihitung 1
-        $educationStats = Data::join('staff_education_histories', 'staff_data.id', '=', 'staff_education_histories.staff_id')
+        // Hanya pegawai lengkap & active. Distinct agar pegawai dengan 2 riwayat S1 tetap dihitung 1.
+        $educationStats = Data::completed()
+            ->active()
+            ->join('staff_education_histories', 'staff_data.id', '=', 'staff_education_histories.staff_id')
             ->join('staff_education_levels', 'staff_education_histories.education_level_id', '=', 'staff_education_levels.id')
             ->where('staff_education_histories.verification_status', 'verified')
             ->selectRaw('staff_education_levels.alias, count(distinct staff_data.id) as total')
             ->groupBy('staff_education_levels.id', 'staff_education_levels.alias')
             ->pluck('total', 'alias');
 
-        // Sesuaikan parameter get() dengan isi kolom 'alias' atau 'level' pada tabel staff_education_levels Anda
         return [
             'totalVerified'  => $educationStats->sum(),
             'pascaStats'     => $educationStats->get('s2', 0) + $educationStats->get('s3', 0),
@@ -160,19 +159,19 @@ class EducationController extends Controller
     public function detailPersonal($id)
     {
         // Mengubah cakupan detail untuk memuat riwayat pendidikan
-        $staff = Data::with(['vault', 'educationHistories.level'])->findOrFail($id);
+        $staff = Data::completed()->active()->with(['vault', 'educationHistories.level'])->findOrFail($id);
         return view('pages.admin.administration.education.modals._detail-personal', compact('staff'));
     }
 
     public function detailEmployment($id)
     {
-        $staff = Data::with(['personnelType', 'position'])->findOrFail($id);
+        $staff = Data::completed()->active()->with(['personnelType', 'position'])->findOrFail($id);
         return view('pages.admin.administration.education.modals._detail-employment', compact('staff'));
     }
 
     public function editPersonal($id)
     {
-        $staff = Data::with(['vault', 'educationHistories'])->findOrFail($id);
+        $staff = Data::completed()->active()->with(['vault', 'educationHistories'])->findOrFail($id);
         return view('pages.admin.administration.education.modals._edit-personal', compact('staff'));
     }
 
@@ -247,7 +246,7 @@ class EducationController extends Controller
 
     public function edit($staff_id, $edu_id)
     {
-        $staff = Data::findOrFail($staff_id);
+        $staff = Data::completed()->active()->findOrFail($staff_id);
         $education = $staff->educations()->findOrFail($edu_id);
         $levels = EducationLevel::orderByRaw('CAST(level AS UNSIGNED) ASC')->get();
 
@@ -256,7 +255,7 @@ class EducationController extends Controller
 
     public function update(Request $request, $staff_id, $edu_id)
     {
-        $staff = Data::findOrFail($staff_id);
+        $staff = Data::completed()->active()->findOrFail($staff_id);
         $education = $staff->educations()->findOrFail($edu_id);
 
         try {
@@ -297,8 +296,11 @@ class EducationController extends Controller
      */
     public function destroyEducation(Request $request, $staff_id, $edu_id)
     {
+        // Pastikan pegawainya masih lengkap & active (sama seperti show()).
+        // Dicek di luar try dan SEBELUM penghapusan supaya data tidak terhapus lalu 404.
+        $staff = Data::completed()->active()->findOrFail($staff_id);
+
         try {
-            $staff = Data::findOrFail($staff_id);
             $education = $staff->educations()->findOrFail($edu_id);
             $education->delete();
         } catch (\Throwable $e) {

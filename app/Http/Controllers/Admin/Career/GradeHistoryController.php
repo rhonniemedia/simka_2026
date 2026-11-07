@@ -35,8 +35,10 @@ class GradeHistoryController extends Controller
 
         $model = new GradeHistory;
 
-        // Mengambil data riwayat pangkat beserta relasi
+        // Mengambil data riwayat pangkat beserta relasi.
+        // Hanya riwayat milik pegawai yang datanya lengkap (bukan draft) dan berstatus active.
         $query = GradeHistory::with(['staff.vault', 'grade', 'documents.category'])
+            ->whereHas('staff', fn($s) => $s->completed()->active())
             ->when($search, function ($q) use ($search) {
                 $q->where(function ($w) use ($search) {
                     $w->whereHas('staff', fn($s) => $s->where('name', 'like', "%{$search}%"))
@@ -76,8 +78,8 @@ class GradeHistoryController extends Controller
 
     public function show(Request $request, $id)
     {
-        // 1. Ambil data pegawai beserta relasinya
-        $staff = Data::with(['vault', 'employmentStatus'])->findOrFail($id);
+        // 1. Ambil data pegawai (lengkap & active) beserta relasinya
+        $staff = Data::completed()->active()->with(['vault', 'employmentStatus'])->findOrFail($id);
 
         // 2. Ambil data riwayat kepangkatan khusus untuk pegawai ini (beserta berkas SK-nya)
         $histories = GradeHistory::with(['grade', 'documents.category'])
@@ -96,7 +98,7 @@ class GradeHistoryController extends Controller
 
     public function create($id)
     {
-        $staff = Data::findOrFail($id);
+        $staff = Data::completed()->active()->findOrFail($id);
         $grades = Grade::orderBy('grade_code')->get();
 
         return view('pages.admin.career.grades.show.partials._modal-form', compact('staff', 'grades'));
@@ -104,7 +106,7 @@ class GradeHistoryController extends Controller
 
     public function store(Request $request, $id)
     {
-        $staff = Data::findOrFail($id);
+        $staff = Data::completed()->active()->findOrFail($id);
 
         try {
             $validated = $this->validated($request, $staff);
@@ -142,7 +144,7 @@ class GradeHistoryController extends Controller
 
     public function edit($staff_id, $history_id)
     {
-        $staff = Data::findOrFail($staff_id);
+        $staff = Data::completed()->active()->findOrFail($staff_id);
         $history = GradeHistory::where('staff_id', $staff_id)->findOrFail($history_id);
         $grades = Grade::orderBy('grade_code')->get();
 
@@ -151,7 +153,7 @@ class GradeHistoryController extends Controller
 
     public function update(Request $request, $staff_id, $history_id)
     {
-        $staff = Data::findOrFail($staff_id);
+        $staff = Data::completed()->active()->findOrFail($staff_id);
         $history = GradeHistory::where('staff_id', $staff_id)->findOrFail($history_id);
 
         try {
@@ -192,6 +194,10 @@ class GradeHistoryController extends Controller
 
     public function destroy(Request $request, $staff_id, $history_id)
     {
+        // Pastikan pegawainya masih lengkap & active (sama seperti show()).
+        // Dicek di luar try dan SEBELUM penghapusan supaya data tidak terhapus lalu 404.
+        Data::completed()->active()->findOrFail($staff_id);
+
         try {
             $history = GradeHistory::where('staff_id', $staff_id)->findOrFail($history_id);
 

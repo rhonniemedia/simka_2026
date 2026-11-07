@@ -38,6 +38,7 @@ class PositionHistoryController extends Controller
         $filterActiveOnly = $request->boolean('filter_active_only');
 
         $query = Data::completed()
+            ->active()
             ->select('staff_data.*')
             ->leftJoin('staff_asn_positions_histories as active_history', function ($join) {
                 $join->on('active_history.staff_id', '=', 'staff_data.id')
@@ -63,6 +64,8 @@ class PositionHistoryController extends Controller
             $query->where('staff_data.employment_id', $filterEmploymentStatus);
         }
 
+        // Catatan: ini filter "punya jabatan ASN yang aktif" (is_active di riwayat jabatan),
+        // BUKAN status pegawai. Tidak ada hubungannya dengan ->active() di atas.
         if ($filterActiveOnly) {
             $query->whereNotNull('active_history.id');
         }
@@ -95,7 +98,7 @@ class PositionHistoryController extends Controller
 
     public function show(Request $request, string $id)
     {
-        $staff = Data::with('employmentStatus')->completed()->findOrFail($id);
+        $staff = Data::with('employmentStatus')->completed()->active()->findOrFail($id);
 
         $histories = AsnPositionHistory::with(['asnPosition', 'documents.category'])
             ->where('staff_id', $id)
@@ -124,7 +127,7 @@ class PositionHistoryController extends Controller
 
     public function create(string $id)
     {
-        $staff = Data::completed()->findOrFail($id);
+        $staff = Data::completed()->active()->findOrFail($id);
 
         return view(self::FORM_MODAL_VIEW, [
             'staff' => $staff,
@@ -135,7 +138,7 @@ class PositionHistoryController extends Controller
 
     public function edit(string $staff_id, string $history_id)
     {
-        $staff = Data::completed()->findOrFail($staff_id);
+        $staff = Data::completed()->active()->findOrFail($staff_id);
         $history = AsnPositionHistory::where('staff_id', $staff_id)->findOrFail($history_id);
 
         return view(self::FORM_MODAL_VIEW, [
@@ -145,15 +148,9 @@ class PositionHistoryController extends Controller
         ]);
     }
 
-    /*
-    |--------------------------------------------------------------------
-    | 4. Simpan
-    |--------------------------------------------------------------------
-    */
-
     public function store(Request $request, string $id)
     {
-        $staff = Data::completed()->findOrFail($id);
+        $staff = Data::completed()->active()->findOrFail($id);
 
         try {
             $validated = $this->validateHistory($request, $staff->id);
@@ -185,7 +182,7 @@ class PositionHistoryController extends Controller
 
     public function update(Request $request, string $staff_id, string $history_id)
     {
-        $staff = Data::completed()->findOrFail($staff_id);
+        $staff = Data::completed()->active()->findOrFail($staff_id);
         $history = AsnPositionHistory::where('staff_id', $staff_id)->findOrFail($history_id);
 
         try {
@@ -215,6 +212,10 @@ class PositionHistoryController extends Controller
 
     public function destroy(Request $request, string $staff_id, string $history_id)
     {
+        // Pastikan pegawainya masih lengkap & active (sama seperti show()).
+        // Dicek SEBELUM penghapusan supaya data tidak terhapus lalu responsnya 404.
+        Data::completed()->active()->findOrFail($staff_id);
+
         $history = AsnPositionHistory::where('staff_id', $staff_id)->findOrFail($history_id);
 
         // Berkas SK ikut dihapus lunak lewat trait HasStaffDocuments
@@ -387,7 +388,7 @@ class PositionHistoryController extends Controller
             ->paginate(10)
             ->withQueryString();
 
-        $staff = Data::with('employmentStatus')->completed()->findOrFail($staffId);
+        $staff = Data::with('employmentStatus')->completed()->active()->findOrFail($staffId);
 
         return view(self::SHOW_TABLE_VIEW, compact('staff', 'histories'))->render();
     }

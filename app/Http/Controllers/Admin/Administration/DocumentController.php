@@ -12,6 +12,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Throwable;
 
 class DocumentController extends Controller
@@ -36,7 +37,9 @@ class DocumentController extends Controller
             //  missing         : pegawai yang TIDAK punya satu pun dokumen sesuai filter
             //                    (tanpa filter lain = pegawai tanpa dokumen sama sekali);
             //                    total_documents_count = seluruh berkas pegawai itu, sebagai konteks.
-            $staffList = Data::query()
+            // Hanya pegawai yang datanya sudah lengkap (bukan draft) dan berstatus active.
+            $staffList = Data::completed()
+                ->active()
                 ->select("{$table}.*")
                 ->with(['vault'])
                 ->addSelect([
@@ -62,10 +65,16 @@ class DocumentController extends Controller
                 ->paginate(10)
                 ->withQueryString();
         } else {
+            // Hanya dokumen milik pegawai lengkap & active; pencarian nama pegawai
+            // digabung dalam satu whereHas yang sama.
             $documents = $this->applyFilters(
                 Document::query()
                     ->with(['staff', 'category', 'creator', 'linkedRecord'])
-                    ->when($search, fn($query, $s) => $query->whereHas('staff', fn($q) => $q->where('name', 'like', "%{$s}%"))),
+                    ->whereHas('staff', function ($q) use ($search) {
+                        $q->completed()
+                            ->active()
+                            ->when($search, fn($w, $s) => $w->where('name', 'like', "%{$s}%"));
+                    }),
                 $request
             )
                 ->orderByDesc('created_at')
@@ -90,7 +99,7 @@ class DocumentController extends Controller
         $this->normalizeFilters($request);
 
         $search = $request->input('search');
-        $staff  = Data::with(['vault'])->findOrFail($staffId);
+        $staff  = Data::completed()->active()->with(['vault'])->findOrFail($staffId);
 
         $documents = $this->applyFilters(
             Document::query()
@@ -417,7 +426,8 @@ class DocumentController extends Controller
     private function formOptions(): array
     {
         return [
-            'staffOptions' => Data::orderBy('name')->get(['id', 'name'])
+            // Dropdown pegawai hanya berisi pegawai lengkap & active.
+            'staffOptions' => Data::completed()->active()->orderBy('name')->get(['id', 'name'])
                 ->map(fn($s) => ['value' => $s->id, 'label' => $s->name])
                 ->toArray(),
 
@@ -426,8 +436,8 @@ class DocumentController extends Controller
                 $query->where('linked_table', '')
                     ->orWhereNull('linked_table');
             })
-                ->orderBy('sort_order') // Diurutkan berdasarkan sort_order
-                ->orderBy('name')       // Urutan cadangan jika sort_order bernilai sama
+                ->orderBy('sort_order')
+                ->orderBy('name')
                 ->get(['id', 'name'])
                 ->map(fn($c) => ['value' => $c->id, 'label' => $c->name])
                 ->toArray(),
@@ -437,7 +447,14 @@ class DocumentController extends Controller
     private function validated(Request $request, bool $isCreate): array
     {
         return $request->validate([
-            'staff_id'                   => 'required|uuid|exists:staff_data,id',
+            // staff_id harus pegawai active dan bukan draft
+            'staff_id'                   => [
+                'required',
+                'uuid',
+                Rule::exists('staff_data', 'id')
+                    ->where('status', 'active')
+                    ->where('is_draft', false),
+            ],
             // Pastikan kategori yang dipilih valid DAN tidak memiliki linked_table (harus mandiri)
             'staff_document_category_id' => [
                 'required',

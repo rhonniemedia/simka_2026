@@ -70,8 +70,10 @@ class SalariesHistoryController extends Controller
 
         $statusColumn = $model->qualifyColumn('verification_status');
 
-        // Mengambil data gaji berkala beserta data pegawai terkait (dan berkas SK-nya)
+        // Mengambil data gaji berkala beserta data pegawai terkait (dan berkas SK-nya).
+        // Hanya riwayat milik pegawai yang datanya lengkap (bukan draft) dan berstatus active.
         $query = PeriodicSalaryHistory::with(['staff.vault', 'documents.category'])
+            ->whereHas('staff', fn($s) => $s->completed()->active())
             ->when($search !== '', fn($q) => $q->whereHas(
                 'staff',
                 fn($s) => $s->where('name', 'like', "%{$search}%")
@@ -92,9 +94,10 @@ class SalariesHistoryController extends Controller
 
         $filterVerificationStatus = $filterStatus;
 
-        // Ambil daftar opsi tahun berdasarkan TMT BERIKUTNYA (effective_date + 2 tahun)
-        // Supaya dropdown filter menampilkan tahun KGB yang akan datang (misal: 2027)
+        // Daftar opsi tahun berdasarkan TMT BERIKUTNYA (effective_date + 2 tahun).
+        // Dibatasi pegawai lengkap & active supaya dropdown tidak menawarkan tahun yang hasilnya kosong.
         $yearOptions = PeriodicSalaryHistory::query()
+            ->whereHas('staff', fn($s) => $s->completed()->active())
             ->selectRaw('year(date_add(effective_date, interval 2 year)) as y')
             ->whereNotNull('effective_date')
             ->distinct()
@@ -113,7 +116,7 @@ class SalariesHistoryController extends Controller
 
     public function show(Request $request, $id)
     {
-        $staff = Data::with(['vault', 'employmentStatus'])->findOrFail($id);
+        $staff = Data::completed()->active()->with(['vault', 'employmentStatus'])->findOrFail($id);
 
         $histories = PeriodicSalaryHistory::with('documents.category')
             ->where('staff_id', $id)
@@ -132,14 +135,14 @@ class SalariesHistoryController extends Controller
 
     public function create($id)
     {
-        $staff = Data::findOrFail($id);
+        $staff = Data::completed()->active()->findOrFail($id);
 
         return view('pages.admin.career.salaries.show.partials._modal-form', compact('staff'));
     }
 
     public function store(Request $request, $id)
     {
-        $staff = Data::findOrFail($id);
+        $staff = Data::completed()->active()->findOrFail($id);
 
         try {
             $validated = $this->validated($request, $staff);
@@ -176,7 +179,7 @@ class SalariesHistoryController extends Controller
 
     public function edit($staff_id, $history_id)
     {
-        $staff = Data::findOrFail($staff_id);
+        $staff = Data::completed()->active()->findOrFail($staff_id);
         $history = PeriodicSalaryHistory::where('staff_id', $staff_id)->findOrFail($history_id);
 
         return view('pages.admin.career.salaries.show.partials._modal-form', compact('staff', 'history'));
@@ -184,7 +187,7 @@ class SalariesHistoryController extends Controller
 
     public function update(Request $request, $staff_id, $history_id)
     {
-        $staff = Data::findOrFail($staff_id);
+        $staff = Data::completed()->active()->findOrFail($staff_id);
         $history = PeriodicSalaryHistory::where('staff_id', $staff_id)->findOrFail($history_id);
 
         try {
@@ -219,6 +222,10 @@ class SalariesHistoryController extends Controller
 
     public function destroy(Request $request, $staff_id, $history_id)
     {
+        // Pastikan pegawainya masih lengkap & active (sama seperti show()).
+        // Dicek di luar try dan SEBELUM penghapusan supaya data tidak terhapus lalu 404.
+        Data::completed()->active()->findOrFail($staff_id);
+
         try {
             $history = PeriodicSalaryHistory::where('staff_id', $staff_id)->findOrFail($history_id);
 
@@ -276,7 +283,9 @@ class SalariesHistoryController extends Controller
             ->orderByDesc('latest.effective_date')
             ->limit(1);
 
+        // Hanya pegawai lengkap & active yang masuk daftar KGB
         $query = PeriodicSalaryHistory::with('staff.vault')
+            ->whereHas('staff', fn($s) => $s->completed()->active())
             ->where("{$table}.id", '=', $latestId);
 
         // 2. Map data

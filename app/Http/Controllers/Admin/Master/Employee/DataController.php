@@ -82,8 +82,11 @@ class DataController extends Controller
         $filterGender = $request->input('filter_gender');
         $search = $request->input('search');
 
-        // 2. Inisiasi query beserta relasinya. Draft yang belum selesai tidak ditampilkan.
-        $query = Data::completed()->with(['vault', 'personnelType', 'grade', 'employmentStatus']);
+        // 2. Inisiasi query beserta relasinya.
+        //    Draft yang belum selesai dan pegawai non-active tidak ditampilkan.
+        $query = Data::completed()
+            ->active()
+            ->with(['vault', 'personnelType', 'grade', 'employmentStatus']);
 
         // 3. Pencarian (nama & hash NIK/NIP/NUPTK)
         if (!empty($search)) {
@@ -154,6 +157,7 @@ class DataController extends Controller
     private function getStats(): array
     {
         $statuses = Data::completed()
+            ->active()
             ->leftJoin('staff_employment_statuses', 'staff_data.employment_id', '=', 'staff_employment_statuses.id')
             ->selectRaw('staff_employment_statuses.slug, count(staff_data.id) as total')
             ->groupBy('staff_employment_statuses.id', 'staff_employment_statuses.slug')
@@ -163,7 +167,7 @@ class DataController extends Controller
         $pppkPw = $statuses->get('pppk-pw', 0);
 
         return [
-            'totalStats'   => Data::completed()->count(),
+            'totalStats'   => Data::completed()->active()->count(),
             'pnsStats'     => $statuses->get('pns', 0),
             'pppkTotal'    => $pppk + $pppkPw,
             'pppkPenuh'    => $pppk,
