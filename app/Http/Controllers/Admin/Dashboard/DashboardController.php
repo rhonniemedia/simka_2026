@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Admin\Dashboard;
 use App\Http\Controllers\Controller;
 use App\Models\AsnPositionHistory;
 use App\Models\Data;
+use App\Models\EmploymentStatus;
 use App\Models\PeriodicSalaryHistory;
 use App\Models\StaffStatusHistory;
+use App\Services\Dashboard\RecentActivityService;
 use App\Services\Personnel\RetirementList;
 use Carbon\Carbon;
 use DateTimeImmutable;
@@ -47,20 +49,24 @@ class DashboardController extends Controller
 
         $periodicWaitlist = $this->periodicWaitlist();
 
-        $employmentBreakdown = Data::completed()
-            ->where('staff_data.status', 'active')
-            ->join('staff_employment_statuses', 'staff_employment_statuses.id', '=', 'staff_data.employment_id')
-            ->whereIn('staff_employment_statuses.slug', self::INCLUDED_EMPLOYMENT_SLUGS)
-            ->select('staff_employment_statuses.name', DB::raw('count(*) as total'))
+        $employmentBreakdown = EmploymentStatus::query()
+            ->leftJoin('staff_data', function ($join) {
+                $join->on('staff_data.employment_id', '=', 'staff_employment_statuses.id')
+                    ->where('staff_data.is_draft', 0)
+                    ->where('staff_data.status', 'active');
+            })
+            ->select('staff_employment_statuses.name', DB::raw('count(staff_data.id) as total'))
             ->groupBy('staff_employment_statuses.id', 'staff_employment_statuses.name', 'staff_employment_statuses.code')
             ->orderBy('staff_employment_statuses.code')
             ->get();
 
-        $recentActivities = StaffStatusHistory::with(['staff', 'creator'])
-            ->latest('effective_date')
-            ->latest('created_at')
-            ->limit(8)
-            ->get();
+        // Pegawai aktif yang belum punya status kepegawaian ikut dihitung.
+        $withoutStatus = Data::completed()->where('status', 'active')->whereNull('employment_id')->count();
+        if ($withoutStatus > 0) {
+            $employmentBreakdown->push((object) ['name' => 'Belum diatur', 'total' => $withoutStatus]);
+        }
+
+        $recentActivities = app(RecentActivityService::class)->get(10);
 
         return view('pages.admin.dashboard.home.index', compact(
             'activeStaffCount',

@@ -26,7 +26,6 @@ class SalariesHistoryController extends Controller
 
     public function index(Request $request)
     {
-        // Ambil input sebagai string aman (array / nilai aneh dianggap kosong)
         $input = function (string $key) use ($request): string {
             $value = $request->input($key, '');
 
@@ -37,11 +36,11 @@ class SalariesHistoryController extends Controller
         $filterStatus = $input('filter_verification_status');
         $filterYear   = $input('filter_year');
 
-        // Whitelist nilai filter
         $filterStatus = in_array($filterStatus, ['verified', 'draft', 'rejected'], true) ? $filterStatus : '';
         $filterYear   = ctype_digit($filterYear) ? $filterYear : '';
 
         $model = new PeriodicSalaryHistory;
+        $table = $model->getTable();
 
         $sorter = TableSort::make($request, [
             'name'           => ['relation' => 'staff', 'column' => 'name'],
@@ -57,35 +56,41 @@ class SalariesHistoryController extends Controller
                     . ' where ' . $g->wrap($staff->getQualifiedKeyName()) . ' = ' . $staffFk
                     . ' limit 1)';
 
-                // 1) Baris yang tampil "-" (tanpa tanggal mulai tugas, atau masa kerja >= 32 tahun)
-                //    selalu di akhir. 384 bulan = batas 31 tahun yang dipakai di accessor.
                 $q->orderByRaw(
                     "case when {$start} is null or timestampdiff(month, {$start}, {$effective}) >= 384 then 1 else 0 end"
                 );
 
-                // 2) Sisanya urut TMT (TMT berikutnya = TMT + 2 tahun, urutannya sama)
                 $q->orderBy($model->qualifyColumn('effective_date'), $dir);
             },
-        ], default: 'effective_date', defaultDirection: 'desc');
+        ], default: 'name', defaultDirection: 'asc');
 
         $statusColumn = $model->qualifyColumn('verification_status');
+        $effectiveCol = $model->qualifyColumn('effective_date');
 
-        // Mengambil data gaji berkala beserta data pegawai terkait (dan berkas SK-nya).
-        // Hanya riwayat milik pegawai yang datanya lengkap (bukan draft) dan berstatus active.
+        $latestId = DB::table("{$table} as latest")
+            ->select('latest.id')
+            ->whereColumn('latest.staff_id', "{$table}.staff_id")
+            ->orderByDesc('latest.effective_date')
+            ->orderByDesc('latest.id')
+            ->limit(1);
+
         $query = PeriodicSalaryHistory::with(['staff.vault', 'documents.category'])
             ->whereHas('staff', fn($s) => $s->completed()->active())
+            ->where($model->qualifyColumn('id'), '=', $latestId)
             ->when($search !== '', fn($q) => $q->whereHas(
                 'staff',
                 fn($s) => $s->where('name', 'like', "%{$search}%")
             ))
-            // "Draf" = semua yang bukan terverifikasi / ditolak (sama dengan label di tabel)
             ->when($filterStatus === 'draft', fn($q) => $q->where(
                 fn($w) => $w->whereNull($statusColumn)->orWhereNotIn($statusColumn, ['verified', 'rejected'])
             ))
             ->when(in_array($filterStatus, ['verified', 'rejected'], true), fn($q) => $q->where($statusColumn, $filterStatus))
-            ->when($filterYear !== '', fn($q) => $q->whereYear($model->qualifyColumn('effective_date'), $filterYear));
+            ->when($filterYear !== '', function ($q) use ($effectiveCol, $filterYear) {
+                $effective = $q->getQuery()->getGrammar()->wrap($effectiveCol);
 
-        // Sortir: saat sortir nama, riwayat milik satu pegawai dikelompokkan, terbaru di atas
+                $q->whereRaw("year(date_add({$effective}, interval 2 year)) = ?", [$filterYear]);
+            });
+
         $sorter->apply($query, then: $sorter->key() === 'name'
             ? ['staff_id', ['effective_date', 'desc']]
             : []);
@@ -94,12 +99,11 @@ class SalariesHistoryController extends Controller
 
         $filterVerificationStatus = $filterStatus;
 
-        // Daftar opsi tahun berdasarkan TMT BERIKUTNYA (effective_date + 2 tahun).
-        // Dibatasi pegawai lengkap & active supaya dropdown tidak menawarkan tahun yang hasilnya kosong.
         $yearOptions = PeriodicSalaryHistory::query()
             ->whereHas('staff', fn($s) => $s->completed()->active())
-            ->selectRaw('year(date_add(effective_date, interval 2 year)) as y')
-            ->whereNotNull('effective_date')
+            ->where($model->qualifyColumn('id'), '=', $latestId)
+            ->selectRaw('year(date_add(' . $effectiveCol . ', interval 2 year)) as y')
+            ->whereNotNull($effectiveCol)
             ->distinct()
             ->orderByDesc('y')
             ->pluck('y');
@@ -123,7 +127,6 @@ class SalariesHistoryController extends Controller
             ->latest('effective_date')
             ->paginate(10);
 
-        // Menghindari query berulang di setiap baris dengan menetapkan relasi staff secara manual
         $histories->getCollection()->each->setRelation('staff', $staff);
 
         if ($request->header('HX-Request')) {
@@ -147,16 +150,12 @@ class SalariesHistoryController extends Controller
         try {
             $validated = $this->validated($request, $staff);
 
-            // Data berkala dan berkas SK disimpan dalam satu transaksi:
-            // jika berkas gagal, data berkala ikut dibatalkan.
             DB::transaction(function () use ($request, $staff, $validated) {
-                // Model otomatis mendeteksi key 'base_salary', mengenkripsinya,
-                // dan menyimpannya sebagai 'base_salary_encrypted'.
                 $history = $staff->periodicSalaries()->create(
-                    Arr::except($validated, ['file']) + ['created_by' => Auth::id()]
+                    Arr::except($validated, ['file', 'verification_status']) + ['created_by' => Auth::id()]
                 );
 
-                $this->storeSk($history, $request);
+                $this->storeSk($history, $request, $validated['verification_status'] ?? null);
             });
         } catch (ValidationException $e) {
             return $this->respondWithModalErrors($request, $e, $staff, null);
@@ -195,11 +194,13 @@ class SalariesHistoryController extends Controller
 
             DB::transaction(function () use ($request, $history, $validated) {
                 $history->update(
-                    Arr::except($validated, ['file']) + ['updated_by' => Auth::id()]
+                    Arr::except($validated, ['file', 'verification_status']) + ['updated_by' => Auth::id()]
                 );
 
-                $this->syncSkMeta($history);
-                $this->storeSk($history, $request);
+                $status = $validated['verification_status'] ?? null;
+
+                $this->syncSkMeta($history, $status);
+                $this->storeSk($history, $request, $status);
             });
         } catch (ValidationException $e) {
             return $this->respondWithModalErrors($request, $e, $staff, $history);
@@ -222,22 +223,15 @@ class SalariesHistoryController extends Controller
 
     public function destroy(Request $request, $staff_id, $history_id)
     {
-        // Pastikan pegawainya masih lengkap & active (sama seperti show()).
-        // Dicek di luar try dan SEBELUM penghapusan supaya data tidak terhapus lalu 404.
         Data::completed()->active()->findOrFail($staff_id);
 
         try {
             $history = PeriodicSalaryHistory::where('staff_id', $staff_id)->findOrFail($history_id);
-
-            // Berkas SK ikut dihapus lunak lewat trait HasStaffDocuments
             $history->delete();
         } catch (\Throwable $e) {
             report($e);
 
             if ($request->header('HX-Request')) {
-                // Render ulang tabel apa adanya (data belum berubah) supaya swap
-                // outerHTML di sisi klien tidak mengosongkan tabel, lalu tampilkan
-                // alert error lewat HX-Trigger.
                 return response($this->show($request, $staff_id)->render())
                     ->header('HX-Trigger', json_encode([
                         'showAlert' => [
@@ -253,9 +247,6 @@ class SalariesHistoryController extends Controller
         }
 
         if ($request->header('HX-Request')) {
-            // Render ulang tabel dengan data terbaru (baris yang dihapus sudah tidak ada)
-            // dan kirim sebagai body response, supaya tombol hapus (swap: outerHTML)
-            // langsung mengganti tabel lama dengan tabel baru tanpa perlu event tambahan.
             return response($this->show($request, $staff_id)->render())
                 ->header('HX-Trigger', json_encode([
                     'showAlert' => [
@@ -275,7 +266,6 @@ class SalariesHistoryController extends Controller
         $year = is_string($year) && preg_match('/^\d{4}$/', $year) ? $year : null;
         $table = (new PeriodicSalaryHistory)->getTable();
 
-        // 1. Subquery: Filter berdasarkan TMT BERIKUTNYA (effective_date + 2 tahun = $year)
         $latestId = DB::table("{$table} as latest")
             ->select('latest.id')
             ->whereColumn('latest.staff_id', "{$table}.staff_id")
@@ -283,12 +273,10 @@ class SalariesHistoryController extends Controller
             ->orderByDesc('latest.effective_date')
             ->limit(1);
 
-        // Hanya pegawai lengkap & active yang masuk daftar KGB
         $query = PeriodicSalaryHistory::with('staff.vault')
             ->whereHas('staff', fn($s) => $s->completed()->active())
             ->where("{$table}.id", '=', $latestId);
 
-        // 2. Map data
         $rows = $query->get()->map(function ($h) {
             return [
                 'name'        => $h->staff?->name ?? '-',
@@ -301,7 +289,6 @@ class SalariesHistoryController extends Controller
             ];
         });
 
-        // 3. Urutkan berdasarkan TMT Berikutnya (terdekat ke terjauh)
         $rows = $rows->sort(function ($a, $b) {
             if ($a['raw_next'] === $b['raw_next']) return 0;
             if ($a['raw_next'] === null) return 1;
@@ -309,7 +296,6 @@ class SalariesHistoryController extends Controller
             return $a['raw_next'] <=> $b['raw_next'];
         })->values();
 
-        // 4. Return Output PDF dengan Judul PERIODE TAHUN MENDATANG
         return $pdf->output(
             'pages.admin.pdf.periodic_salary',
             [
@@ -323,12 +309,6 @@ class SalariesHistoryController extends Controller
         );
     }
 
-    /*
-    |--------------------------------------------------------------------
-    | Helper
-    |--------------------------------------------------------------------
-    */
-
     private function indonesianDate($value): string
     {
         return filled($value)
@@ -336,10 +316,6 @@ class SalariesHistoryController extends Controller
             : '-';
     }
 
-    /**
-     * Aturan validasi bersama untuk tambah & ubah. $ignoreId diisi saat ubah
-     * supaya TMT milik baris yang sedang diedit tidak dianggap duplikat.
-     */
     private function validated(Request $request, Data $staff, ?string $ignoreId = null): array
     {
         $unique = Rule::unique('staff_periodic_salary_histories')
@@ -352,37 +328,46 @@ class SalariesHistoryController extends Controller
         return $request->validate([
             'effective_date' => ['required', 'date', $unique],
             'decree_number'  => ['nullable', 'string', 'max:255', 'required_with:file'],
-            'decree_date'    => ['required', 'date'], // <-- Diubah menjadi required
+            'decree_date'    => ['required', 'date'],
             'base_salary'    => 'nullable|numeric',
+            'verification_status' => 'nullable|in:draft,verified,rejected',
             'file'           => ['nullable', 'file', 'mimes:pdf', 'max:' . StaffDocumentService::MAX_SIZE_KB],
         ], [
-            'effective_date.required'     => 'TMT Berkala (Terhitung Mulai Tanggal) wajib diisi.', // <-- Tambahan pesan
+            'effective_date.required'     => 'TMT Berkala (Terhitung Mulai Tanggal) wajib diisi.',
             'effective_date.unique'       => 'Riwayat gaji berkala pada TMT (Tanggal) tersebut sudah ada untuk pegawai ini.',
-            'decree_date.required'        => 'Tanggal SK wajib diisi.', // <-- Tambahan pesan
+            'decree_date.required'        => 'Tanggal SK wajib diisi.',
             'decree_number.required_with' => 'Nomor SK wajib diisi jika mengunggah berkas SK.',
+            'verification_status.in'      => 'Status dokumen tidak valid.',
             'file.mimes'                  => 'Berkas SK harus berformat PDF.',
             'file.max'                    => 'Ukuran berkas SK maksimal 1 MB.',
             'file.uploaded'               => 'Berkas SK gagal diunggah. Pastikan ukurannya maksimal 1 MB.',
         ]);
     }
 
-    /** Query berkas SK berkala milik satu riwayat. */
     private function skDocuments(PeriodicSalaryHistory $history)
     {
         return $history->documents()
             ->whereHas('category', fn($c) => $c->where('code', self::SK_CATEGORY));
     }
 
-    /**
-     * Nomor & tanggal SK di berkas mengikuti data berkala (sumber kebenaran).
-     * Hanya nilai yang terisi yang disalin, supaya nomor/tanggal pada berkas lama
-     * tidak terhapus ketika data berkala-nya memang belum mencatat nomor SK.
-     */
-    private function syncSkMeta(PeriodicSalaryHistory $history): void
+    private function resolveDocumentName(PeriodicSalaryHistory $history): ?string
     {
+        if (filled($history->effective_date)) {
+            $year = Carbon::parse($history->effective_date)->format('Y');
+            return 'Berkala ' . $year;
+        }
+        return null;
+    }
+
+    private function syncSkMeta(PeriodicSalaryHistory $history, ?string $status = null): void
+    {
+        $documentName = $this->resolveDocumentName($history);
+
         $meta = array_filter([
-            'document_number' => $history->decree_number,
-            'document_date'   => $history->decree_date,
+            'document_name'       => $documentName,
+            'document_number'     => $history->decree_number,
+            'document_date'       => $history->decree_date,
+            'verification_status' => $status,
         ], fn($value) => filled($value));
 
         if ($meta) {
@@ -390,11 +375,7 @@ class SalariesHistoryController extends Controller
         }
     }
 
-    /**
-     * Simpan berkas SK jika ada yang diunggah. Satu riwayat hanya punya satu
-     * SK aktif: berkas lama (jika ada) dihapus lunak lalu digantikan.
-     */
-    private function storeSk(PeriodicSalaryHistory $history, Request $request): void
+    private function storeSk(PeriodicSalaryHistory $history, Request $request, ?string $status = null): void
     {
         if (! $request->hasFile('file')) {
             return;
@@ -402,23 +383,23 @@ class SalariesHistoryController extends Controller
 
         $this->skDocuments($history)->get()->each->delete();
 
-        $history->attachDocument($request->file('file'), self::SK_CATEGORY);
+        $documentName = $this->resolveDocumentName($history);
+
+        $history->attachDocument(
+            $request->file('file'),
+            self::SK_CATEGORY,
+            array_merge(
+                $documentName ? ['document_name' => $documentName] : [],
+                array_filter(['verification_status' => $status], fn($value) => filled($value))
+            )
+        );
     }
 
-    /**
-     * Render ulang modal form beserta pesan error validasi, lalu
-     * paksa htmx untuk swap ke #modal-container (bukan target asli form)
-     * memakai header HX-Retarget/HX-Reswap. Ini mencegah error redirect
-     * bawaan Laravel "menghancurkan" tampilan saat request datang dari htmx.
-     */
     protected function respondWithModalErrors(Request $request, ValidationException $e, Data $staff, ?PeriodicSalaryHistory $history)
     {
         if ($request->header('HX-Request')) {
-            // Supaya old() bisa dipakai di blade untuk mempertahankan input user
             $request->flash();
 
-            // @error() di blade memanggil $errors->getBag(), jadi harus ViewErrorBag
-            // (bukan MessageBag mentah dari validator).
             $errorBag = new ViewErrorBag();
             $errorBag->put('default', $e->validator->errors());
 

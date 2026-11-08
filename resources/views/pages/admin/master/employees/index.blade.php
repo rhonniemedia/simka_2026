@@ -27,7 +27,7 @@
             <p class="text-sm text-secondary">Kelola basis data staf dan pegawai secara menyeluruh.</p>
         </div>
 
-        {{-- Grup Tombol Aksi (Mengikuti pola Rombongan Belajar) --}}
+        {{-- Grup Tombol Aksi --}}
         <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-3">
             <button type="button"
                 hx-get="{{ route('admin.personnel.data.create') }}"
@@ -39,14 +39,7 @@
                 <span>Tambah Data</span>
             </button>
 
-            <button type="button"
-                title="Download data Excel"
-                class="flex items-center justify-center gap-2 px-3 py-2.5 sm:px-5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full font-semibold text-sm transition-all duration-300 cursor-pointer shadow-sm shadow-emerald-600/30 whitespace-nowrap">
-                <i data-lucide="file-box" class="size-4 shrink-0"></i>
-                <span>Download</span>
-            </button>
-
-            {{-- Laporan PDF (dropdown) --}}
+            {{-- Laporan PDF (Dropdown Accordion Mobile-Friendly) --}}
             @php
             $reports = [
             [
@@ -62,7 +55,11 @@
             'filter' => [
             'param' => 'employment',
             'placeholder' => 'Semua status kepegawaian',
-            'options' => $employmentAliasOptions ?? [],
+            'options' => collect($employmentAliasOptions ?? [])
+            ->map(fn ($label, $id) => ['value' => (string) $id, 'label' => $label])
+            ->values()
+            ->prepend(['value' => '', 'label' => 'Semua status kepegawaian'])
+            ->all(),
             ],
             ],
             ];
@@ -70,6 +67,7 @@
             <div class="relative"
                 x-data="{
                     open: false,
+                    activeAccordion: null,
                     filters: { employees: '' },
                     openPdf(url, download = false, param = null, value = '') {
                         if (!url || url === '#') { this.open = false; return; }
@@ -82,7 +80,9 @@
                         this.open = false;
                     }
                 }"
-                @click.outside="open = false"
+                {{-- Daftar <x-ui.select> di-teleport ke body, jadi klik pada opsinya dianggap "di luar" menu ini.
+                     Klik di dalam daftar tersebut (fixed z-[9999]) diabaikan agar menu tidak tertutup. --}}
+                @click.window="if (open && !$el.contains($event.target) && !$event.target.closest('.fixed.z-\\[9999\\]')) open = false"
                 @keydown.escape.window="open = false">
 
                 <button type="button" @click="open = !open"
@@ -94,46 +94,70 @@
                 </button>
 
                 <div x-show="open" x-cloak x-transition
-                    class="absolute right-0 z-20 mt-2 w-80 rounded-2xl border border-border bg-white p-2 shadow-lg">
-                    @foreach ($reports as $report)
-                    <div class="rounded-xl px-3 py-2 hover:bg-muted/60">
-                        <div class="flex items-center justify-between gap-2">
-                            <div class="flex items-center gap-2 min-w-0">
-                                <i data-lucide="file-text" class="size-4 shrink-0 text-secondary"></i>
-                                <span class="text-sm font-medium text-foreground truncate">{{ $report['label'] }}</span>
-                            </div>
-                            <div class="flex items-center gap-1 shrink-0">
-                                <button type="button" title="Tampilkan"
-                                    @click="openPdf(@js($report['url']), false, @js($report['filter']['param'] ?? null), filters[@js($report['key'])] ?? '')"
-                                    class="size-8 inline-flex items-center justify-center rounded-lg bg-primary/10 text-primary hover:bg-primary hover:text-white transition-colors cursor-pointer">
-                                    <i data-lucide="eye" class="size-4"></i>
-                                </button>
-                                <button type="button" title="Unduh"
-                                    @click="openPdf(@js($report['url']), true, @js($report['filter']['param'] ?? null), filters[@js($report['key'])] ?? '')"
-                                    class="size-8 inline-flex items-center justify-center rounded-lg ring-1 ring-border text-foreground hover:ring-primary transition-colors cursor-pointer">
-                                    <i data-lucide="download" class="size-4"></i>
-                                </button>
+                    class="absolute right-0 z-20 mt-2 w-80 sm:w-96 rounded-2xl border border-border bg-white p-3 shadow-xl max-h-[80vh] overflow-y-auto">
+                    <div class="px-2 pb-2 mb-2 border-b border-border/60 text-xs font-semibold text-secondary uppercase tracking-wider">
+                        Pilih Menu Laporan
+                    </div>
+
+                    <div class="space-y-2">
+                        @foreach ($reports as $report)
+                        <div class="rounded-xl border border-border/60 bg-slate-50/50 overflow-hidden transition-all">
+                            {{-- Accordion Header --}}
+                            <button type="button"
+                                @click="activeAccordion = (activeAccordion === '{{ $report['key'] }}' ? null : '{{ $report['key'] }}')"
+                                class="w-full flex items-center justify-between gap-2 px-3.5 py-3 text-left hover:bg-muted/60 transition-colors cursor-pointer">
+                                <div class="flex items-center gap-2.5 min-w-0">
+                                    <div class="size-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                                        <i data-lucide="file-text" class="size-4"></i>
+                                    </div>
+                                    <span class="text-xs sm:text-sm font-semibold text-foreground truncate">{{ $report['label'] }}</span>
+                                </div>
+                                <i data-lucide="chevron-down" class="size-4 shrink-0 text-secondary transition-transform duration-200"
+                                    :class="activeAccordion === '{{ $report['key'] }}' ? 'rotate-180 text-primary' : ''"></i>
+                            </button>
+
+                            {{-- Accordion Body (Filter, Tampilkan & Unduh) --}}
+                            <div x-show="activeAccordion === '{{ $report['key'] }}'" x-cloak x-collapse
+                                class="px-3.5 pb-3.5 pt-1 border-t border-border/40 bg-white space-y-3">
+
+                                @if ($report['filter'])
+                                <div @change="filters[@js($report['key'])] = $event.target.value"
+                                    @reset-filters.window="filters[@js($report['key'])] = ''">
+                                    <label class="block text-[11px] font-medium text-secondary mb-1">Filter Kategori:</label>
+                                    <x-ui.select
+                                        :name="'report_filter_' . $report['key']"
+                                        :options="$report['filter']['options']"
+                                        :placeholder="$report['filter']['placeholder']" />
+                                </div>
+                                @endif
+
+                                {{-- Grid Tombol Aksi: Tampilkan & Download --}}
+                                <div class="grid grid-cols-2 gap-2 pt-1">
+                                    <button type="button"
+                                        @click="openPdf(@js($report['url']), false, @js($report['filter']['param'] ?? null), filters[@js($report['key'])] ?? '')"
+                                        class="flex items-center justify-center gap-1.5 px-3 py-2 bg-primary/10 hover:bg-primary text-primary hover:text-white rounded-xl text-xs font-semibold transition-colors cursor-pointer">
+                                        <i data-lucide="eye" class="size-3.5 shrink-0"></i>
+                                        <span>Lihat PDF</span>
+                                    </button>
+
+                                    <button type="button"
+                                        @click="openPdf(@js($report['url']), true, @js($report['filter']['param'] ?? null), filters[@js($report['key'])] ?? '')"
+                                        class="flex items-center justify-center gap-1.5 px-3 py-2 ring-1 ring-border hover:ring-primary text-foreground hover:text-primary bg-white rounded-xl text-xs font-semibold transition-colors cursor-pointer">
+                                        <i data-lucide="download" class="size-3.5 shrink-0"></i>
+                                        <span>Download</span>
+                                    </button>
+                                </div>
                             </div>
                         </div>
-
-                        @if ($report['filter'])
-                        <select x-model="filters[@js($report['key'])]"
-                            class="mt-2 h-9 w-full rounded-lg border border-border bg-white px-2.5 text-xs text-foreground focus:outline-none focus:border-primary">
-                            <option value="">{{ $report['filter']['placeholder'] }}</option>
-                            @foreach ($report['filter']['options'] as $id => $label)
-                            <option value="{{ $id }}">{{ $label }}</option>
-                            @endforeach
-                        </select>
-                        @endif
+                        @endforeach
                     </div>
-                    @endforeach
                 </div>
             </div>
 
             <a href="{{ route('admin.personnel.data.index') }}"
                 title="Segarkan halaman"
                 onclick="document.getElementById('refresh-icon').classList.add('animate-spin');"
-                class="flex items-center justify-center gap-2 px-3 py-2.5 sm:px-4 ring-1 ring-border hover:ring-primary rounded-full text-foreground font-semibold text-sm transition-all bg-white cursor-pointer whitespace-nowrap">
+                class="hidden sm:flex items-center justify-center gap-2 px-3 py-2.5 sm:px-4 ring-1 ring-border hover:ring-primary rounded-full text-foreground font-semibold text-sm transition-all bg-white cursor-pointer whitespace-nowrap">
                 <i id="refresh-icon" data-lucide="refresh-cw" class="size-4 shrink-0"></i>
                 <span>Segarkan</span>
             </a>
@@ -169,7 +193,7 @@
             {{-- Bagian Kanan: Pencarian & Filter --}}
             <div class="flex items-center gap-2 w-full sm:w-auto" x-data="{ searchQuery: '{{ $search ?? '' }}' }">
 
-                {{-- INPUT PENCARIAN (Mengikuti pola Rombongan Belajar) --}}
+                {{-- INPUT PENCARIAN --}}
                 <div class="relative flex-1 sm:flex-none w-56 md:w-64 flex items-center">
                     <i data-lucide="search" class="absolute left-3.5 size-4 transition-colors pointer-events-none"
                         :class="searchQuery.length > 0 ? 'text-primary' : 'text-secondary'"></i>
@@ -209,7 +233,7 @@
                     class="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border bg-white hover:bg-muted transition-colors cursor-pointer focus:outline-none">
                     <i data-lucide="filter" class="size-4 text-secondary"></i>
 
-                    {{-- Ping Indikator Aktif (Mengikuti pola Rombongan Belajar) --}}
+                    {{-- Ping Indikator Aktif --}}
                     <span
                         x-show="isFilterActive"
                         x-cloak

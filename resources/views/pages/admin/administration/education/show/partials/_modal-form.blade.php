@@ -40,6 +40,21 @@ $existingIjazah = $isEdit
 $existingTranscript = $isEdit
 ? $education->documents()->whereHas('category', fn ($c) => $c->where('code', 'transkrip_nilai'))->latest()->first()
 : null;
+
+// Nomor & tanggal transkrip tersimpan di baris dokumennya (bukan di riwayat pendidikan)
+$transcriptNumberValue = $existingTranscript?->document_number ?? '';
+$transcriptDateValue = !empty($existingTranscript?->document_date)
+? \Carbon\Carbon::parse($existingTranscript->document_date)->format('Y-m-d')
+: '';
+
+// Opsi status dokumen (sama dengan form di menu Dokumen)
+$verificationOptions = [
+['value' => 'draft', 'label' => 'Draft'],
+['value' => 'verified', 'label' => 'Terverifikasi'],
+['value' => 'rejected', 'label' => 'Ditolak'],
+];
+
+$errorClass = 'text-[11px] text-error mt-1.5 font-medium';
 @endphp
 
 <div x-data="{ open: false }"
@@ -74,9 +89,64 @@ $existingTranscript = $isEdit
             hx-encoding="multipart/form-data"
             hx-target="#education-container"
             hx-swap="outerHTML"
-            x-data="{ saving: false, fileErrors: { ijazah: '', transcript: '' } }"
-            @htmx:before-request="saving = true"
-            @htmx:after-request="saving = false"
+            x-data="{ 
+                saving: false, 
+                fileErrors: { ijazah: '', transcript: '' }, 
+                errors: {},
+                hasFile: { ijazah: false, transcript: false }, 
+                hasDoc: { ijazah: {{ $existingIjazah ? 'true' : 'false' }}, transcript: {{ $existingTranscript ? 'true' : 'false' }} },
+                
+                {{-- State untuk field wajib utama --}}
+                education_level_id: '{{ $education->education_level_id ?? '' }}',
+                institution_name: '{{ $education->institution_name ?? '' }}',
+                
+                {{-- State untuk nomor & tanggal ijazah --}}
+                certificate_number: '{{ $education->certificate_number ?? '' }}',
+                certificate_date: '{{ $certificateDateValue }}',
+
+                {{-- State untuk nomor & tanggal transkrip --}}
+                transcript_number: '{{ $transcriptNumberValue }}',
+                transcript_date: '{{ $transcriptDateValue }}',
+
+                {{-- Computed validation untuk tombol simpan --}}
+                get isIjazahValid() {
+                    // Jika ada file ijazah baru ATAU sudah ada dokumen ijazah lama, nomor & tanggal wajib terisi
+                    if (this.hasFile.ijazah || this.hasDoc.ijazah) {
+                        return this.certificate_number.trim() !== '' && this.certificate_date !== '';
+                    }
+                    return true;
+                },
+
+                get isTranscriptValid() {
+                    // Jika ada file transkrip baru ATAU sudah ada dokumen transkrip lama, nomor & tanggal wajib terisi
+                    if (this.hasFile.transcript || this.hasDoc.transcript) {
+                        return this.transcript_number.trim() !== '' && this.transcript_date !== '';
+                    }
+                    return true;
+                },
+
+                setErrors(xhr) {
+                    this.errors = {};
+                    if (xhr && xhr.status === 422) {
+                        try {
+                            this.errors = JSON.parse(xhr.response).errors ?? {};
+                        } catch (e) {
+                            this.errors = {};
+                        }
+                    }
+                },
+                err(field) {
+                    return this.errors[field]?.[0] ?? null;
+                }
+            }"
+            @htmx:before-request="if ($event.target === $el) saving = true"
+            @htmx:after-request="
+                if ($event.target === $el) {
+                    saving = false;
+                    setErrors($event.detail.xhr);
+                    if (typeof lucide !== 'undefined') lucide.createIcons();
+                }
+            "
             class="flex flex-col flex-1 min-h-0">
             @csrf
             @if ($isEdit)
@@ -89,43 +159,38 @@ $existingTranscript = $isEdit
                     :class="showUI ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'">
 
                     {{-- Jenjang & Jurusan --}}
-                    <div>
+                    <div @change="education_level_id = $event.target.value">
                         <label class="block text-sm font-medium text-foreground mb-1.5">Jenjang Pendidikan <span class="text-error">*</span></label>
                         <x-ui.searchable-select
                             name="education_level_id"
                             :options="$levelOptions"
                             :value="$education->education_level_id ?? ''"
                             placeholder="-- Pilih Jenjang --" />
+                        <p class="{{ $errorClass }}" x-show="err('education_level_id')" x-cloak x-text="err('education_level_id')"></p>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-foreground mb-1.5">Jurusan / Program Studi</label>
                         <input type="text" name="major" value="{{ $education->major ?? '' }}" placeholder="Cth: Teknik Informatika" class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                        <p class="{{ $errorClass }}" x-show="err('major')" x-cloak x-text="err('major')"></p>
                     </div>
 
                     {{-- Institusi --}}
                     <div class="md:col-span-2">
                         <label class="block text-sm font-medium text-foreground mb-1.5">Nama Institusi / Satuan Pendidikan <span class="text-error">*</span></label>
-                        <input type="text" name="institution_name" value="{{ $education->institution_name ?? '' }}" required placeholder="Cth: Universitas Indonesia" class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
-                    </div>
-
-                    {{-- Tanggal & Nomor Ijazah --}}
-                    <div>
-                        <label class="block text-sm font-medium text-foreground mb-1.5">Nomor Ijazah <span class="text-error">*</span></label>
-                        <input type="text" name="certificate_number" value="{{ $education->certificate_number ?? '' }}" required placeholder="Nomor pada dokumen ijazah" class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-foreground mb-1.5">Tanggal Ijazah <span class="text-error">*</span></label>
-                        <input type="date" name="certificate_date" value="{{ $certificateDateValue }}" required class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                        <input type="text" name="institution_name" x-model="institution_name" value="{{ $education->institution_name ?? '' }}" placeholder="Cth: Universitas Indonesia" class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                        <p class="{{ $errorClass }}" x-show="err('institution_name')" x-cloak x-text="err('institution_name')"></p>
                     </div>
 
                     {{-- Tanggal Lulus & Provinsi --}}
                     <div>
                         <label class="block text-sm font-medium text-foreground mb-1.5">Tanggal Lulus</label>
                         <input type="date" name="graduation_date" value="{{ $graduationDateValue }}" class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                        <p class="{{ $errorClass }}" x-show="err('graduation_date')" x-cloak x-text="err('graduation_date')"></p>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-foreground mb-1.5">Provinsi</label>
                         <input type="text" name="province" value="{{ $education->province ?? '' }}" placeholder="Provinsi institusi" class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                        <p class="{{ $errorClass }}" x-show="err('province')" x-cloak x-text="err('province')"></p>
                     </div>
 
                     {{-- Gelar Akademik --}}
@@ -134,16 +199,16 @@ $existingTranscript = $isEdit
                             <h4 class="text-xs font-bold uppercase tracking-wider text-secondary">Data Gelar Akademik</h4>
                         </div>
 
-                        {{-- PERBAIKAN: class input diubah menjadi rounded-xl px-3.5 py-2.5 --}}
                         <div>
                             <label class="block text-xs font-medium text-foreground mb-1.5">Nama Gelar</label>
                             <input type="text" name="degree_name" value="{{ $education->degree_name ?? '' }}" placeholder="Cth: Sarjana Komputer" class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                            <p class="{{ $errorClass }}" x-show="err('degree_name')" x-cloak x-text="err('degree_name')"></p>
                         </div>
 
-                        {{-- PERBAIKAN: class input diubah menjadi rounded-xl px-3.5 py-2.5 --}}
                         <div>
                             <label class="block text-xs font-medium text-foreground mb-1.5">Singkatan Gelar</label>
                             <input type="text" name="degree_abbreviation" value="{{ $education->degree_abbreviation ?? '' }}" placeholder="Cth: S.Kom" class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                            <p class="{{ $errorClass }}" x-show="err('degree_abbreviation')" x-cloak x-text="err('degree_abbreviation')"></p>
                         </div>
 
                         <div>
@@ -153,58 +218,136 @@ $existingTranscript = $isEdit
                                 :options="$positionOptions"
                                 :value="$education->degree_position ?? ''"
                                 placeholder="-- Pilih --" />
+                            <p class="{{ $errorClass }}" x-show="err('degree_position')" x-cloak x-text="err('degree_position')"></p>
                         </div>
                     </div>
-                    {{-- Berkas Pendukung --}}
+
+                    {{-- ============================================================
+                         DOKUMEN IJAZAH
+                         ============================================================ --}}
                     <div class="md:col-span-2 p-3.5 sm:p-4 rounded-xl border border-border bg-slate-50/50 space-y-4">
                         <div>
-                            <h4 class="text-xs font-bold uppercase tracking-wider text-secondary">Berkas Pendukung <span class="font-normal normal-case tracking-normal">(PDF, maksimal 1 MB, opsional)</span></h4>
-                            <p class="text-[11px] text-secondary mt-1">Nomor dan tanggal berkas Ijazah otomatis memakai Nomor Ijazah dan Tanggal Ijazah di atas.</p>
+                            <h4 class="text-xs font-bold uppercase tracking-wider text-secondary">Dokumen Ijazah</h4>
+                            <p class="text-[11px] text-secondary mt-1">Isi nomor dan tanggal sesuai yang tertera pada ijazah. Berkas PDF bersifat opsional (maksimal 1 MB).</p>
                         </div>
 
-                        {{-- Ijazah --}}
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+                            <div>
+                                <label class="block text-xs font-medium text-foreground mb-1.5">
+                                    Nomor Ijazah
+                                    <span class="text-error" x-show="hasFile.ijazah || hasDoc.ijazah" x-cloak>*</span>
+                                </label>
+                                <input type="text" name="certificate_number" x-model="certificate_number" placeholder="Nomor pada dokumen ijazah" class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                                <p class="{{ $errorClass }}" x-show="err('certificate_number')" x-cloak x-text="err('certificate_number')"></p>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-foreground mb-1.5">
+                                    Tanggal Ijazah
+                                    <span class="text-error" x-show="hasFile.ijazah || hasDoc.ijazah" x-cloak>*</span>
+                                </label>
+                                <input type="date" name="certificate_date" x-model="certificate_date" class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                                <p class="{{ $errorClass }}" x-show="err('certificate_date')" x-cloak x-text="err('certificate_date')"></p>
+                            </div>
+                        </div>
+
                         <div>
-                            <label class="block text-xs font-medium text-foreground mb-1.5">Ijazah</label>
+                            <label class="block text-xs font-medium text-foreground mb-1.5">Berkas Ijazah</label>
                             @if ($existingIjazah)
                             <p class="text-xs text-secondary mb-2 flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
                                 <i data-lucide="paperclip" class="size-3.5 shrink-0"></i>
                                 <span>Berkas saat ini:</span>
-                                <a href="{{ route('admin.personnel.documents.preview', $existingIjazah->id) }}" target="_blank" rel="noopener" class="text-blue-600 hover:underline break-all">{{ $existingIjazah->original_filename ?? 'Lihat berkas' }}</a>
+                                <a href="{{ route('admin.personnel.documents.preview', $existingIjazah->id) }}" target="_blank" rel="noopener" title="{{ $existingIjazah->original_filename }}" class="text-blue-600 hover:underline break-all">{{ $existingIjazah->document_name ?? $existingIjazah->original_filename ?? 'Lihat berkas' }}</a>
                                 <span>- unggah berkas baru untuk menggantinya.</span>
                             </p>
                             @endif
                             <input type="file" name="file_ijazah" accept="application/pdf,.pdf" x-ref="ijazah"
-                                @change="fileErrors.ijazah = ''; const f = $event.target.files[0]; if (f && f.type !== 'application/pdf') { fileErrors.ijazah = 'Format berkas harus PDF.'; } else if (f && f.size > 1048576) { fileErrors.ijazah = 'Ukuran berkas maksimal 1 MB.'; }"
+                                @change="fileErrors.ijazah = ''; errors.file_ijazah = null; const f = $event.target.files[0]; if (f && f.type !== 'application/pdf') { fileErrors.ijazah = 'Format berkas harus PDF.'; } else if (f && f.size > 1048576) { fileErrors.ijazah = 'Ukuran berkas maksimal 1 MB.'; } hasFile.ijazah = !!f;"
                                 class="w-full rounded-xl border border-border px-3.5 py-2 text-sm bg-white file:mr-3 file:rounded-lg file:border-0 file:bg-primary/10 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-primary hover:file:bg-primary/15 cursor-pointer">
-                            <p x-show="fileErrors.ijazah" x-cloak class="text-xs text-error mt-1">
+                            <p x-show="fileErrors.ijazah" x-cloak class="{{ $errorClass }}">
                                 <span x-text="fileErrors.ijazah"></span>
                                 Pilih berkas lain, atau
-                                <button type="button" class="underline font-medium cursor-pointer" @click="$refs.ijazah.value = ''; fileErrors.ijazah = ''">hapus pilihan</button>
+                                <button type="button" class="underline font-medium cursor-pointer" @click="$refs.ijazah.value = ''; fileErrors.ijazah = ''; hasFile.ijazah = false">hapus pilihan</button>
                                 untuk menyimpan tanpa berkas.
                             </p>
+                            <p class="{{ $errorClass }}" x-show="err('file_ijazah')" x-cloak x-text="err('file_ijazah')"></p>
+
+                            <div class="mt-3">
+                                <label class="block text-[11px] font-medium text-secondary mb-1">Status Ijazah</label>
+                                <fieldset :disabled="!hasFile.ijazah && !hasDoc.ijazah" class="min-w-0 border-0 p-0 m-0 disabled:opacity-60">
+                                    <x-ui.select name="status_ijazah" :options="$verificationOptions" :value="$existingIjazah?->verification_status ?? 'draft'" placeholder="-- Pilih Status --" />
+                                </fieldset>
+                                <p class="text-[11px] text-secondary mt-1" x-show="!hasFile.ijazah && !hasDoc.ijazah" x-cloak>Pilih berkas Ijazah terlebih dahulu; status disimpan bersama berkas.</p>
+                                <p class="{{ $errorClass }}" x-show="err('status_ijazah')" x-cloak x-text="err('status_ijazah')"></p>
+                            </div>
                         </div>
-                        {{-- Transkrip Nilai --}}
+                    </div>
+
+                    {{-- ============================================================
+                         DOKUMEN TRANSKRIP NILAI
+                         ============================================================ --}}
+                    <div class="md:col-span-2 p-3.5 sm:p-4 rounded-xl border border-border bg-slate-50/50 space-y-4">
                         <div>
-                            <label class="block text-xs font-medium text-foreground mb-1.5">Transkrip Nilai</label>
+                            <h4 class="text-xs font-bold uppercase tracking-wider text-secondary">Dokumen Transkrip Nilai</h4>
+                            <p class="text-[11px] text-secondary mt-1">Nomor dan tanggal sesuai yang tertera pada transkrip nilai, disimpan bersama berkas dan wajib diisi saat mengunggah. Berkas PDF bersifat opsional (maksimal 1 MB).</p>
+                        </div>
+
+                        <div>
+                            <fieldset :disabled="!hasFile.transcript && !hasDoc.transcript" class="min-w-0 border-0 p-0 m-0 disabled:opacity-60">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+                                    <div>
+                                        <label class="block text-xs font-medium text-foreground mb-1.5">
+                                            Nomor Transkrip
+                                            <span class="text-error" x-show="hasFile.transcript || hasDoc.transcript" x-cloak>*</span>
+                                        </label>
+                                        <input type="text" name="transcript_number" x-model="transcript_number" placeholder="Nomor pada transkrip nilai" class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                                        <p class="{{ $errorClass }}" x-show="err('transcript_number')" x-cloak x-text="err('transcript_number')"></p>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-medium text-foreground mb-1.5">
+                                            Tanggal Transkrip
+                                            <span class="text-error" x-show="hasFile.transcript || hasDoc.transcript" x-cloak>*</span>
+                                        </label>
+                                        <input type="date" name="transcript_date" x-model="transcript_date" class="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                                        <p class="{{ $errorClass }}" x-show="err('transcript_date')" x-cloak x-text="err('transcript_date')"></p>
+                                    </div>
+                                </div>
+                            </fieldset>
+                            <p class="text-[11px] text-secondary mt-1" x-show="!hasFile.transcript && !hasDoc.transcript" x-cloak>Pilih berkas Transkrip Nilai terlebih dahulu; nomor dan tanggal disimpan bersama berkas.</p>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-medium text-foreground mb-1.5">Berkas Transkrip Nilai</label>
                             @if ($existingTranscript)
                             <p class="text-xs text-secondary mb-2 flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
                                 <i data-lucide="paperclip" class="size-3.5 shrink-0"></i>
                                 <span>Berkas saat ini:</span>
-                                <a href="{{ route('admin.personnel.documents.preview', $existingTranscript->id) }}" target="_blank" rel="noopener" class="text-blue-600 hover:underline break-all">{{ $existingTranscript->original_filename ?? 'Lihat berkas' }}</a>
+                                <a href="{{ route('admin.personnel.documents.preview', $existingTranscript->id) }}" target="_blank" rel="noopener" title="{{ $existingTranscript->original_filename }}" class="text-blue-600 hover:underline break-all">{{ $existingTranscript->document_name ?? $existingTranscript->original_filename ?? 'Lihat berkas' }}</a>
                                 <span>- unggah berkas baru untuk menggantinya.</span>
                             </p>
                             @endif
                             <input type="file" name="file_transcript" accept="application/pdf,.pdf" x-ref="transcript"
-                                @change="fileErrors.transcript = ''; const f = $event.target.files[0]; if (f && f.type !== 'application/pdf') { fileErrors.transcript = 'Format berkas harus PDF.'; } else if (f && f.size > 1048576) { fileErrors.transcript = 'Ukuran berkas maksimal 1 MB.'; }"
+                                @change="fileErrors.transcript = ''; errors.file_transcript = null; const f = $event.target.files[0]; if (f && f.type !== 'application/pdf') { fileErrors.transcript = 'Format berkas harus PDF.'; } else if (f && f.size > 1048576) { fileErrors.transcript = 'Ukuran berkas maksimal 1 MB.'; } hasFile.transcript = !!f;"
                                 class="w-full rounded-xl border border-border px-3.5 py-2 text-sm bg-white file:mr-3 file:rounded-lg file:border-0 file:bg-primary/10 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-primary hover:file:bg-primary/15 cursor-pointer">
-                            <p x-show="fileErrors.transcript" x-cloak class="text-xs text-error mt-1">
+                            <p x-show="fileErrors.transcript" x-cloak class="{{ $errorClass }}">
                                 <span x-text="fileErrors.transcript"></span>
                                 Pilih berkas lain, atau
-                                <button type="button" class="underline font-medium cursor-pointer" @click="$refs.transcript.value = ''; fileErrors.transcript = ''">hapus pilihan</button>
+                                <button type="button" class="underline font-medium cursor-pointer" @click="$refs.transcript.value = ''; fileErrors.transcript = ''; hasFile.transcript = false">hapus pilihan</button>
                                 untuk menyimpan tanpa berkas.
                             </p>
+                            <p class="{{ $errorClass }}" x-show="err('file_transcript')" x-cloak x-text="err('file_transcript')"></p>
+
+                            <div class="mt-3">
+                                <label class="block text-[11px] font-medium text-secondary mb-1">Status Transkrip Nilai</label>
+                                <fieldset :disabled="!hasFile.transcript && !hasDoc.transcript" class="min-w-0 border-0 p-0 m-0 disabled:opacity-60">
+                                    <x-ui.select name="status_transcript" :options="$verificationOptions" :value="$existingTranscript?->verification_status ?? 'draft'" placeholder="-- Pilih Status --" />
+                                </fieldset>
+                                <p class="text-[11px] text-secondary mt-1" x-show="!hasFile.transcript && !hasDoc.transcript" x-cloak>Pilih berkas Transkrip Nilai terlebih dahulu; status disimpan bersama berkas.</p>
+                                <p class="{{ $errorClass }}" x-show="err('status_transcript')" x-cloak x-text="err('status_transcript')"></p>
+                            </div>
                         </div>
                     </div>
+
+                    <p class="md:col-span-2 text-[11px] text-secondary">Nama berkas dibuat otomatis dari jenis dokumen dan jenjang pendidikan (contoh: <span class="font-medium">Ijazah S1</span>, <span class="font-medium">Transkrip Nilai S1</span>).</p>
                 </div>
             </div>
 
@@ -215,7 +358,8 @@ $existingTranscript = $isEdit
                     <i data-lucide="x-circle" class="size-4"></i>
                     <span>Batal</span>
                 </button>
-                <button type="submit" :disabled="saving || fileErrors.ijazah !== '' || fileErrors.transcript !== ''"
+                <button type="submit"
+                    :disabled="saving || fileErrors.ijazah !== '' || fileErrors.transcript !== '' || !education_level_id || !institution_name.trim() || !isIjazahValid || !isTranscriptValid"
                     class="w-full sm:w-auto flex items-center justify-center min-w-[140px] px-5 py-2.5 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary/90 shadow-sm shadow-primary/30 transition-all cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed">
                     <div x-show="!saving" class="flex items-center gap-1.5">
                         <i data-lucide="save" class="size-4"></i>

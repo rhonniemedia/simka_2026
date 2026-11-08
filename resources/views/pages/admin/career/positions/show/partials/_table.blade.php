@@ -18,8 +18,8 @@
                         <div class="text-[11px] font-normal normal-case">Nomor SK | Tanggal SK</div>
                     </th>
                     <th class="w-[30%] px-4 py-3 text-sm font-bold text-secondary tracking-wider">
-                        Status
-                        <div class="text-[11px] font-normal normal-case">Status | TMT</div>
+                        TMT Jabatan
+                        <div class="text-[11px] font-normal normal-case">Tanggal Mulai Berlaku</div>
                     </th>
                     <th class="w-[10%] px-4 py-3 text-sm font-bold text-secondary tracking-wider">
                         Aksi
@@ -45,9 +45,19 @@
                             <div class="size-11 shrink-0 rounded-2xl bg-gradient-to-br from-blue-300 to-blue-500 text-white flex items-center justify-center ring-2 ring-white shadow-sm shadow-black/10 transition-transform duration-200 group-hover:scale-[1.04]">
                                 <i data-lucide="briefcase-business" class="size-5"></i>
                             </div>
-                            <div class="min-w-0">
-                                <p class="text-sm font-semibold text-foreground truncate">{{ $h->asnPosition?->name ?? '-' }}</p>
-                                <p class="text-xs text-secondary mt-1">{{ $positionTypeLabel }}</p>
+                            <div>
+                                <div class="font-semibold text-foreground text-sm whitespace-nowrap flex items-center gap-2">
+                                    {{ $h->asnPosition?->name ?? '-' }}
+                                    @if ($h->is_active)
+                                    <span class="inline-flex px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-700">Aktif</span>
+                                    @else
+                                    <span class="inline-flex px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-secondary">Nonaktif</span>
+                                    @endif
+                                </div>
+                                <div class="flex items-center gap-1.5 text-xs text-secondary mt-1 whitespace-nowrap">
+                                    <span class="inline-block size-1.5 rounded-full {{ $h->is_active ? 'bg-emerald-500' : 'bg-slate-400' }} shrink-0"></span>
+                                    {{ $positionTypeLabel }}
+                                </div>
                             </div>
                         </div>
                     </td>
@@ -67,20 +77,9 @@
                         </div>
                     </td>
 
-                    {{-- Kolom 3: Status (badge & TMT) --}}
+                    {{-- Kolom 3: TMT Jabatan --}}
                     <td class="px-5 py-4 min-w-[160px]">
-                        <div>
-                            @if ($h->is_active)
-                            <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                                <span class="size-1.5 rounded-full bg-emerald-500"></span> Aktif
-                            </span>
-                            @else
-                            <span class="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-secondary">
-                                Nonaktif
-                            </span>
-                            @endif
-                        </div>
-                        <div class="flex items-center gap-1.5 text-xs text-secondary mt-1.5 whitespace-nowrap">
+                        <div class="flex items-center gap-1.5 text-sm font-medium text-foreground whitespace-nowrap">
                             <i data-lucide="calendar-check-2" class="size-3.5 text-secondary/50"></i>
                             TMT. {{ optional($h->effective_date)->translatedFormat('d F Y') ?? '-' }}
                         </div>
@@ -196,23 +195,18 @@
                     </div>
                 </div>
                 <div class="min-w-0 flex-1">
-                    <div class="font-semibold text-foreground text-sm truncate">
-                        {{ $h->asnPosition?->name ?? '-' }}
+                    <div class="font-semibold text-foreground text-sm flex items-center gap-2">
+                        <span class="truncate">{{ $h->asnPosition?->name ?? '-' }}</span>
+                        @if ($h->is_active)
+                        <span class="inline-flex shrink-0 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-700">Aktif</span>
+                        @else
+                        <span class="inline-flex shrink-0 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-secondary">Nonaktif</span>
+                        @endif
                     </div>
-                    <p class="text-xs text-secondary mt-1 truncate">
+                    <p class="text-xs text-secondary mt-1 truncate flex items-center gap-1.5">
+                        <span class="inline-block size-1.5 rounded-full {{ $h->is_active ? 'bg-emerald-500' : 'bg-slate-400' }} shrink-0"></span>
                         {{ $positionTypeLabel }}
                     </p>
-                </div>
-                <div class="shrink-0">
-                    @if ($h->is_active)
-                    <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
-                        <span class="size-1.5 rounded-full bg-emerald-500"></span> Aktif
-                    </span>
-                    @else
-                    <span class="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-secondary">
-                        Nonaktif
-                    </span>
-                    @endif
                 </div>
             </div>
 

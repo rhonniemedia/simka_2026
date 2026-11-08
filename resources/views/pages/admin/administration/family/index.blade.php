@@ -13,24 +13,6 @@
             <h1 class="text-2xl md:text-3xl font-bold text-foreground mb-1">Data Keluarga</h1>
             <p class="text-sm text-secondary leading-relaxed">Kelola informasi tanggungan dan anggota keluarga pegawai secara menyeluruh.</p>
         </div>
-
-        {{-- Grup Tombol Aksi --}}
-        <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-3">
-            <button type="button"
-                title="Tambah Data Keluarga"
-                class="flex items-center justify-center gap-2 px-3 py-2.5 sm:px-5 bg-amber-600 hover:bg-amber-700 text-white rounded-full font-semibold text-sm transition-all duration-300 cursor-pointer shadow-sm shadow-amber-600/30 whitespace-nowrap">
-                <i data-lucide="plus" class="size-4 shrink-0"></i>
-                <span>Tambah Data</span>
-            </button>
-
-            <a href="{{ route('admin.personnel.family.index') }}"
-                title="Segarkan halaman"
-                onclick="document.getElementById('refresh-icon').classList.add('animate-spin');"
-                class="flex items-center justify-center gap-2 px-3 py-2.5 sm:px-4 ring-1 ring-border hover:ring-primary rounded-full text-foreground font-semibold text-sm transition-all bg-white cursor-pointer whitespace-nowrap">
-                <i id="refresh-icon" data-lucide="refresh-cw" class="size-4 shrink-0"></i>
-                <span>Segarkan</span>
-            </a>
-        </div>
     </div>
 
     {{-- Tabel Data --}}

@@ -26,12 +26,13 @@
         ['value' => 'rejected', 'label' => 'Ditolak'],
         ];
 
-        // Contoh membuat array tahun 5 tahun terakhir
-        $yearOptions = [];
-        $currentYear = date('Y');
-        for ($i = 0; $i < 5; $i++) {
-            $yearOptions[]=['value'=> $currentYear - $i, 'label' => $currentYear - $i];
-            }
+        // Opsi tahun berasal dari controller (TMT berikutnya = TMT + 2 tahun,
+        // hanya dari riwayat terakhir tiap pegawai), diubah ke format
+        // value/label yang dipakai <x-ui.select>.
+            $yearOptions = collect($yearOptions ?? [])
+            ->map(fn($year) => ['value' => (string) $year, 'label' => (string) $year])
+            ->values()
+            ->all();
             @endphp
 
             <div class="space-y-3">
@@ -49,7 +50,7 @@
                             placeholder="Semua Status" />
                     </div>
                     <div>
-                        <label class="block text-sm text-foreground mb-2">Tahun TMT</label>
+                        <label class="block text-sm text-foreground mb-2">Tahun TMT Berikutnya</label>
                         <x-ui.select
                             name="filter_year"
                             :options="$yearOptions"

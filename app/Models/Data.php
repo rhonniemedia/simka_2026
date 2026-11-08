@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Casts\NormalizedName;
 use App\Models\CoreConcentration;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -19,6 +20,7 @@ class Data extends Model
 
     protected $casts = [
         'is_draft' => 'boolean',
+        'name'     => NormalizedName::class,
     ];
 
     /**

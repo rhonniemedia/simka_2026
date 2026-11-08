@@ -165,13 +165,13 @@ class PositionHistoryController extends Controller
                 }
 
                 $history = AsnPositionHistory::create(
-                    Arr::except($validated, ['file']) + [
+                    Arr::except($validated, ['file', 'verification_status']) + [
                         'staff_id'   => $staff->id,
                         'created_by' => Auth::id(),
                     ]
                 );
 
-                $this->storeSk($history, $request);
+                $this->storeSk($history, $request, $validated['verification_status'] ?? null);
             });
         } catch (ValidationException $e) {
             return $this->validationErrorResponse($e);
@@ -197,11 +197,14 @@ class PositionHistoryController extends Controller
                 }
 
                 $history->update(
-                    Arr::except($validated, ['file']) + ['updated_by' => Auth::id()]
+                    Arr::except($validated, ['file', 'verification_status']) + ['updated_by' => Auth::id()]
                 );
 
-                $this->syncSkMeta($history);
-                $this->storeSk($history, $request);
+                $history->load('asnPosition');
+                $status = $validated['verification_status'] ?? null;
+
+                $this->syncSkMeta($history, $status);
+                $this->storeSk($history, $request, $status);
             });
         } catch (ValidationException $e) {
             return $this->validationErrorResponse($e);
@@ -260,15 +263,25 @@ class PositionHistoryController extends Controller
             ->whereHas('category', fn($c) => $c->where('code', self::SK_CATEGORY));
     }
 
+    private function resolveDocumentName(AsnPositionHistory $history): ?string
+    {
+        return $history->asnPosition?->name;
+    }
+
     /**
      * Nomor & tanggal SK di berkas mengikuti data jabatan (sumber kebenaran).
+     * Status dokumen ikut diperbarui bila dikirim dari form.
      * Hanya nilai yang terisi yang disalin.
      */
-    private function syncSkMeta(AsnPositionHistory $history): void
+    private function syncSkMeta(AsnPositionHistory $history, ?string $status = null): void
     {
+        $documentName = $this->resolveDocumentName($history);
+
         $meta = array_filter([
-            'document_number' => $history->decree_number,
-            'document_date'   => $history->decree_date,
+            'document_name'       => $documentName,
+            'document_number'     => $history->decree_number,
+            'document_date'       => $history->decree_date,
+            'verification_status' => $status,
         ], fn($value) => filled($value));
 
         if ($meta) {
@@ -279,8 +292,10 @@ class PositionHistoryController extends Controller
     /**
      * Simpan berkas SK jika ada yang diunggah. Satu riwayat hanya punya satu
      * SK aktif: berkas lama (jika ada) dihapus lunak lalu digantikan.
+     * Status dokumen hanya tersimpan bersama berkas; tanpa berkas baru, status
+     * berkas lama diperbarui lewat syncSkMeta().
      */
-    private function storeSk(AsnPositionHistory $history, Request $request): void
+    private function storeSk(AsnPositionHistory $history, Request $request, ?string $status = null): void
     {
         if (! $request->hasFile('file')) {
             return;
@@ -288,7 +303,17 @@ class PositionHistoryController extends Controller
 
         $this->skDocuments($history)->get()->each->delete();
 
-        $history->attachDocument($request->file('file'), self::SK_CATEGORY);
+        $history->load('asnPosition');
+        $documentName = $this->resolveDocumentName($history);
+
+        $history->attachDocument(
+            $request->file('file'),
+            self::SK_CATEGORY,
+            array_merge(
+                $documentName ? ['document_name' => $documentName] : [],
+                array_filter(['verification_status' => $status], fn($value) => filled($value))
+            )
+        );
     }
 
     /*
@@ -299,7 +324,6 @@ class PositionHistoryController extends Controller
 
     private function validateHistory(Request $request, string $staffId, ?string $ignoreId = null): array
     {
-        // Aturan agar TMT (effective_date) tidak duplikat untuk pegawai yang sama
         $uniqueEffectiveDate = Rule::unique('staff_asn_positions_histories', 'effective_date')
             ->where(fn($query) => $query->where('staff_id', $staffId));
 
@@ -307,7 +331,6 @@ class PositionHistoryController extends Controller
             $uniqueEffectiveDate->ignore($ignoreId);
         }
 
-        // Aturan agar Nomor SK (decree_number) tidak duplikat untuk pegawai yang sama
         $uniqueDecreeNumber = Rule::unique('staff_asn_positions_histories', 'decree_number')
             ->where(fn($query) => $query->where('staff_id', $staffId));
 
@@ -322,12 +345,12 @@ class PositionHistoryController extends Controller
                 'decree_date' => ['required', 'date'],
                 'effective_date' => ['required', 'date', 'after_or_equal:decree_date', $uniqueEffectiveDate],
                 'is_active' => ['nullable', 'boolean'],
+                'verification_status' => ['nullable', 'in:draft,verified,rejected'],
                 'file' => [
                     'nullable',
                     'file',
                     'mimes:pdf',
                     'max:' . StaffDocumentService::MAX_SIZE_KB,
-                    // Validasi tambahan agar berkas SK tidak ganda berdasarkan nama file yang sama pada pegawai ini
                     function ($attribute, $value, $fail) use ($request, $staffId, $ignoreId) {
                         if ($value) {
                             $originalName = $value->getClientOriginalName();
@@ -336,7 +359,6 @@ class PositionHistoryController extends Controller
                                 ->where('staff_id', $staffId)
                                 ->where('original_filename', $originalName);
 
-                            // Jika mode edit, abaikan dokumen dari riwayat yang sedang diedit ini sendiri
                             if ($ignoreId) {
                                 $history = AsnPositionHistory::find($ignoreId);
                                 if ($history) {
@@ -355,6 +377,7 @@ class PositionHistoryController extends Controller
             [
                 'required' => ':attribute wajib diisi.',
                 'exists' => ':attribute yang dipilih tidak valid.',
+                'in' => ':attribute yang dipilih tidak valid.',
                 'date' => ':attribute harus berupa tanggal yang valid.',
                 'after_or_equal' => ':attribute tidak boleh sebelum tanggal SK.',
                 'effective_date.unique' => 'Riwayat jabatan dengan TMT (Tanggal) tersebut sudah ada untuk pegawai ini.',
@@ -369,11 +392,11 @@ class PositionHistoryController extends Controller
                 'decree_date' => 'Tanggal SK',
                 'effective_date' => 'TMT (tanggal efektif)',
                 'is_active' => 'Status aktif',
+                'verification_status' => 'Status dokumen',
                 'file' => 'Berkas SK',
             ]
         );
 
-        // Checkbox: kirim 'on'/'1' bila dicentang, tidak terkirim sama sekali bila tidak.
         $validated['is_active'] = $request->boolean('is_active');
 
         return $validated;

@@ -22,6 +22,13 @@ $baseSalaryValue = old('base_salary', $history->base_salary ?? '');
 $existingSk = $isEdit
 ? $history->documents()->whereHas('category', fn ($c) => $c->where('code', 'sk_berkala'))->latest()->first()
 : null;
+
+// Opsi status dokumen (sama dengan form di menu Dokumen)
+$verificationOptions = [
+['value' => 'draft', 'label' => 'Draft'],
+['value' => 'verified', 'label' => 'Terverifikasi'],
+['value' => 'rejected', 'label' => 'Ditolak'],
+];
 @endphp
 
 <div x-data="{ open: false }"
@@ -58,6 +65,8 @@ $existingSk = $isEdit
             x-data="{ 
                 saving: false, 
                 fileError: '',
+                hasFile: false,
+                hasSk: {{ $existingSk ? 'true' : 'false' }},
                 effective_date: '{{ $effectiveDateValue }}',
                 decree_date: '{{ $decreeDateValue }}'
             }"
@@ -146,18 +155,28 @@ $existingSk = $isEdit
                         </p>
                         @endif
                         <input type="file" name="file" accept="application/pdf,.pdf" x-ref="sk"
-                            @change="fileError = ''; const f = $event.target.files[0]; if (f && f.type !== 'application/pdf') { fileError = 'Format berkas harus PDF.'; } else if (f && f.size > 1048576) { fileError = 'Ukuran berkas maksimal 1 MB.'; }"
+                            @change="fileError = ''; const f = $event.target.files[0]; if (f && f.type !== 'application/pdf') { fileError = 'Format berkas harus PDF.'; } else if (f && f.size > 1048576) { fileError = 'Ukuran berkas maksimal 1 MB.'; } hasFile = !!f;"
                             class="w-full rounded-xl border {{ $errors->has('file') ? 'border-error' : 'border-border' }} px-3.5 py-2 text-sm bg-white file:mr-3 file:rounded-lg file:border-0 file:bg-primary/10 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-primary hover:file:bg-primary/15 cursor-pointer">
                         <p x-show="fileError" x-cloak class="text-xs text-error mt-1">
                             <span x-text="fileError"></span>
                             Pilih berkas lain, atau
-                            <button type="button" class="underline font-medium cursor-pointer" @click="$refs.sk.value = ''; fileError = ''">hapus pilihan</button>
+                            <button type="button" class="underline font-medium cursor-pointer" @click="$refs.sk.value = ''; fileError = ''; hasFile = false">hapus pilihan</button>
                             untuk menyimpan tanpa berkas.
                         </p>
                         @error('file')
                         <p class="text-xs text-error mt-1">{{ $message }}</p>
                         @enderror
                         <p class="text-[11px] text-secondary mt-1">Nomor SK wajib diisi jika mengunggah berkas.</p>
+                        <div class="mt-3">
+                            <label class="block text-sm font-medium text-foreground mb-1.5">Status Dokumen</label>
+                            <fieldset :disabled="!hasFile && !hasSk" class="min-w-0 border-0 p-0 m-0 disabled:opacity-60">
+                                <x-ui.select name="verification_status" :options="$verificationOptions" :value="$existingSk?->verification_status ?? 'draft'" placeholder="-- Pilih Status --" />
+                            </fieldset>
+                            <p class="text-[11px] text-secondary mt-1" x-show="!hasFile && !hasSk" x-cloak>Pilih berkas SK terlebih dahulu; status disimpan bersama berkas.</p>
+                            @error('verification_status')
+                            <p class="text-xs text-error mt-1">{{ $message }}</p>
+                            @enderror
+                        </div>
                     </div>
                 </div>
             </div>

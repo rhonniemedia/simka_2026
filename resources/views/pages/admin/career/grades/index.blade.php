@@ -25,11 +25,11 @@
         </div>
 
         {{-- Grup Tombol Aksi --}}
-        <div class="flex items-center">
+        <div class="flex w-full items-center md:w-auto">
             <a href="{{ route('admin.personnel.periodic-salary.index') }}"
                 title="Segarkan halaman"
                 onclick="document.getElementById('refresh-icon').classList.add('animate-spin');"
-                class="flex items-center justify-center gap-2 px-3 py-2.5 sm:px-4 ring-1 ring-border hover:ring-primary rounded-full text-foreground font-semibold text-sm transition-all bg-white cursor-pointer whitespace-nowrap">
+                class="flex w-full items-center justify-center gap-2 px-3 py-2.5 sm:w-auto sm:px-4 ring-1 ring-border hover:ring-primary rounded-full text-foreground font-semibold text-sm transition-all bg-white cursor-pointer whitespace-nowrap">
                 <i id="refresh-icon" data-lucide="refresh-cw" class="size-4 shrink-0"></i>
                 <span>Segarkan</span>
             </a>

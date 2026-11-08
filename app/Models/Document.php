@@ -59,6 +59,20 @@ class Document extends Model
         return $this->belongsTo(User::class, 'updated_by');
     }
 
+    public function getCreatorLabelAttribute(): string
+    {
+        $creator = $this->creator;
+
+        if (! $creator) {
+            return '-';
+        }
+
+        // Role "user" tampil nama; selain itu (admin) tampil "Admin".
+        return $creator->role === 'user'
+            ? ($creator->name ?: $creator->username)
+            : 'Admin';
+    }
+
     /*
     |--------------------------------------------------------------------
     | Scopes (opsional, membantu query filter di Controller)

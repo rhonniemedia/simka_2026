@@ -40,6 +40,13 @@ $approvalDateValue = old('approval_date', !empty($history->approval_date)
 $existingSk = $isEdit
 ? $history->documents()->whereHas('category', fn ($c) => $c->where('code', 'sk_pangkat'))->latest()->first()
 : null;
+
+// Opsi status dokumen (sama dengan form di menu Dokumen)
+$verificationOptions = [
+['value' => 'draft', 'label' => 'Draft'],
+['value' => 'verified', 'label' => 'Terverifikasi'],
+['value' => 'rejected', 'label' => 'Ditolak'],
+];
 @endphp
 
 <div x-data="{ open: false }"
@@ -169,7 +176,7 @@ $existingSk = $isEdit
                     </div>
 
                     {{-- Berkas SK --}}
-                    <div class="md:col-span-2" x-data="{ fileError: '' }">
+                    <div class="md:col-span-2" x-data="{ fileError: '', hasFile: false, hasSk: {{ $existingSk ? 'true' : 'false' }} }">
                         <label class="block text-sm font-medium text-foreground mb-1.5">Berkas SK Pangkat <span class="text-secondary font-normal">(PDF, maksimal 1 MB)</span></label>
                         @if ($existingSk)
                         <p class="text-xs text-secondary mb-2 flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
@@ -180,12 +187,22 @@ $existingSk = $isEdit
                         </p>
                         @endif
                         <input type="file" name="file" accept="application/pdf,.pdf"
-                            @change="fileError = ''; const f = $event.target.files[0]; if (f && f.type !== 'application/pdf') { fileError = 'Format berkas harus PDF.'; $event.target.value = ''; } else if (f && f.size > 1048576) { fileError = 'Ukuran berkas maksimal 1 MB.'; $event.target.value = ''; }"
+                            @change="fileError = ''; const f = $event.target.files[0]; if (f && f.type !== 'application/pdf') { fileError = 'Format berkas harus PDF.'; $event.target.value = ''; } else if (f && f.size > 1048576) { fileError = 'Ukuran berkas maksimal 1 MB.'; $event.target.value = ''; } hasFile = $event.target.files.length > 0;"
                             class="w-full rounded-xl border {{ $errors->has('file') ? 'border-error' : 'border-border' }} px-3.5 py-2 text-sm bg-white file:mr-3 file:rounded-lg file:border-0 file:bg-primary/10 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-primary hover:file:bg-primary/15 cursor-pointer">
                         <p x-show="fileError" x-cloak x-text="fileError" class="text-xs text-error mt-1"></p>
                         @error('file')
                         <p class="text-xs text-error mt-1">{{ $message }}</p>
                         @enderror
+                        <div class="mt-3">
+                            <label class="block text-sm font-medium text-foreground mb-1.5">Status Dokumen</label>
+                            <fieldset :disabled="!hasFile && !hasSk" class="min-w-0 border-0 p-0 m-0 disabled:opacity-60">
+                                <x-ui.select name="verification_status" :options="$verificationOptions" :value="$existingSk?->verification_status ?? 'draft'" placeholder="-- Pilih Status --" />
+                            </fieldset>
+                            <p class="text-[11px] text-secondary mt-1" x-show="!hasFile && !hasSk" x-cloak>Pilih berkas SK terlebih dahulu; status disimpan bersama berkas.</p>
+                            @error('verification_status')
+                            <p class="text-xs text-error mt-1">{{ $message }}</p>
+                            @enderror
+                        </div>
                     </div>
                 </div>
             </div>

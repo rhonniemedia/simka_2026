@@ -5,6 +5,13 @@
 @section('page_subtitle', 'Kelola riwayat kenaikan gaji berkala (KGB) staf dan pegawai')
 
 @section('content')
+@php
+$pdfYearOptions = collect($yearOptions ?? [])
+->map(fn ($y) => ['value' => (string) $y, 'label' => (string) $y])
+->values()
+->prepend(['value' => '', 'label' => 'Semua tahun'])
+->all();
+@endphp
 {{-- PERBAIKAN: Mengubah px-4 menjadi px-5, dan md:p-8 menjadi md:px-8 md:py-8, ditambah w-full agar 100% presisi sejajar dengan Topbar --}}
 <div class="w-full px-5 py-6 md:px-8 md:py-8"
     x-data="{ 
@@ -27,7 +34,7 @@
         </div>
 
         {{-- Grup Tombol Aksi --}}
-        <div class="flex items-center gap-2">
+        <div class="grid grid-cols-2 gap-2 sm:flex sm:items-center sm:gap-3">
             {{-- Cetak PDF (dropdown pilih periode) --}}
             <div class="relative"
                 x-data="{
@@ -41,25 +48,27 @@
             this.open = false;
         }
     }"
-                @click.outside="open = false"
+                {{-- Daftar <x-ui.select> di-teleport ke body, jadi klik pada opsinya dianggap "di luar" menu ini.
+                     Klik di dalam daftar tersebut (fixed z-[9999]) diabaikan agar menu tidak tertutup. --}}
+                @click.window="if (open && !$el.contains($event.target) && !$event.target.closest('.fixed.z-\\[9999\\]')) open = false"
                 @keydown.escape.window="open = false">
 
                 <button type="button" @click="open = !open"
-                    class="flex items-center justify-center gap-2 px-3 py-2.5 sm:px-4 ring-1 ring-border hover:ring-primary rounded-full text-foreground font-semibold text-sm transition-all bg-white cursor-pointer whitespace-nowrap">
+                    class="flex w-full items-center justify-center gap-2 px-3 py-2.5 sm:w-auto sm:px-4 ring-1 ring-border hover:ring-primary rounded-full text-foreground font-semibold text-sm transition-all bg-white cursor-pointer whitespace-nowrap">
                     <i data-lucide="printer" class="size-4 shrink-0"></i>
                     <span>Cetak PDF</span>
                 </button>
 
                 <div x-show="open" x-cloak x-transition
-                    class="absolute right-0 z-20 mt-2 w-64 rounded-2xl border border-border bg-white p-4 shadow-lg">
-                    <label for="pdf-year" class="block text-xs font-semibold text-secondary mb-1.5">Periode (tahun TMT)</label>
-                    <select id="pdf-year" x-model="year"
-                        class="h-11 w-full rounded-xl border border-border bg-white px-3 text-sm text-foreground focus:outline-none focus:border-primary">
-                        <option value="">Semua tahun</option>
-                        @foreach ($yearOptions ?? [] as $y)
-                        <option value="{{ $y }}">{{ $y }}</option>
-                        @endforeach
-                    </select>
+                    class="absolute left-0 sm:left-auto sm:right-0 z-20 mt-2 w-64 rounded-2xl border border-border bg-white p-4 shadow-lg">
+                    <div @change="year = $event.target.value"
+                        @reset-filters.window="year = ''">
+                        <label class="block text-xs font-semibold text-secondary mb-1.5">Periode (tahun TMT)</label>
+                        <x-ui.select
+                            name="pdf_year"
+                            :options="$pdfYearOptions"
+                            placeholder="Semua tahun" />
+                    </div>
 
                     <div class="mt-3 flex gap-2">
                         <button type="button" @click="openPdf()"

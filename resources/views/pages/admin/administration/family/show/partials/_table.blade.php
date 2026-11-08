@@ -70,21 +70,20 @@ use App\Enums\Staff\Profession;
                                     <i data-lucide="{{ $iconColor['icon'] }}" class="size-5"></i>
                                 </div>
                             </div>
-                            <div>
-                                <div class="font-semibold text-foreground text-sm uppercase flex items-center gap-2 whitespace-nowrap">
-                                    {{ $person->name ?? '-' }}
-                                </div>
-                                <div class="mt-1 flex items-center gap-1.5 flex-wrap">
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border {{ $hubColor }} uppercase tracking-wider whitespace-nowrap">
+                            <div class="min-w-0 flex-1">
+                                {{-- Nama dan semua badge (Hubungan, Bersama, Staff) disatukan dalam satu baris --}}
+                                <div class="font-semibold text-foreground text-sm flex items-center gap-2 flex-wrap">
+                                    <span>{{ $person->name ?? '-' }}</span>
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border {{ $hubColor }} tracking-wider whitespace-nowrap">
                                         {{ $hubLabel }}
                                     </span>
                                     @if ($isSharedPerson)
-                                    <span title="Data orang ini dipakai bersama staff lain" class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold border bg-slate-100 text-slate-600 border-slate-200 uppercase tracking-wider whitespace-nowrap">
+                                    <span title="Data orang ini dipakai bersama staff lain" class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold border bg-slate-100 text-slate-600 border-slate-200 tracking-wider whitespace-nowrap">
                                         <i data-lucide="users" class="size-3"></i> Bersama
                                     </span>
                                     @endif
                                     @if ($isLinkedStaff)
-                                    <span title="Orang ini juga tercatat sebagai staff - cek status tunjangan" class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold border bg-amber-100 text-amber-700 border-amber-200 uppercase tracking-wider whitespace-nowrap">
+                                    <span title="Orang ini juga tercatat sebagai staff - cek status tunjangan" class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold border bg-amber-100 text-amber-700 border-amber-200 tracking-wider whitespace-nowrap">
                                         <i data-lucide="triangle-alert" class="size-3"></i> Staff
                                     </span>
                                     @endif

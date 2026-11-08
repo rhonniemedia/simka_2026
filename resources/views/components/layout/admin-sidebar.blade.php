@@ -292,11 +292,15 @@
 
 
     <!-- Footer -->
+    @php
+    $sidebarUser = auth()->user();
+    $sidebarName = $sidebarUser?->staff?->name ?? $sidebarUser?->username ?? 'Pengguna';
+    @endphp
     <div class="absolute bottom-0 left-0 w-[280px]">
         <div class="flex items-center justify-between border-t bg-white border-border p-5 gap-3">
             <div class="min-w-0">
-                <p class="font-semibold text-foreground text-sm">Admin</p>
-                <p class="text-xs text-secondary mt-0.5">SIMKA 2026</p>
+                <p class="font-semibold text-foreground text-sm truncate" title="{{ $sidebarName }}">{{ $sidebarName }}</p>
+                <p class="text-xs text-secondary mt-0.5">SIMKA {{ now()->year }}</p>
             </div>
 
             <form action="{{ route('logout') }}" method="POST">

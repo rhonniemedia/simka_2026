@@ -12,6 +12,7 @@ use App\Models\DataVault;
 use App\Models\FamilyMember;
 use App\Models\FamilyRelation;
 use App\Services\Staff\StaffDocumentService;
+use App\Support\NameFormatter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -174,6 +175,7 @@ class FamilyController extends Controller
         $staff = Data::completed()->active()->findOrFail($id);
 
         try {
+            $this->normalizeInput($request);
             $validated = $request->validate($this->rules(withLink: true), $this->messages());
 
             // Data orang, hubungan, dan berkas akta disimpan dalam satu transaksi:
@@ -184,6 +186,11 @@ class FamilyController extends Controller
                 if ($familyMember === null) {
                     return null;
                 }
+
+                // Nama berkas akta harus mengikuti nama orang yang BENAR-BENAR tersimpan.
+                // Kalau orangnya ditautkan (bukan dibuat baru), nama dari form diabaikan
+                // oleh resolveFamilyMember(), jadi jangan dipakai untuk nama berkas.
+                $validated['name'] = $familyMember->name;
 
                 $relation = $staff->familyRelations()->create([
                     'family_member_id'         => $familyMember->id,
@@ -245,6 +252,7 @@ class FamilyController extends Controller
         $relation = $staff->familyRelations()->with('familyMember')->findOrFail($family_id);
 
         try {
+            $this->normalizeInput($request);
             $validated = $request->validate($this->rules(), $this->messages());
 
             DB::transaction(function () use ($request, $relation, $validated) {
@@ -275,6 +283,10 @@ class FamilyController extends Controller
 
                 $this->syncAktaMeta($relation, $validated);
                 $this->storeAkta($relation, $request, $validated);
+
+                // Nama orang dipakai bersama semua staff yang menautkannya, jadi nama
+                // berkas akta di hubungan staff lain ikut disamakan.
+                $this->syncAktaNamesForMember($relation->familyMember);
             });
         } catch (ValidationException $e) {
             return $this->respondWithValidationError($request, $e);
@@ -460,13 +472,25 @@ class FamilyController extends Controller
     }
 
     /**
+     * Rapikan nama (kapital, spasi, simbol) SEBELUM validasi. Wajib di sini, bukan
+     * hanya di Cast model: nama berkas akta dibentuk dari nilai input, dan
+     * validasi "required" harus menilai nilai akhirnya (";;;" menjadi kosong, ditolak).
+     */
+    private function normalizeInput(Request $request): void
+    {
+        if (is_string($request->input('name'))) {
+            $request->merge(['name' => NameFormatter::normalize($request->input('name'))]);
+        }
+    }
+
+    /**
      * Aturan validasi bersama tambah & ubah (termasuk berkas akta).
      * link_to_family_member_id hanya relevan saat tambah.
      */
     private function rules(bool $withLink = false): array
     {
         $rules = [
-            'name'                     => 'required|string|max:255',
+            'name'                     => ['required', 'string', 'max:255', 'regex:/\p{L}/u'],
             'relationship'             => ['required', Rule::enum(FamilyRelationEnum::class)],
             'gender'                   => ['required', Rule::enum(Gender::class)],
             'nik'                      => 'nullable|string|max:50',
@@ -479,6 +503,7 @@ class FamilyController extends Controller
             'marriage_date_encrypted'  => 'nullable|date',
             'document_number'          => 'nullable|string|max:255',
             'document_date'            => 'nullable|date',
+            'verification_status'      => 'nullable|in:draft,verified,rejected',
             'file'                     => ['nullable', 'file', 'mimes:pdf', 'max:' . StaffDocumentService::MAX_SIZE_KB],
         ];
 
@@ -492,9 +517,12 @@ class FamilyController extends Controller
     private function messages(): array
     {
         return [
+            'name.required' => 'Nama anggota keluarga wajib diisi.',
+            'name.regex'    => 'Nama anggota keluarga harus mengandung huruf.',
             'file.mimes'    => 'Berkas akta harus berformat PDF.',
             'file.max'      => 'Ukuran berkas akta maksimal 1 MB.',
             'file.uploaded' => 'Berkas akta gagal diunggah. Pastikan ukurannya maksimal 1 MB.',
+            'verification_status.in' => 'Status dokumen tidak valid.',
         ];
     }
 
@@ -508,14 +536,36 @@ class FamilyController extends Controller
     }
 
     /**
+     * Menghasilkan label nama dokumen secara dinamis berdasarkan kode kategori
+     * dan nama anggota keluarga (Akta Nikah [Nama] / Akta Kelahiran [Nama]).
+     */
+    private function resolveDocumentName(string $code, string $familyName): string
+    {
+        $categoryLabel = match ($code) {
+            'akta_nikah'          => 'Akta Nikah',
+            'akta_kelahiran_anak' => 'Akta Kelahiran',
+            default               => 'Akta',
+        };
+
+        return $categoryLabel . ' ' . trim($familyName);
+    }
+
+    /**
      * Nomor & tanggal akta yang diisi di form disalin ke berkas yang sudah ada.
-     * Hanya nilai yang terisi yang disalin, supaya data berkas tidak terhapus.
+     * Status dokumen dan nama dokumen ikut diperbarui bila dikirim dari form.
      */
     private function syncAktaMeta(FamilyRelation $relation, array $validated): void
     {
+        $code = self::AKTA_CATEGORY[$validated['relationship']] ?? null;
+        $documentName = ($code && isset($validated['name']))
+            ? $this->resolveDocumentName($code, $validated['name'])
+            : null;
+
         $meta = array_filter([
-            'document_number' => $validated['document_number'] ?? null,
-            'document_date'   => $validated['document_date'] ?? null,
+            'document_name'       => $documentName,
+            'document_number'     => $validated['document_number'] ?? null,
+            'document_date'       => $validated['document_date'] ?? null,
+            'verification_status' => $validated['verification_status'] ?? null,
         ], fn($value) => filled($value));
 
         if ($meta) {
@@ -546,10 +596,39 @@ class FamilyController extends Controller
             ->get()
             ->each->delete();
 
-        $relation->attachDocument($request->file('file'), $code, array_filter([
-            'document_number' => $validated['document_number'] ?? null,
-            'document_date'   => $validated['document_date'] ?? null,
-        ], fn($value) => filled($value)));
+        $documentName = $this->resolveDocumentName($code, $validated['name']);
+
+        $relation->attachDocument($request->file('file'), $code, array_merge([
+            'document_name' => $documentName,
+        ], array_filter([
+            'document_number'     => $validated['document_number'] ?? null,
+            'document_date'       => $validated['document_date'] ?? null,
+            'verification_status' => $validated['verification_status'] ?? null,
+        ], fn($value) => filled($value))));
+    }
+
+    /**
+     * Samakan nama berkas akta di SEMUA hubungan milik orang ini. Satu orang bisa
+     * tertaut ke lebih dari satu staff, sedangkan syncAktaMeta() hanya menyentuh
+     * berkas milik hubungan yang sedang diedit. Hanya berkas yang kategorinya
+     * sesuai dengan jenis hubungannya yang diganti namanya.
+     */
+    private function syncAktaNamesForMember(FamilyMember $familyMember): void
+    {
+        $familyMember->relations()->get()->each(function (FamilyRelation $relation) use ($familyMember) {
+            $code = self::AKTA_CATEGORY[$relation->relationship] ?? null;
+
+            if ($code === null) {
+                return;
+            }
+
+            $relation->documents()
+                ->whereHas('category', fn($c) => $c->where('code', $code))
+                ->update([
+                    'document_name' => $this->resolveDocumentName($code, $familyMember->name),
+                    'updated_by'    => Auth::id(),
+                ]);
+        });
     }
 
     /**

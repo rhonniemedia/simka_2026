@@ -63,7 +63,7 @@ class RetirementController extends Controller
             'name'   => null,
             'tmt'    => null,
             'status' => null,
-        ], default: null, defaultDirection: 'asc');
+        ], default: 'name', defaultDirection: 'asc');
 
         $allRows = $this->buildRows();
         $rows = RetirementList::sort(RetirementList::filter($allRows, $filters));

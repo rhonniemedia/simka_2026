@@ -27,38 +27,6 @@
             <h1 class="text-2xl md:text-3xl font-bold text-foreground mb-1">Pendidikan Pegawai</h1>
             <p class="text-sm text-secondary leading-relaxed">Kelola basis data riwayat pendidikan staf dan pegawai secara menyeluruh.</p>
         </div>
-
-        {{-- Grup Tombol Aksi (Sesuai dengan UI Data Pegawai) --}}
-        <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-3">
-            <button type="button"
-                title="Tambah Data Pegawai"
-                class="flex items-center justify-center gap-2 px-3 py-2.5 sm:px-5 bg-amber-600 hover:bg-amber-700 text-white rounded-full font-semibold text-sm transition-all duration-300 cursor-pointer shadow-sm shadow-amber-600/30 whitespace-nowrap">
-                <i data-lucide="plus" class="size-4 shrink-0"></i>
-                <span>Tambah Data</span>
-            </button>
-
-            <button type="button"
-                title="Download data Excel"
-                class="flex items-center justify-center gap-2 px-3 py-2.5 sm:px-5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full font-semibold text-sm transition-all duration-300 cursor-pointer shadow-sm shadow-emerald-600/30 whitespace-nowrap">
-                <i data-lucide="file-box" class="size-4 shrink-0"></i>
-                <span>Download</span>
-            </button>
-
-            <button type="button"
-                title="Cetak laporan"
-                class="flex items-center justify-center gap-2 px-3 py-2.5 sm:px-5 bg-blue-600 hover:bg-blue-700 text-white rounded-full font-semibold text-sm transition-all duration-300 cursor-pointer shadow-sm shadow-blue-600/30 whitespace-nowrap">
-                <i data-lucide="printer" class="size-4 shrink-0"></i>
-                <span>Laporan</span>
-            </button>
-
-            <a href="{{ route('admin.personnel.data.index') }}"
-                title="Segarkan halaman"
-                onclick="document.getElementById('refresh-icon').classList.add('animate-spin');"
-                class="flex items-center justify-center gap-2 px-3 py-2.5 sm:px-4 ring-1 ring-border hover:ring-primary rounded-full text-foreground font-semibold text-sm transition-all bg-white cursor-pointer whitespace-nowrap">
-                <i id="refresh-icon" data-lucide="refresh-cw" class="size-4 shrink-0"></i>
-                <span>Segarkan</span>
-            </a>
-        </div>
     </div>
 
     {{-- Tabel Data --}}

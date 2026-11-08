@@ -17,6 +17,7 @@ $hasError = $errors->has($name);
         selectedLabel: '',
         options: @js($options), 
         dropdownStyle: '',
+        listMaxHeight: '208px',
         
         selectOption(option) {
             this.selectedId = option.value;
@@ -52,9 +53,30 @@ $hasError = $errors->has($name);
                 if(this.openDropdown) this.close();
             });
         },
-        open() {
+        // Hitung posisi dropdown: ke bawah jika cukup, ke atas jika bawah sempit dan atas lebih lega
+        updatePosition() {
             const rect = this.$refs.btn.getBoundingClientRect();
-            this.dropdownStyle = `top: ${rect.bottom + 4}px; left: ${rect.left}px; width: ${rect.width}px;`;
+            const gap = 4;        // jarak antara input dan dropdown
+            const margin = 8;     // jarak minimal ke tepi layar
+            const maxH = 208;     // setara max-h-52
+
+            // Estimasi tinggi konten (±34px per opsi), maksimal maxH
+            const needed = Math.min(maxH, this.options.length * 34 + 2);
+
+            const spaceBelow = window.innerHeight - rect.bottom - gap - margin;
+            const spaceAbove = rect.top - gap - margin;
+
+            const openUp = spaceBelow < needed && spaceAbove > spaceBelow;
+            const space = openUp ? spaceAbove : spaceBelow;
+
+            this.listMaxHeight = Math.max(80, Math.min(maxH, space)) + 'px';
+
+            this.dropdownStyle = openUp
+                ? `bottom: ${window.innerHeight - rect.top + gap}px; left: ${rect.left}px; width: ${rect.width}px;`
+                : `top: ${rect.bottom + gap}px; left: ${rect.left}px; width: ${rect.width}px;`;
+        },
+        open() {
+            this.updatePosition();
             this.openDropdown = true;
         },
         close() {
@@ -96,7 +118,7 @@ $hasError = $errors->has($name);
             :style="dropdownStyle"
             class="fixed z-[9999] bg-white border shadow-lg border-border rounded-xl overflow-hidden">
 
-            <div class="max-h-52 overflow-y-auto">
+            <div class="overflow-y-auto" :style="{ maxHeight: listMaxHeight }">
                 <template x-for="option in options" :key="option.value">
                     <div @click="selectOption(option)"
                         class="px-3 py-1.5 text-sm transition-colors cursor-pointer hover:bg-muted border-b border-border/50 last:border-0"

@@ -21,11 +21,11 @@ $authRole = $authUser?->roles()->wherePivot('app_id', config('app.core_id'))->va
     {{-- Brand --}}
     <div class="min-w-0 flex-1 ml-3 lg:ml-0">
         <h2 class="text-lg md:text-2xl font-bold text-foreground leading-tight">
-            Dashboard
+            @yield('page_title', 'Dashboard')
         </h2>
 
         <p class="hidden md:block text-xs text-secondary leading-tight truncate">
-            SIMKA | Sistem Informasi Kepegawaian dan Arsip
+            @yield('page_subtitle', 'SIMKA | Sistem Informasi Kepegawaian dan Arsip')
         </p>
     </div>
     <div class="flex items-center gap-3">

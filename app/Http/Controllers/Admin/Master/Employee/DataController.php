@@ -584,7 +584,7 @@ class DataController extends Controller
     {
         return match ($step) {
             1 => [
-                'name'               => ['required', 'string', 'max:255'],
+                'name'               => ['required', 'string', 'max:255', 'regex:/\p{L}/u'],
                 'front_title'        => ['nullable', 'string', 'max:100'],
                 'back_title'         => ['nullable', 'string', 'max:100'],
                 'gender'             => ['required', Rule::enum(Gender::class)],
@@ -671,6 +671,7 @@ class DataController extends Controller
             'exists'       => ':attribute yang dipilih tidak valid.',
             'enum'         => ':attribute yang dipilih tidak valid.',
             'in'           => ':attribute yang dipilih tidak valid.',
+            'name.regex'         => 'Nama lengkap harus mengandung huruf.',
             'nik.regex'          => 'NIK harus berisi tepat 16 digit angka.',
             'nip.regex'          => 'NIP harus berisi 15 hingga 20 digit angka.',
             'phone_number.regex' => 'Nomor telepon tidak valid (10-15 angka).',

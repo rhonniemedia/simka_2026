@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Casts\NormalizedName;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -27,6 +28,7 @@ class FamilyMember extends Model
     protected $guarded = ['id'];
 
     protected $casts = [
+        'name'                 => NormalizedName::class, // dirapikan otomatis saat disimpan
         'gender'               => 'string',
         'is_studying'          => 'boolean',
         'verification_status'  => 'string',

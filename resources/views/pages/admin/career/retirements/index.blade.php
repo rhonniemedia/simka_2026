@@ -5,6 +5,17 @@
 @section('page_subtitle', 'Pantau batas usia pensiun pegawai dan proses pensiun')
 
 @section('content')
+@php
+$pdfPeriodOptions = [
+['value' => 'all', 'label' => 'Semua'],
+['value' => 'one_year', 'label' => '1 tahun sebelum pensiun'],
+];
+$pdfStatusOptions = collect($retirementStatusOptions ?? [])
+->map(fn ($o) => ['value' => (string) $o['value'], 'label' => $o['label']])
+->values()
+->prepend(['value' => '', 'label' => 'Semua status'])
+->all();
+@endphp
 <div class="px-5 py-8 md:p-8"
     x-data="{
         filterModalOpen: false,
@@ -23,7 +34,7 @@
             <p class="text-sm text-secondary">Pantau batas usia pensiun pegawai dan proses pensiun bagi yang telah mencapai batas.</p>
         </div>
 
-        <div class="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-3">
+        <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-3">
             {{-- Cetak PDF (dropdown pilih periode & status) --}}
             <div class="relative"
                 x-data="{
@@ -38,7 +49,9 @@
             this.open = false;
         }
     }"
-                @click.outside="open = false"
+                {{-- Daftar <x-ui.select> di-teleport ke body, jadi klik pada opsinya dianggap "di luar" menu ini.
+                     Klik di dalam daftar tersebut (fixed z-[9999]) diabaikan agar menu tidak tertutup. --}}
+                @click.window="if (open && !$el.contains($event.target) && !$event.target.closest('.fixed.z-\\[9999\\]')) open = false"
                 @keydown.escape.window="open = false">
 
                 <button type="button" @click="open = !open"
@@ -48,26 +61,25 @@
                 </button>
 
                 <div x-show="open" x-cloak x-transition
-                    class="absolute right-0 z-20 mt-2 w-72 rounded-2xl border border-border bg-white p-4 shadow-lg space-y-3">
+                    class="absolute left-0 sm:left-auto sm:right-0 z-20 mt-2 w-72 max-w-[calc(100vw-2.5rem)] rounded-2xl border border-border bg-white p-4 shadow-lg space-y-3">
 
-                    <div>
-                        <label for="pdf-period" class="block text-xs font-semibold text-secondary mb-1.5">Periode</label>
-                        <select id="pdf-period" x-model="period"
-                            class="h-11 w-full rounded-xl border border-border bg-white px-3 text-sm text-foreground focus:outline-none focus:border-primary">
-                            <option value="all">Semua</option>
-                            <option value="one_year">1 tahun sebelum pensiun</option>
-                        </select>
+                    <div @change="period = $event.target.value"
+                        @reset-filters.window="period = 'all'">
+                        <label class="block text-xs font-semibold text-secondary mb-1.5">Periode</label>
+                        <x-ui.select
+                            name="pdf_period"
+                            :options="$pdfPeriodOptions"
+                            value="all"
+                            placeholder="Semua" />
                     </div>
 
-                    <div>
-                        <label for="pdf-status" class="block text-xs font-semibold text-secondary mb-1.5">Status pensiun</label>
-                        <select id="pdf-status" x-model="status"
-                            class="h-11 w-full rounded-xl border border-border bg-white px-3 text-sm text-foreground focus:outline-none focus:border-primary">
-                            <option value="">Semua status</option>
-                            @foreach ($retirementStatusOptions ?? [] as $opt)
-                            <option value="{{ $opt['value'] }}">{{ $opt['label'] }}</option>
-                            @endforeach
-                        </select>
+                    <div @change="status = $event.target.value"
+                        @reset-filters.window="status = ''">
+                        <label class="block text-xs font-semibold text-secondary mb-1.5">Status pensiun</label>
+                        <x-ui.select
+                            name="pdf_status"
+                            :options="$pdfStatusOptions"
+                            placeholder="Semua status" />
                     </div>
 
                     <div class="flex gap-2">

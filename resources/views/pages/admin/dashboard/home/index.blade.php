@@ -2,8 +2,11 @@
 
 @section('title', 'Dashboard')
 @section('page_title', 'Dashboard')
-@section('page_subtitle', 'Ringkasan data kepegawaian SIMKA')
+@section('page_subtitle', 'Sistem Informasi Manajemen Kepegawaian dan Arsip')
 
+@php
+use Illuminate\Support\Facades\Auth;
+@endphp
 
 @section('content')
 @php
@@ -74,7 +77,7 @@ if ($days < 0) return ['Terlewat ' . abs($days) . ' hari', $red];
                     </span>
 
                     <h1 class="mt-4 text-2xl md:text-4xl font-bold tracking-tight leading-tight">
-                        Selamat datang, {{ Auth::user()->username ?? 'Admin' }}
+                        Selamat datang, {{ Auth::user()->staff?->name ?? Auth::user()->username ?? 'Admin' }}
                     </h1>
 
                     <p class="mt-2 text-sm md:text-base text-white/85 leading-relaxed">
@@ -195,46 +198,83 @@ if ($days < 0) return ['Terlewat ' . abs($days) . ' hari', $red];
 
         <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-            {{-- 3. AKTIVITAS TERBARU (TIMELINE) --}}
+            {{-- 3. AKTIVITAS TERBARU --}}
+            @php
+            // Satu-satunya warna di daftar ini: titik kecil penanda jenis aktivitas.
+            $types = [
+            'keluarga' => ['label' => 'Penambahan Anggota Keluarga', 'dot' => 'bg-rose-400'],
+            'pendidikan' => ['label' => 'Penambahan Riwayat Pendidikan', 'dot' => 'bg-violet-400'],
+            'gaji' => ['label' => 'Penambahan Riwayat Gaji Berkala', 'dot' => 'bg-emerald-400'],
+            'pangkat' => ['label' => 'Penambahan Riwayat Kepangkatan', 'dot' => 'bg-amber-400'],
+            'jabatan' => ['label' => 'Penambahan Riwayat Jabatan', 'dot' => 'bg-indigo-400'],
+            'mutasi' => ['label' => 'Mutasi Pegawai', 'dot' => 'bg-sky-400'],
+            'pensiun' => ['label' => 'Pensiun Pegawai', 'dot' => 'bg-slate-400'],
+            ];
+
+            /*
+            | Data dari App\Services\Dashboard\RecentActivityService ($recentActivities).
+            | Bentuk item: type, name, gender, date (Carbon), by,
+            | from + to -> perubahan "lama → baru"
+            | title + subtitle -> detail teks untuk penambahan data
+            */
+            $items = collect($recentActivities ?? []);
+            @endphp
+
             <div class="lg:col-span-2 rounded-2xl border border-border bg-white p-5 md:p-6">
-                <div class="flex items-center gap-3 mb-6">
+                <div class="flex items-center gap-3 mb-5">
                     <span class="size-11 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
                         <i data-lucide="history" class="size-5"></i>
                     </span>
-                    <div>
+                    <div class="min-w-0">
                         <h2 class="text-base md:text-lg font-bold text-foreground">Aktivitas Terbaru</h2>
-                        <p class="text-xs sm:text-sm text-secondary mt-0.5">Perubahan status pegawai terakhir (mutasi, reaktivasi, pensiun)</p>
+                        <p class="text-xs sm:text-sm text-secondary mt-0.5">Perubahan data kepegawaian terakhir</p>
                     </div>
                 </div>
 
-                @if ($recentActivities->isNotEmpty())
-                <ol class="relative space-y-1 before:absolute before:left-[21px] before:top-4 before:bottom-4 before:w-px before:bg-border">
-                    @foreach ($recentActivities as $activity)
-                    <li class="relative flex items-start gap-4 rounded-xl py-3 pr-2 transition-colors hover:bg-muted/50">
-                        <div class="relative z-10 shrink-0 rounded-full bg-white p-0.5">
-                            <x-ui.avatar :name="$activity->staff?->name ?? '-'" :gender="$activity->staff?->gender" />
-                        </div>
+                @if ($items->isNotEmpty())
+                <ul class="divide-y divide-border/60 border-t border-border/60">
+                    @foreach ($items as $item)
+                    @php
+                    $t = $types[$item['type']] ?? $types['mutasi'];
+                    $date = $item['date'];
+                    @endphp
 
-                        <div class="min-w-0 flex-1">
-                            <p class="truncate text-sm font-semibold text-foreground">{{ $activity->staff?->name ?? 'Pegawai tidak ditemukan' }}</p>
-                            <div class="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
-                                <span class="rounded-md bg-muted px-2 py-0.5 text-secondary">
-                                    {{ \App\Http\Controllers\Admin\Career\TransferController::STATUS_LABELS[$activity->from_status] ?? $activity->from_status }}
-                                </span>
-                                <i data-lucide="arrow-right" class="size-3 text-secondary"></i>
-                                <span class="rounded-md bg-primary/10 px-2 py-0.5 font-semibold text-primary">
-                                    {{ \App\Http\Controllers\Admin\Career\TransferController::STATUS_LABELS[$activity->to_status] ?? $activity->to_status }}
-                                </span>
-                            </div>
+                    <li class="flex items-center gap-4 py-2">
+                        <x-ui.avatar :name="$item['name']" :gender="$item['gender']" />
+
+                        <div class="flex min-w-0 flex-1 flex-col gap-1">
+                            <p class="truncate text-sm font-semibold leading-5 text-foreground">{{ $item['name'] }}</p>
+
+                            {{-- Detail --}}
+                            @if ($item['from'] !== null && $item['to'] !== null)
+                            <p class="flex min-w-0 items-center gap-1.5 text-xs leading-4 text-secondary">
+                                <span class="truncate">{{ $item['from'] }}</span>
+                                <i data-lucide="arrow-right" class="size-3 shrink-0"></i>
+                                <span class="truncate font-medium text-foreground">{{ $item['to'] }}</span>
+                            </p>
+                            @else
+                            <p class="truncate text-xs leading-4 text-secondary">
+                                <span class="font-medium text-foreground">{{ $item['title'] }}</span>
+                                @if ($item['subtitle'])
+                                <span class="ml-1">{{ $item['subtitle'] }}</span>
+                                @endif
+                            </p>
+                            @endif
+
+                            {{-- Jenis aktivitas --}}
+                            <p class="flex items-center gap-1.5 text-[11px] leading-4 text-secondary">
+                                <span class="size-1.5 rounded-full {{ $t['dot'] }}"></span>
+                                {{ $t['label'] }}
+                            </p>
                         </div>
 
                         <div class="shrink-0 text-right">
-                            <p class="text-xs font-medium text-foreground">{{ $activity->effective_date?->translatedFormat('d M Y') }}</p>
-                            <p class="mt-0.5 text-[11px] text-secondary">oleh {{ $activity->creator?->username ?? '-' }}</p>
+                            <p class="text-xs font-medium text-foreground">{{ $date?->translatedFormat('d M Y') }}</p>
+                            <p class="mt-0.5 text-[11px] text-secondary">{{ $item['by'] }}</p>
                         </div>
                     </li>
                     @endforeach
-                </ol>
+                </ul>
                 @else
                 <div class="py-16 text-center text-secondary">
                     <div class="flex flex-col items-center gap-3">
@@ -263,6 +303,7 @@ if ($days < 0) return ['Terlewat ' . abs($days) . ' hari', $red];
                     {{-- bar proporsi --}}
                     <div class="flex h-2.5 w-full overflow-hidden rounded-full bg-muted gap-0.5" role="img" aria-label="Proporsi status kepegawaian">
                         @foreach ($employmentBreakdown as $item)
+                        @continue(! $item->total)
                         <span class="{{ $employmentColors[$loop->index % count($employmentColors)] }} first:rounded-l-full last:rounded-r-full"
                             style="width: {{ round(($item->total / $employmentTotal) * 100, 2) }}%"></span>
                         @endforeach
@@ -276,7 +317,7 @@ if ($days < 0) return ['Terlewat ' . abs($days) . ' hari', $red];
                                 <span class="truncate text-sm text-foreground">{{ $item->name }}</span>
                             </span>
                             <span class="flex items-baseline gap-2 shrink-0 tabular-nums">
-                                <span class="text-sm font-bold text-foreground">{{ number_format($item->total, 0, ',', '.') }}</span>
+                                <span class="text-sm font-bold {{ $item->total ? 'text-foreground' : 'text-secondary/60' }}">{{ number_format($item->total, 0, ',', '.') }}</span>
                                 <span class="w-10 text-right text-xs text-secondary">{{ round(($item->total / $employmentTotal) * 100) }}%</span>
                             </span>
                         </li>
