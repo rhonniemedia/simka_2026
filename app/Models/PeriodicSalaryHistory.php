@@ -5,11 +5,11 @@ namespace App\Models;
 use Carbon\Carbon;
 
 use App\Models\Concerns\HasStaffDocuments;
-use Illuminate\Database\Eloquent\Casts\Attribute; // Tambahkan ini
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Crypt; // Tambahkan ini
+use Illuminate\Support\Facades\Crypt;
 
 class PeriodicSalaryHistory extends Model
 {
@@ -21,6 +21,9 @@ class PeriodicSalaryHistory extends Model
     protected $keyType = 'string';
 
     protected $guarded = ['id'];
+
+    /** Cache hasil serviceInfo() per instance, supaya tidak dihitung 3x oleh 3 accessor. */
+    private ?array $serviceInfoCache = null;
 
     // Relasi ke data pegawai
     public function staff()
@@ -35,19 +38,17 @@ class PeriodicSalaryHistory extends Model
     protected function baseSalary(): Attribute
     {
         return Attribute::make(
-            // Accessor (Get): Menarik data dari DB, otomatis didekripsi
             get: function ($value, $attributes) {
                 if (!empty($attributes['base_salary_encrypted'])) {
                     try {
                         return Crypt::decryptString($attributes['base_salary_encrypted']);
                     } catch (\Exception $e) {
-                        return null; // Fallback jika data tidak valid / kunci app berubah
+                        return null;
                     }
                 }
                 return null;
             },
 
-            // Mutator (Set): Menyimpan data dari form, otomatis dienkripsi
             set: fn($value) => [
                 'base_salary_encrypted' => !empty($value) ? Crypt::encryptString($value) : null
             ],
@@ -78,14 +79,19 @@ class PeriodicSalaryHistory extends Model
 
     /**
      * Masa kerja saat TMT berkala, TMT berikutnya (+2 tahun), dan tahun ke-.
-     * Butuh relasi `staff`. Setelah masa kerja lebih dari 31 tahun tidak ada berkala berikutnya.
+     * Berkala berikutnya hanya ada jika masa kerja pada berkala berikutnya
+     * tidak melebihi batas golongan yang berlaku pada TMT berkala ini.
      */
     private function serviceInfo(): array
     {
+        if ($this->serviceInfoCache !== null) {
+            return $this->serviceInfoCache;
+        }
+
         $startDate = $this->staff?->prior_service_period_effective_date;
 
         if (! $this->effective_date || ! $startDate) {
-            return ['masa_kerja' => '-', 'tmt_berikut' => null, 'tahun_ke' => '-'];
+            return $this->serviceInfoCache = ['masa_kerja' => '-', 'tmt_berikut' => null, 'tahun_ke' => '-'];
         }
 
         $tmt    = Carbon::parse($this->effective_date);
@@ -98,11 +104,26 @@ class PeriodicSalaryHistory extends Model
             'tahun_ke'    => null,
         ];
 
-        if ($years <= 31) {
+        $maxYears  = $this->maxServiceYears();
+        $nextYears = $years + 2;
+
+        // Tanpa golongan / tanpa batas => tidak ada berkala berikutnya
+        if ($maxYears !== null && $nextYears <= $maxYears) {
             $info['tmt_berikut'] = $tmt->copy()->addYears(2)->format('Y-m-d');
-            $info['tahun_ke']    = $years + 2;
+            $info['tahun_ke']    = $nextYears;
         }
 
-        return $info;
+        return $this->serviceInfoCache = $info;
+    }
+
+    /**
+     * Batas masa kerja maksimal berdasarkan golongan pegawai pada TMT berkala ini
+     * (logikanya ada di Data::maxPeriodicServiceYearsAt).
+     *
+     * Eager load agar tidak ada query per baris: with('staff.gradeHistories.grade.group')
+     */
+    private function maxServiceYears(): ?int
+    {
+        return $this->staff?->maxPeriodicServiceYearsAt($this->effective_date);
     }
 }

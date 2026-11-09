@@ -31,9 +31,6 @@ class DashboardController extends Controller
     /** Pegawai masuk daftar tunggu jika jatuh tempo <= sekian hari lagi (yang sudah lewat tetap tampil). */
     private const PERIODIC_HORIZON_DAYS = 90;
 
-    /** Batas masa kerja (tahun) - sama dengan aturan di PeriodicSalaryHistoryController. */
-    private const PERIODIC_MAX_SERVICE_YEARS = 31;
-
     public function index(Request $request)
     {
         $activeStaffCount = Data::completed()->where('status', 'active')->count();
@@ -134,6 +131,7 @@ class DashboardController extends Controller
 
         return collect(RetirementList::sort($rows))->map(fn(array $row) => (object) [
             'staff'    => $row['staff'],
+            'nip'      => $this->readNip($row['staff']),
             'due_date' => $row['calc']['tmt'] ?? $row['calc']['limit_date'] ?? null,
         ]);
     }
@@ -141,8 +139,10 @@ class DashboardController extends Controller
     /**
      * Daftar tunggu kenaikan gaji berkala (KGB).
      * Jatuh tempo = TMT riwayat berkala terakhir + 2 tahun (aturan sama dengan
-     * halaman Gaji Berkala). Pegawai yang masa kerjanya sudah melewati 31 tahun
-     * pada TMT terakhir tidak dihitung lagi. Pegawai tanpa riwayat berkala
+     * halaman Gaji Berkala). Pegawai yang sudah melampaui batas masa kerja
+     * golongannya (masa kerja + 2 tahun > batas pada TMT terakhir) tidak dihitung
+     * lagi. Pegawai tanpa riwayat pangkat / tanpa tanggal mulai kerja tetap ikut,
+     * karena belum bisa dipastikan melampaui batas. Pegawai tanpa riwayat berkala
      * tidak ikut karena tanggal acuannya tidak ada.
      *
      * Tiap item: ->staff (model Data) dan ->due_date (Y-m-d). Terurut dari
@@ -173,6 +173,7 @@ class DashboardController extends Controller
             ->where('staff_data.status', 'active')
             ->whereIn('staff_data.id', $lastTmtByStaff->keys()->all())
             ->whereHas('employmentStatus', fn($q) => $q->whereIn('slug', self::INCLUDED_EMPLOYMENT_SLUGS))
+            ->with(['vault', 'gradeHistories.grade.group'])
             ->get();
 
         return $staffList
@@ -181,14 +182,20 @@ class DashboardController extends Controller
                 $start   = $this->readServiceStart($staff);
 
                 if ($start) {
-                    $years = (int) floor($start->diffInMonths($lastTmt) / 12);
-                    if ($years > self::PERIODIC_MAX_SERVICE_YEARS) {
-                        return null;
+                    $max = $staff->maxPeriodicServiceYearsAt($lastTmt);
+
+                    if ($max !== null) {
+                        $years = (int) floor($start->diffInMonths($lastTmt) / 12);
+
+                        if ($years + self::PERIODIC_INTERVAL_YEARS > $max) {
+                            return null;
+                        }
                     }
                 }
 
                 return (object) [
                     'staff'    => $staff,
+                    'nip'      => $this->readNip($staff),
                     'due_date' => $lastTmt->copy()->addYears(self::PERIODIC_INTERVAL_YEARS)->toDateString(),
                 ];
             })
@@ -203,6 +210,16 @@ class DashboardController extends Controller
             $date = $staff->prior_service_period_effective_date;
 
             return $date ? Carbon::parse($date) : null;
+        } catch (Throwable) {
+            return null;
+        }
+    }
+
+    /** NIP tersimpan terenkripsi di tabel vault, bukan di staff_data. */
+    private function readNip(Data $staff): ?string
+    {
+        try {
+            return $staff->vault?->nip;
         } catch (Throwable) {
             return null;
         }

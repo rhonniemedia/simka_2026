@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Casts\NormalizedName;
 use App\Models\CoreConcentration;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -125,6 +126,37 @@ class Data extends Model
     public function grade()
     {
         return $this->hasMany(GradeHistory::class, 'staff_id');
+    }
+
+    // Alias grade() dengan nama yang lebih jelas (dipakai perhitungan gaji berkala)
+    public function gradeHistories()
+    {
+        return $this->hasMany(GradeHistory::class, 'staff_id');
+    }
+
+    /**
+     * Batas masa kerja maksimal (tahun) untuk gaji berkala, menurut golongan pegawai
+     * pada tanggal tertentu: riwayat pangkat terbaru dengan TMT <= $date; jika TMT sama,
+     * yang paling baru dibuat dipakai. Null jika belum ada riwayat pangkat / grup belum diatur.
+     *
+     * Eager load agar tidak ada query per pegawai: with('gradeHistories.grade.group')
+     */
+    public function maxPeriodicServiceYearsAt($date): ?int
+    {
+        if (! $date) {
+            return null;
+        }
+
+        $tmt = Carbon::parse($date)->toDateString();
+
+        $history = $this->gradeHistories
+            ->filter(fn($h) => $h->effective_date && $h->effective_date->toDateString() <= $tmt)
+            ->sortBy([['effective_date', 'desc'], ['created_at', 'desc']])
+            ->first();
+
+        $max = $history?->grade?->group?->max_periodic_service_years;
+
+        return $max !== null ? (int) $max : null;
     }
 
     // Relasi ke Riwayat Pendidikan (1-to-many)

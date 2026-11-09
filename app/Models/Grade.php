@@ -16,4 +16,12 @@ class Grade extends Model
     protected $keyType = 'string';
 
     protected $guarded = ['id'];
+
+    /**
+     * Grup golongan (I, II, III, IV) beserta batas masa kerja berkala.
+     */
+    public function group()
+    {
+        return $this->belongsTo(GradeGroup::class, 'grade_group_id');
+    }
 }

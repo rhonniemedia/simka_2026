@@ -46,18 +46,13 @@ class SalariesHistoryController extends Controller
             'name'           => ['relation' => 'staff', 'column' => 'name'],
             'effective_date' => 'effective_date',
             'next_date'      => function (Builder $q, string $dir) use ($model) {
-                $g     = $q->getQuery()->getGrammar();
-                $staff = new Data;
+                [$start, $limit, $effective] = $this->periodicLimitSql($q);
 
-                $effective = $g->wrap($model->qualifyColumn('effective_date'));
-                $staffFk   = $g->wrap($model->qualifyColumn('staff_id'));
-                $start     = '(select ' . $g->wrap($staff->qualifyColumn('prior_service_period_effective_date'))
-                    . ' from ' . $g->wrapTable($staff->getTable())
-                    . ' where ' . $g->wrap($staff->getQualifiedKeyName()) . ' = ' . $staffFk
-                    . ' limit 1)';
-
+                // Tanpa berkala berikutnya: tanpa tanggal mulai, tanpa golongan/batas, atau masa kerja + 2 tahun > batas
                 $q->orderByRaw(
-                    "case when {$start} is null or timestampdiff(month, {$start}, {$effective}) >= 384 then 1 else 0 end"
+                    "case when {$start} is null or {$limit} is null"
+                        . " or timestampdiff(month, {$start}, {$effective}) >= ({$limit} - 1) * 12"
+                        . " then 1 else 0 end"
                 );
 
                 $q->orderBy($model->qualifyColumn('effective_date'), $dir);
@@ -74,9 +69,10 @@ class SalariesHistoryController extends Controller
             ->orderByDesc('latest.id')
             ->limit(1);
 
-        $query = PeriodicSalaryHistory::with(['staff.vault', 'documents.category'])
+        $query = PeriodicSalaryHistory::with(['staff.vault', 'staff.gradeHistories.grade.group', 'documents.category'])
             ->whereHas('staff', fn($s) => $s->completed()->active())
             ->where($model->qualifyColumn('id'), '=', $latestId)
+            ->tap(fn($q) => $this->withinServiceLimit($q))
             ->when($search !== '', fn($q) => $q->whereHas(
                 'staff',
                 fn($s) => $s->where('name', 'like', "%{$search}%")
@@ -102,6 +98,7 @@ class SalariesHistoryController extends Controller
         $yearOptions = PeriodicSalaryHistory::query()
             ->whereHas('staff', fn($s) => $s->completed()->active())
             ->where($model->qualifyColumn('id'), '=', $latestId)
+            ->tap(fn($q) => $this->withinServiceLimit($q))
             ->selectRaw('year(date_add(' . $effectiveCol . ', interval 2 year)) as y')
             ->whereNotNull($effectiveCol)
             ->distinct()
@@ -120,7 +117,7 @@ class SalariesHistoryController extends Controller
 
     public function show(Request $request, $id)
     {
-        $staff = Data::completed()->active()->with(['vault', 'employmentStatus'])->findOrFail($id);
+        $staff = Data::completed()->active()->with(['vault', 'employmentStatus', 'gradeHistories.grade.group'])->findOrFail($id);
 
         $histories = PeriodicSalaryHistory::with('documents.category')
             ->where('staff_id', $id)
@@ -273,9 +270,10 @@ class SalariesHistoryController extends Controller
             ->orderByDesc('latest.effective_date')
             ->limit(1);
 
-        $query = PeriodicSalaryHistory::with('staff.vault')
+        $query = PeriodicSalaryHistory::with(['staff.vault', 'staff.gradeHistories.grade.group'])
             ->whereHas('staff', fn($s) => $s->completed()->active())
-            ->where("{$table}.id", '=', $latestId);
+            ->where("{$table}.id", '=', $latestId)
+            ->tap(fn($q) => $this->withinServiceLimit($q));
 
         $rows = $query->get()->map(function ($h) {
             return [
@@ -306,6 +304,53 @@ class SalariesHistoryController extends Controller
             ],
             'kgb-periode-' . ($year ?? 'semua') . '-' . now()->format('Ymd') . '.pdf',
             $request->boolean('download'),
+        );
+    }
+
+    /**
+     * Potongan SQL untuk perhitungan batas masa kerja berkala:
+     * [tanggal mulai kerja pegawai, batas masa kerja golongan pada TMT berkala, TMT berkala].
+     * Batas diambil dari riwayat pangkat terbaru dengan TMT <= TMT berkala.
+     *
+     * @return array{0: string, 1: string, 2: string}
+     */
+    private function periodicLimitSql(Builder $q): array
+    {
+        $g     = $q->getQuery()->getGrammar();
+        $model = new PeriodicSalaryHistory;
+        $staff = new Data;
+
+        $effective = $g->wrap($model->qualifyColumn('effective_date'));
+        $staffFk   = $g->wrap($model->qualifyColumn('staff_id'));
+
+        $start = '(select ' . $g->wrap($staff->qualifyColumn('prior_service_period_effective_date'))
+            . ' from ' . $g->wrapTable($staff->getTable())
+            . ' where ' . $g->wrap($staff->getQualifiedKeyName()) . ' = ' . $staffFk
+            . ' limit 1)';
+
+        $limit = '(select gg.max_periodic_service_years'
+            . ' from staff_grade_histories gh'
+            . ' join staff_grades g on g.id = gh.grade_id'
+            . ' join staff_grade_groups gg on gg.id = g.grade_group_id'
+            . ' where gh.staff_id = ' . $staffFk
+            . ' and gh.effective_date <= ' . $effective
+            . ' order by gh.effective_date desc, gh.created_at desc limit 1)';
+
+        return [$start, $limit, $effective];
+    }
+
+    /**
+     * Sembunyikan pegawai yang sudah melampaui batas masa kerja berkala golongannya
+     * (masa kerja + 2 tahun > batas). Pegawai yang belum punya riwayat pangkat / batas
+     * atau tanggal mulai kerja tetap tampil, karena belum bisa dipastikan melampaui batas.
+     */
+    private function withinServiceLimit(Builder $q): Builder
+    {
+        [$start, $limit, $effective] = $this->periodicLimitSql($q);
+
+        return $q->whereRaw(
+            "not ({$start} is not null and {$limit} is not null"
+                . " and timestampdiff(month, {$start}, {$effective}) >= ({$limit} - 1) * 12)"
         );
     }
 
