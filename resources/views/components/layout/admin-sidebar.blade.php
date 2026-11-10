@@ -254,6 +254,14 @@
             </button>
 
             <div x-show="open" x-collapse class="flex flex-col gap-1">
+                @php
+                $roleAplikasiSekarang = auth()->check()
+                ? auth()->user()->roles()->wherePivot('app_id', config('app.core_id'))->first()
+                : null;
+                $isSuperAdmin = $roleAplikasiSekarang && $roleAplikasiSekarang->name === 'superadmin';
+                @endphp
+
+                @if ($isSuperAdmin)
                 <!-- Daftar Pengguna -->
                 <a href="{{ route('admin.users.index') }}" class="group cursor-pointer">
                     <div class="flex items-center justify-between rounded-xl p-3 transition-all duration-300 {{ request()->routeIs('admin.users.*') ? 'bg-primary/10 hover:bg-primary/20' : 'hover:bg-muted' }}">
@@ -269,6 +277,7 @@
                         </div>
                     </div>
                 </a>
+                @endif
 
                 <!-- Profil Saya -->
                 <a href="{{ route('admin.profile.index') }}" class="group cursor-pointer">

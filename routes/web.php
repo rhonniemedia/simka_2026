@@ -23,6 +23,7 @@ use App\Http\Controllers\Admin\User\ListController;
 use App\Http\Controllers\Admin\User\ProfileController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\SessionController;
+use App\Http\Middleware\EnsureUserIsSuperAdmin;
 use App\Http\Middleware\RememberIntendedUrl;
 use Illuminate\Support\Facades\Route;
 
@@ -93,7 +94,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'app.access'])->grou
     });
 
     // Daftar Pengguna (akun, role, status, kata sandi)
-    Route::prefix('users')->name('users.')->group(function () {
+    Route::prefix('users')->name('users.')->middleware([EnsureUserIsSuperAdmin::class])->group(function () {
         Route::get('/', [ListController::class, 'index'])->name('index');
         Route::get('/create', [ListController::class, 'create'])->name('create');
         Route::post('/', [ListController::class, 'store'])->name('store');
