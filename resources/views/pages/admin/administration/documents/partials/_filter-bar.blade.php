@@ -53,17 +53,22 @@ $persistParams = $persistParams ?? [];
         @if ($showViewSwitch)
         {{-- SWITCH TAMPILAN (DROPDOWN) --}}
         <div class="relative" @click.away="viewDropdownOpen = false">
+            {{-- Mobile: hanya ikon + panah kecil. Layar sm ke atas: ikon + label. --}}
             <button type="button"
                 @click="viewDropdownOpen = !viewDropdownOpen"
-                class="flex items-center justify-between gap-3 px-3.5 h-11 rounded-xl bg-white border border-border text-sm font-semibold text-foreground hover:bg-muted transition-all cursor-pointer focus:outline-none focus:border-primary">
+                :aria-label="viewMode === 'all' ? 'Semua Dokumen' : 'Per Pegawai'"
+                :title="viewMode === 'all' ? 'Semua Dokumen' : 'Per Pegawai'"
+                aria-haspopup="true"
+                :aria-expanded="viewDropdownOpen"
+                class="flex items-center justify-center sm:justify-between gap-1.5 sm:gap-3 px-3 sm:px-3.5 h-11 rounded-xl bg-white border border-border text-sm font-semibold text-foreground hover:bg-muted transition-all cursor-pointer focus:outline-none focus:border-primary">
 
                 <div class="flex items-center gap-2">
                     <i data-lucide="files" x-show="viewMode === 'all'" class="size-4 text-primary shrink-0"></i>
                     <i data-lucide="users" x-show="viewMode === 'staff'" class="size-4 text-primary shrink-0" x-cloak></i>
-                    <span x-text="viewMode === 'all' ? 'Semua Dokumen' : 'Per Pegawai'"></span>
+                    <span class="hidden sm:inline" x-text="viewMode === 'all' ? 'Semua Dokumen' : 'Per Pegawai'"></span>
                 </div>
 
-                <i data-lucide="chevron-down" class="size-4 text-secondary transition-transform duration-200" :class="viewDropdownOpen ? 'rotate-180' : ''"></i>
+                <i data-lucide="chevron-down" class="size-3.5 sm:size-4 text-secondary transition-transform duration-200" :class="viewDropdownOpen ? 'rotate-180' : ''"></i>
             </button>
 
             <div x-show="viewDropdownOpen"
@@ -74,7 +79,7 @@ $persistParams = $persistParams ?? [];
                 x-transition:leave="transition ease-in duration-100"
                 x-transition:leave-start="opacity-100 scale-100 translate-y-0"
                 x-transition:leave-end="opacity-0 scale-95 -translate-y-2"
-                class="absolute left-0 sm:left-auto sm:right-0 mt-2 w-52 rounded-xl bg-white border border-border shadow-lg p-1.5 z-50 flex flex-col gap-1">
+                class="absolute left-0 sm:left-auto sm:right-0 mt-2 w-52 max-w-[calc(100vw-2rem)] rounded-xl bg-white border border-border shadow-lg p-1.5 z-50 flex flex-col gap-1">
 
                 {{-- Pencarian & filter ikut terbawa (hx-include); `view` eksplisit lewat hx-vals. --}}
                 <button type="button"
@@ -109,13 +114,15 @@ $persistParams = $persistParams ?? [];
         @endif
 
         {{-- INPUT PENCARIAN --}}
-        <div class="relative flex-1 sm:flex-none w-56 md:w-64 flex items-center">
+        <div class="relative flex-1 min-w-0 sm:flex-none sm:w-56 md:w-64 flex items-center">
             <i data-lucide="search" class="absolute left-3.5 size-4 transition-colors pointer-events-none"
                 :class="searchQuery.length > 0 ? 'text-primary' : 'text-secondary'"></i>
 
             <input
                 x-ref="searchInput"
                 type="text"
+                inputmode="search"
+                enterkeyhint="search"
                 name="search"
                 x-model="searchQuery"
                 placeholder="{{ $searchPlaceholder }}"
@@ -127,7 +134,7 @@ $persistParams = $persistParams ?? [];
                 hx-swap="outerHTML"
                 hx-include="#documents-filter-form"
                 hx-push-url="true"
-                class="h-11 w-full bg-white border border-border rounded-xl pl-10 pr-10 text-sm focus:outline-none focus:border-primary transition-all"
+                class="h-11 w-full min-w-0 bg-white border border-border rounded-xl pl-10 pr-10 text-base sm:text-sm truncate focus:outline-none focus:border-primary transition-all"
                 :class="searchQuery.length > 0 ? 'border-primary/50 text-foreground font-medium' : 'border-border text-foreground'">
 
             <button
@@ -135,7 +142,8 @@ $persistParams = $persistParams ?? [];
                 x-show="searchQuery.length > 0"
                 x-cloak
                 @click="searchQuery = ''; $nextTick(() => $refs.searchInput.dispatchEvent(new Event('search')))"
-                class="absolute right-3 flex items-center justify-center size-5 rounded-full bg-slate-100 hover:bg-error/10 text-secondary hover:text-error transition-all cursor-pointer focus:outline-none">
+                aria-label="Hapus pencarian"
+                class="absolute right-2.5 flex items-center justify-center size-6 sm:size-5 rounded-full bg-slate-100 hover:bg-error/10 text-secondary hover:text-error transition-all cursor-pointer focus:outline-none">
                 <i data-lucide="x" class="size-3"></i>
             </button>
         </div>
@@ -145,6 +153,7 @@ $persistParams = $persistParams ?? [];
             type="button"
             @click="filterModalOpen = true"
             title="Filter"
+            aria-label="Buka filter"
             class="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border bg-white hover:bg-muted transition-colors cursor-pointer focus:outline-none"
             :class="filterCount > 0 ? 'border-primary/50' : 'border-border'">
             <i data-lucide="filter" class="size-4" :class="filterCount > 0 ? 'text-primary' : 'text-secondary'"></i>
