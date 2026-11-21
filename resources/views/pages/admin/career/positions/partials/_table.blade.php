@@ -5,104 +5,92 @@
     hx-swap="outerHTML">
 
     {{-- ============ 1. DESKTOP TABLE (lg ke atas) ============ --}}
-    <div class="hidden lg:block overflow-x-auto">
-        <table class="w-full text-left border-collapse">
-            <thead>
-                <tr class="border-b border-border">
-                    <th class="w-[30%] px-4 py-3 text-sm font-bold text-secondary tracking-wider">
-                        Data Pegawai
-                        <div class="text-[11px] font-normal normal-case">Nama | Nomor Induk Kependudukan</div>
-                    </th>
-                    <th class="w-[30%] px-4 py-3 text-sm font-bold text-secondary tracking-wider">
-                        Status Kepegawaian
-                        <div class="text-[11px] font-normal normal-case">Status | Jumlah Riwayat</div>
-                    </th>
-                    <th class="w-[30%] px-4 py-3 text-sm font-bold text-secondary tracking-wider">
-                        Jabatan
-                        <div class="text-[11px] font-normal normal-case">Jabatan ASN Aktif | TMT</div>
-                    </th>
-                    <th class="w-[10%] px-4 py-3 text-sm font-bold text-secondary tracking-wider">
-                        Tautan
-                        <div class="text-[11px] font-normal normal-case">Dokumen</div>
-                    </th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-border border-b border-border">
-                @forelse ($staffList as $staff)
-                @php
-                $nik = $staff->vault?->nik ?? '-';
-                // Berkas SK jabatan aktif (diisi controller lewat attachActiveSk())
-                $sk = $staff->activeSk;
-                @endphp
-                <tr id="row-staff-{{ $staff->id }}" class="group transition-colors hover:bg-muted/40">
-                    {{-- Kolom 1: Pegawai --}}
-                    <td class="px-5 py-4 min-w-[240px]">
-                        <a href="{{ route('admin.personnel.positions.show', $staff->id) }}" class="flex items-center gap-3 cursor-pointer">
-                            <div class="shrink-0">
-                                <x-ui.avatar :name="$staff->name" :gender="$staff->gender" :index="$loop->index" />
+    {{-- 4 kolom: 30% + 30% + 30% + 10% --}}
+    <x-ui.table>
+        <thead>
+            <tr class="border-b border-border">
+                <x-ui.table.th width="w-[30%]" sub="Nama | Nomor Induk Kependudukan">Data Pegawai</x-ui.table.th>
+                <x-ui.table.th width="w-[30%]" sub="Status | Jumlah Riwayat">Status Kepegawaian</x-ui.table.th>
+                <x-ui.table.th width="w-[30%]" sub="Jabatan ASN Aktif | TMT">Jabatan</x-ui.table.th>
+                <x-ui.table.th width="w-[10%]" sub="Dokumen">Tautan</x-ui.table.th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-border border-b border-border">
+            @forelse ($staffList as $staff)
+            @php
+            $nik = $staff->vault?->nik ?? '-';
+            // Berkas SK jabatan aktif (diisi controller lewat attachActiveSk())
+            $sk = $staff->activeSk;
+            $tmt = $staff->active_position_effective_date
+            ? \Carbon\Carbon::parse($staff->active_position_effective_date)->translatedFormat('d M Y')
+            : '-';
+            @endphp
+            <tr id="row-staff-{{ $staff->id }}" class="group transition-colors hover:bg-muted/40">
+                {{-- Kolom 1: Pegawai --}}
+                <x-ui.table.td>
+                    <a href="{{ route('admin.personnel.positions.show', $staff->id) }}" class="flex items-center gap-3 min-w-0 cursor-pointer">
+                        <div class="shrink-0">
+                            <x-ui.avatar :name="$staff->name" :gender="$staff->gender" :index="$loop->index" />
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <x-ui.table.text :text="$staff->name" class="font-semibold text-foreground text-sm group-hover:text-primary transition-colors" />
+                            <div class="flex items-center gap-1.5 text-xs text-secondary mt-1 min-w-0">
+                                <span class="inline-block size-1.5 rounded-full bg-emerald-500 shrink-0"></span>
+                                <span class="truncate" title="{{ $nik }}">{{ $nik }}</span>
                             </div>
-                            <div>
-                                <div class="font-semibold text-foreground text-sm group-hover:text-primary transition-colors whitespace-nowrap">
-                                    {{ $staff->name }}
-                                </div>
-                                <div class="flex items-center gap-1.5 text-xs text-secondary mt-1 whitespace-nowrap">
-                                    <span class="inline-block size-1.5 rounded-full bg-emerald-500 shrink-0"></span>
-                                    {{ $nik }}
-                                </div>
+                        </div>
+                    </a>
+                </x-ui.table.td>
+
+                {{-- Kolom 2: Status Kepegawaian --}}
+                <x-ui.table.td>
+                    <x-ui.table.text :text="$staff->employmentStatus?->name ?? '-'" class="text-sm font-medium text-foreground" />
+                    <div class="text-xs text-secondary mt-1 truncate">
+                        <span>{{ $staff->position_history_count ?? 0 }}</span> riwayat
+                    </div>
+                </x-ui.table.td>
+
+                {{-- Kolom 3: Jabatan --}}
+                <x-ui.table.td>
+                    @if ($staff->active_position_name)
+                    <x-ui.table.text :text="$staff->active_position_name" class="text-sm font-medium text-foreground" />
+                    <div class="text-xs text-secondary mt-1 truncate" title="TMT: {{ $tmt }}">
+                        TMT: <span class="font-semibold">{{ $tmt }}</span>
+                    </div>
+                    @else
+                    <span class="block truncate text-xs text-secondary/70">Belum ada jabatan aktif</span>
+                    @endif
+                </x-ui.table.td>
+
+                {{-- Kolom 4: Dokumen --}}
+                <x-ui.table.td>
+                    <div class="flex items-center">
+                        @if ($sk)
+                        <a href="{{ route('admin.personnel.documents.preview', $sk->id) }}" target="_blank" rel="noopener" class="shrink-0 hover:opacity-80 transition-opacity" title="Lihat Dokumen SK">
+                            <div class="size-8 rounded-lg bg-red-50 flex items-center justify-center border border-red-200">
+                                <i data-lucide="file-text" class="size-4 text-red-600"></i>
                             </div>
                         </a>
-                    </td>
-
-                    {{-- Kolom 2: Status Kepegawaian --}}
-                    <td class="px-5 py-4 min-w-[180px]">
-                        <div class="text-sm font-medium text-foreground whitespace-nowrap">{{ $staff->employmentStatus?->name ?? '-' }}</div>
-                        <div class="text-xs text-secondary whitespace-nowrap mt-1">
-                            <span>{{ $staff->position_history_count ?? 0 }}</span> riwayat
-                        </div>
-                    </td>
-
-                    {{-- Kolom 3: Jabatan --}}
-                    <td class="px-5 py-4 min-w-[220px]">
-                        @if ($staff->active_position_name)
-                        <div class="text-sm font-medium text-foreground whitespace-nowrap">{{ $staff->active_position_name }}</div>
-                        <div class="text-xs text-secondary whitespace-nowrap mt-1">
-                            TMT: <span class="font-semibold">{{ $staff->active_position_effective_date ? \Carbon\Carbon::parse($staff->active_position_effective_date)->translatedFormat('d M Y') : '-' }}</span>
-                        </div>
                         @else
-                        <span class="text-xs text-secondary/70">Belum ada jabatan aktif</span>
+                        <div class="size-8 rounded-lg bg-muted flex items-center justify-center border border-border" title="Dokumen Tidak Tersedia">
+                            <i data-lucide="file-x-2" class="size-4 text-secondary/50"></i>
+                        </div>
                         @endif
-                    </td>
-
-                    {{-- Kolom 4: Dokumen --}}
-                    <td class="px-5 py-4 min-w-[100px]">
-                        <div class="flex items-center gap-3">
-                            @if ($sk)
-                            <a href="{{ route('admin.personnel.documents.preview', $sk->id) }}" target="_blank" rel="noopener" class="shrink-0 hover:opacity-80 transition-opacity" title="Lihat Dokumen SK">
-                                <div class="size-8 rounded-lg bg-red-50 flex items-center justify-center border border-red-200">
-                                    <i data-lucide="file-text" class="size-4 text-red-600"></i>
-                                </div>
-                            </a>
-                            @else
-                            <div class="size-8 rounded-lg bg-muted flex items-center justify-center border border-border" title="Dokumen Tidak Tersedia">
-                                <i data-lucide="file-x-2" class="size-4 text-secondary/50"></i>
-                            </div>
-                            @endif
-                        </div>
-                    </td>
-                </tr>
-                @empty
-                <tr>
-                    <td colspan="4" class="px-4 py-16 text-center text-secondary">
-                        <div class="flex flex-col items-center gap-3">
-                            <i data-lucide="inbox" class="size-10 text-border"></i>
-                            <p class="font-medium text-sm">Tidak ada data pegawai yang cocok.</p>
-                        </div>
-                    </td>
-                </tr>
-                @endforelse
-            </tbody>
-        </table>
-    </div>
+                    </div>
+                </x-ui.table.td>
+            </tr>
+            @empty
+            <tr>
+                <td colspan="4" class="px-4 py-16 text-center text-secondary">
+                    <div class="flex flex-col items-center gap-3">
+                        <i data-lucide="inbox" class="size-10 text-border"></i>
+                        <p class="font-medium text-sm">Tidak ada data pegawai yang cocok.</p>
+                    </div>
+                </td>
+            </tr>
+            @endforelse
+        </tbody>
+    </x-ui.table>
 
     {{-- ============ 2. MOBILE CARDS (di bawah lg) ============ --}}
     <div class="lg:hidden divide-y divide-border border-y border-border -mx-5 mt-2 mb-4">

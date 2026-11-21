@@ -5,109 +5,93 @@
     hx-swap="outerHTML">
 
     {{-- ============ 1. DESKTOP TABLE (lg ke atas) ============ --}}
-    <div class="hidden lg:block overflow-x-auto">
-        <table class="w-full text-left">
-            <thead>
-                <tr class="border-b border-border">
-                    <th class="w-[30%] px-4 py-3 text-sm font-bold text-secondary tracking-wider">
-                        Data Pegawai
-                        <div class="text-[11px] font-normal normal-case">Nama | Nomor Induk Kependudukan</div>
-                    </th>
-                    <th class="w-[30%] px-4 py-3 text-sm font-bold text-secondary tracking-wider">
-                        Pendidikan
-                        <div class="text-[11px] font-normal normal-case">Pendidikan | Jurusan</div>
-                    </th>
-                    <th class="w-[30%] px-4 py-3 text-sm font-bold text-secondary tracking-wider">
-                        Informasi Kelulusan
-                        <div class="text-[11px] font-normal normal-case">Tahun | Satuan Pendidikan</div>
-                    </th>
-                    <th class="w-[10%] px-4 py-3 text-sm font-bold text-secondary tracking-wider">
-                        Dokumen
-                        <div class="text-[11px] font-normal normal-case">File Ijazah</div>
-                    </th>
-                </tr>
-            </thead>
-            <tbody>
-                @forelse ($staff as $r)
-                @php
-                $nik = $r->vault?->nik ?? '-';
+    <x-ui.table>
+        <thead>
+            <tr class="border-b border-border">
+                <x-ui.table.th width="w-[30%]" sub="Nama | Nomor Induk Kependudukan">Data Pegawai</x-ui.table.th>
+                <x-ui.table.th width="w-[30%]" sub="Pendidikan | Jurusan">Pendidikan</x-ui.table.th>
+                <x-ui.table.th width="w-[30%]" sub="Tahun | Satuan Pendidikan">Informasi Kelulusan</x-ui.table.th>
+                <x-ui.table.th width="w-[10%]" sub="File Ijazah">Dokumen</x-ui.table.th>
+            </tr>
+        </thead>
+        <tbody>
+            @forelse ($staff as $r)
+            @php
+            $nik = $r->vault?->nik ?? '-';
 
-                $pendidikan = $r->highestEducation;
-                $namaPendidikan = $pendidikan ? $pendidikan->level->alias : 'Belum ada data';
-                $jurusan = $pendidikan ? $pendidikan->major : '-';
+            $pendidikan = $r->highestEducation;
+            $namaPendidikan = $pendidikan ? $pendidikan->level->alias : 'Belum ada data';
+            $jurusan = $pendidikan ? $pendidikan->major : '-';
 
-                // Mengambil tahun lulus dan institusi dari relasi highestEducation
-                $tahunLulus = ($pendidikan && $pendidikan->graduation_date) ? \Carbon\Carbon::parse($pendidikan->graduation_date)->format('Y') : '-';
-                $institusi = $pendidikan->institution_name ?? '-';
+            // Tahun lulus dan institusi dari relasi highestEducation
+            $tahunLulus = ($pendidikan && $pendidikan->graduation_date) ? \Carbon\Carbon::parse($pendidikan->graduation_date)->format('Y') : '-';
+            $institusi = $pendidikan->institution_name ?? '-';
 
-                // Cek ketersediaan file dokumen (sesuaikan nama propertinya dengan database Anda)
-                $hasDocument = $pendidikan && $pendidikan->certificate_file_id;
-                @endphp
+            // Cek ketersediaan file dokumen
+            $hasDocument = $pendidikan && $pendidikan->certificate_file_id;
+            @endphp
 
-                <tr id="row-staff-{{ $r->id }}" class="border-b border-border hover:bg-muted/50 transition-colors">
-                    <td class="px-5 py-4 min-w-[240px]">
-                        <a href="{{ route('admin.personnel.education.show', $r->id) }}" class="flex items-center gap-3 group transition-all">
-                            <div class="shrink-0">
-                                <x-ui.avatar :name="$r->name" :gender="$r->gender" :index="$loop->index" />
+            <tr id="row-staff-{{ $r->id }}" class="border-b border-border hover:bg-muted/50 transition-colors">
+                {{-- Data Pegawai --}}
+                <x-ui.table.td>
+                    <a href="{{ route('admin.personnel.education.show', $r->id) }}" class="flex items-center gap-3 group min-w-0">
+                        <div class="shrink-0">
+                            <x-ui.avatar :name="$r->name" :gender="$r->gender" :index="$loop->index" />
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <x-ui.table.text :text="$r->name" class="font-semibold text-foreground text-sm group-hover:text-primary transition-colors" />
+                            <div class="flex items-center gap-1.5 text-xs text-secondary mt-0.5 min-w-0">
+                                <span class="inline-block size-1.5 rounded-full bg-emerald-500 shrink-0"></span>
+                                <span class="truncate" title="{{ $nik }}">{{ $nik }}</span>
                             </div>
-                            <div>
-                                <div class="font-semibold text-foreground text-sm group-hover:text-primary transition-colors whitespace-nowrap">
-                                    {{ $r->name }}
-                                </div>
-                                <div class="flex items-center gap-1.5 text-xs text-secondary mt-0.5 whitespace-nowrap">
-                                    <span class="inline-block size-1.5 rounded-full bg-emerald-500 shrink-0"></span>
-                                    {{ $nik }}
-                                </div>
+                        </div>
+                    </a>
+                </x-ui.table.td>
+
+                {{-- Pendidikan --}}
+                <x-ui.table.td>
+                    <x-ui.table.text :text="$namaPendidikan" class="text-sm font-medium text-foreground" />
+                    <x-ui.table.text :text="$jurusan" class="text-xs text-secondary mt-1" />
+                </x-ui.table.td>
+
+                {{-- Informasi Kelulusan --}}
+                <x-ui.table.td>
+                    <div class="flex items-center gap-1.5 text-sm font-medium text-foreground min-w-0">
+                        <i data-lucide="calendar-check" class="size-3.5 shrink-0 text-secondary/50"></i>
+                        <span>{{ $tahunLulus }}</span>
+                    </div>
+                    <x-ui.table.text :text="$institusi" class="text-xs text-secondary mt-1 pl-5" />
+                </x-ui.table.td>
+
+                {{-- Dokumen --}}
+                <x-ui.table.td>
+                    <div class="flex items-center">
+                        @if ($hasDocument)
+                        <button type="button" class="shrink-0 hover:opacity-80 transition-opacity" title="Lihat Dokumen Ijazah">
+                            <div class="size-8 rounded-lg bg-red-50 flex items-center justify-center border border-red-200">
+                                <i data-lucide="file-text" class="size-4 text-red-600"></i>
                             </div>
-                        </a>
-                    </td>
-
-                    <td class="px-5 py-4 min-w-[160px]">
-                        <div class="text-sm font-medium text-foreground whitespace-nowrap">{{ $namaPendidikan }}</div>
-                        <div class="text-xs text-secondary whitespace-nowrap mt-1">
-                            {{ $jurusan }}
+                        </button>
+                        @else
+                        <div class="size-8 rounded-lg bg-muted flex items-center justify-center border border-border" title="Dokumen Tidak Tersedia">
+                            <i data-lucide="file-x-2" class="size-4 text-secondary/50"></i>
                         </div>
-                    </td>
-
-                    <td class="px-5 py-4 min-w-[160px]">
-                        <div class="flex items-center gap-1.5 text-sm font-medium text-foreground whitespace-nowrap">
-                            <i data-lucide="calendar-check" class="size-3.5 text-secondary/50"></i>
-                            {{ $tahunLulus }}
-                        </div>
-                        <div class="text-xs text-secondary whitespace-nowrap mt-1 pl-5">
-                            {{ $institusi }}
-                        </div>
-                    </td>
-
-                    <td class="px-5 py-4 min-w-[100px]">
-                        <div class="flex items-center">
-                            @if ($hasDocument)
-                            <button type="button" class="shrink-0 hover:opacity-80 transition-opacity" title="Lihat Dokumen Ijazah">
-                                <div class="size-8 rounded-lg bg-red-50 flex items-center justify-center border border-red-200">
-                                    <i data-lucide="file-text" class="size-4 text-red-600"></i>
-                                </div>
-                            </button>
-                            @else
-                            <div class="size-8 rounded-lg bg-muted flex items-center justify-center border border-border" title="Dokumen Tidak Tersedia">
-                                <i data-lucide="file-x-2" class="size-4 text-secondary/50"></i>
-                            </div>
-                            @endif
-                        </div>
-                    </td>
-                </tr>
-                @empty
-                <tr>
-                    <td colspan="4" class="px-4 py-16 text-center text-secondary">
-                        <div class="flex flex-col items-center gap-3">
-                            <i data-lucide="inbox" class="size-10 text-border"></i>
-                            <p class="font-medium">Tidak ada data pegawai ditemukan</p>
-                        </div>
-                    </td>
-                </tr>
-                @endforelse
-            </tbody>
-        </table>
-    </div>
+                        @endif
+                    </div>
+                </x-ui.table.td>
+            </tr>
+            @empty
+            <tr>
+                <td colspan="4" class="px-4 py-16 text-center text-secondary">
+                    <div class="flex flex-col items-center gap-3">
+                        <i data-lucide="inbox" class="size-10 text-border"></i>
+                        <p class="font-medium">Tidak ada data pegawai ditemukan</p>
+                    </div>
+                </td>
+            </tr>
+            @endforelse
+        </tbody>
+    </x-ui.table>
 
     {{-- ============ 2. MOBILE CARDS (di bawah lg) ============ --}}
     <div class="lg:hidden divide-y divide-border border-y border-border bg-white -mx-5 mb-5 mt-2">

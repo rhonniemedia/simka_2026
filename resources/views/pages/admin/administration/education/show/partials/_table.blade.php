@@ -5,174 +5,165 @@
     hx-swap="outerHTML">
 
     {{-- ============ 1. DESKTOP TABLE (lg ke atas) ============ --}}
-    <div class="hidden lg:block overflow-x-auto">
-        <table class="w-full text-left border-collapse">
-            <thead>
-                {{-- Header menggunakan gaya dari file contoh --}}
-                <tr class="border-b border-border">
-                    <th class="w-[30%] px-4 py-3 text-sm font-bold text-secondary tracking-wider">
-                        Pendidikan
-                        <div class="text-[11px] font-normal normal-case">Jenjang & Jurusan | Gelar</div>
-                    </th>
-                    <th class="w-[30%] px-4 py-3 text-sm font-bold text-secondary tracking-wider">
-                        Ijazah
-                        <div class="text-[11px] font-normal normal-case">Tahun Lulus | Nomor Ijazah</div>
-                    </th>
-                    <th class="w-[30%] px-4 py-3 text-sm font-bold text-secondary tracking-wider">
-                        Satuan Pendidikan
-                        <div class="text-[11px] font-normal normal-case">Institusi | Provinsi</div>
-                    </th>
-                    <th class="w-[10%] px-4 py-3 text-sm font-bold text-secondary tracking-wider">
-                        Aksi
-                        <div class="text-[11px] font-normal normal-case">Edit | Delete</div>
-                    </th>
-                </tr>
-            </thead>
-            {{-- Menambahkan border-b agar batas bawah tabel desktop muncul --}}
-            <tbody class="divide-y divide-border border-b border-border">
-                @forelse ($educations as $edu)
-                @php
-                // Palet warna pastel lembut per jenjang pendidikan
-                $alias = $edu->level->alias ?? 'S1';
-                $colorMap = [
-                'S3' => ['from' => 'from-violet-300', 'to' => 'to-purple-400', 'ring' => 'ring-violet-300/40', 'dot' => 'bg-purple-400'],
-                'S2' => ['from' => 'from-sky-300', 'to' => 'to-blue-400', 'ring' => 'ring-sky-300/40', 'dot' => 'bg-blue-400'],
-                'S1' => ['from' => 'from-teal-300', 'to' => 'to-emerald-400', 'ring' => 'ring-teal-300/40', 'dot' => 'bg-emerald-400'],
-                'D4' => ['from' => 'from-cyan-300', 'to' => 'to-sky-400', 'ring' => 'ring-cyan-300/40', 'dot' => 'bg-sky-400'],
-                'D3' => ['from' => 'from-amber-300', 'to' => 'to-orange-400', 'ring' => 'ring-amber-300/40', 'dot' => 'bg-orange-400'],
-                'SMA' => ['from' => 'from-pink-300', 'to' => 'to-rose-400', 'ring' => 'ring-pink-300/40', 'dot' => 'bg-rose-400'],
-                'SMK' => ['from' => 'from-pink-300', 'to' => 'to-rose-400', 'ring' => 'ring-pink-300/40', 'dot' => 'bg-rose-400'],
-                ];
-                $color = $colorMap[$alias] ?? ['from' => 'from-slate-300', 'to' => 'to-slate-400', 'ring' => 'ring-slate-300/40', 'dot' => 'bg-slate-400'];
-                $ijazah = $edu->documents->first(fn ($d) => $d->category?->code === 'ijazah');
-                $transcript = $edu->documents->first(fn ($d) => $d->category?->code === 'transkrip_nilai');
-                @endphp
-                <tr id="row-edu-{{ $edu->id }}" class="group transition-colors hover:bg-muted/40">
-                    <td class="px-5 py-4 min-w-[240px]">
-                        <div class="flex items-center gap-3">
-                            <div class="shrink-0">
-                                {{-- Avatar squircle dengan gradient pastel (Original) --}}
-                                <div class="size-11 rounded-2xl bg-gradient-to-br {{ $color['from'] }} {{ $color['to'] }} text-white font-bold text-xs flex items-center justify-center ring-2 ring-white shadow-sm shadow-black/10 uppercase transition-transform duration-200 group-hover:scale-[1.04]">
-                                    {{ $alias }}
-                                </div>
-                            </div>
-                            <div>
-                                <div class="font-semibold text-foreground text-sm whitespace-nowrap">
-                                    {{ $edu->level->alias ?? 'Tidak Diketahui' }} <span class="font-normal text-secondary/50 px-0.5">·</span> {{ $edu->major ?? '-' }}
-                                </div>
-                                <div class="flex items-center gap-1.5 text-xs text-secondary mt-1 whitespace-nowrap">
-                                    <span class="inline-block size-1.5 rounded-full {{ $color['dot'] }} shrink-0"></span>
-                                    {{ $edu->degree_name ?? '-' }} ({{ $edu->degree_abbreviation ?? '-' }})
-                                </div>
+    <x-ui.table>
+        <thead>
+            <tr class="border-b border-border">
+                <x-ui.table.th width="w-[30%]" sub="Jenjang & Jurusan | Gelar">Pendidikan</x-ui.table.th>
+                <x-ui.table.th width="w-[30%]" sub="Tahun Lulus | Nomor Ijazah">Ijazah</x-ui.table.th>
+                <x-ui.table.th width="w-[30%]" sub="Institusi | Provinsi">Satuan Pendidikan</x-ui.table.th>
+                <x-ui.table.th width="w-[10%]" sub="Kelola">Aksi</x-ui.table.th>
+            </tr>
+        </thead>
+        {{-- border-b agar batas bawah tabel desktop muncul --}}
+        <tbody class="divide-y divide-border border-b border-border">
+            @forelse ($educations as $edu)
+            @php
+            // Palet warna pastel lembut per jenjang pendidikan
+            $alias = $edu->level->alias ?? 'S1';
+            $colorMap = [
+            'S3' => ['from' => 'from-violet-300', 'to' => 'to-purple-400', 'ring' => 'ring-violet-300/40', 'dot' => 'bg-purple-400'],
+            'S2' => ['from' => 'from-sky-300', 'to' => 'to-blue-400', 'ring' => 'ring-sky-300/40', 'dot' => 'bg-blue-400'],
+            'S1' => ['from' => 'from-teal-300', 'to' => 'to-emerald-400', 'ring' => 'ring-teal-300/40', 'dot' => 'bg-emerald-400'],
+            'D4' => ['from' => 'from-cyan-300', 'to' => 'to-sky-400', 'ring' => 'ring-cyan-300/40', 'dot' => 'bg-sky-400'],
+            'D3' => ['from' => 'from-amber-300', 'to' => 'to-orange-400', 'ring' => 'ring-amber-300/40', 'dot' => 'bg-orange-400'],
+            'SMA' => ['from' => 'from-pink-300', 'to' => 'to-rose-400', 'ring' => 'ring-pink-300/40', 'dot' => 'bg-rose-400'],
+            'SMK' => ['from' => 'from-pink-300', 'to' => 'to-rose-400', 'ring' => 'ring-pink-300/40', 'dot' => 'bg-rose-400'],
+            ];
+            $color = $colorMap[$alias] ?? ['from' => 'from-slate-300', 'to' => 'to-slate-400', 'ring' => 'ring-slate-300/40', 'dot' => 'bg-slate-400'];
+            $ijazah = $edu->documents->first(fn ($d) => $d->category?->code === 'ijazah');
+            $transcript = $edu->documents->first(fn ($d) => $d->category?->code === 'transkrip_nilai');
+
+            $judul = ($edu->level->alias ?? 'Tidak Diketahui') . ' · ' . ($edu->major ?? '-');
+            $gelar = ($edu->degree_name ?? '-') . ' (' . ($edu->degree_abbreviation ?? '-') . ')';
+            $tglLulus = $edu->graduation_date ? \Carbon\Carbon::parse($edu->graduation_date)->translatedFormat('Y (d F Y)') : '-';
+            @endphp
+            <tr id="row-edu-{{ $edu->id }}" class="group transition-colors hover:bg-muted/40">
+                {{-- Pendidikan --}}
+                <x-ui.table.td>
+                    <div class="flex items-center gap-3 min-w-0">
+                        <div class="shrink-0">
+                            {{-- Avatar squircle dengan gradient pastel --}}
+                            <div class="size-11 rounded-2xl bg-gradient-to-br {{ $color['from'] }} {{ $color['to'] }} text-white font-bold text-xs flex items-center justify-center ring-2 ring-white shadow-sm shadow-black/10 uppercase transition-transform duration-200 group-hover:scale-[1.04]">
+                                {{ $alias }}
                             </div>
                         </div>
-                    </td>
-                    {{-- Kolom Ijazah: Tahun (Atas) & Nomor (Bawah) (Original) --}}
-                    <td class="px-5 py-4 min-w-[160px]">
-                        <div class="flex items-center gap-1.5 text-sm font-medium text-foreground whitespace-nowrap">
-                            <i data-lucide="calendar-check-2" class="size-3.5 text-secondary/50"></i>
-                            {{ $edu->graduation_date ? \Carbon\Carbon::parse($edu->graduation_date)->translatedFormat('Y (d F Y)') : '-' }}
+                        <div class="min-w-0 flex-1">
+                            <x-ui.table.text :text="$judul" class="font-semibold text-foreground text-sm" />
+                            <div class="flex items-center gap-1.5 text-xs text-secondary mt-1 min-w-0">
+                                <span class="inline-block size-1.5 rounded-full {{ $color['dot'] }} shrink-0"></span>
+                                <span class="truncate" title="{{ $gelar }}">{{ $gelar }}</span>
+                            </div>
                         </div>
-                        <div class="text-xs text-secondary whitespace-nowrap mt-1 pl-5">
-                            No. {{ $edu->certificate_number ?? '-' }}
-                        </div>
-                        <div class="mt-1.5 pl-5 flex flex-col gap-0.5 text-[11px]">
-                            <span class="flex items-center gap-1 whitespace-nowrap {{ $ijazah ? 'text-emerald-600' : 'text-amber-600' }}"><i data-lucide="{{ $ijazah ? 'paperclip' : 'file-x' }}" class="size-3"></i> {{ $ijazah ? 'Ijazah tersedia' : 'Ijazah belum diunggah' }}</span>
-                            <span class="flex items-center gap-1 whitespace-nowrap {{ $transcript ? 'text-emerald-600' : 'text-amber-600' }}"><i data-lucide="{{ $transcript ? 'paperclip' : 'file-x' }}" class="size-3"></i> {{ $transcript ? 'Transkrip tersedia' : 'Transkrip belum diunggah' }}</span>
-                        </div>
-                    </td>
-                    <td class="px-5 py-4 min-w-[160px]">
-                        <div class="flex items-center gap-1.5 text-sm font-medium text-foreground whitespace-nowrap">
-                            <i data-lucide="building-2" class="size-3.5 text-secondary/50"></i>
-                            {{ $edu->institution_name }}
-                        </div>
-                        <div class="text-xs text-secondary whitespace-nowrap mt-1 pl-5">
-                            {{ $edu->province ?? '-' }}
-                        </div>
-                    </td>
-                    <td class="px-5 py-4 min-w-[120px]">
-                        {{-- Tombol Aksi Desktop menggunakan gaya dari file contoh --}}
-                        <div x-data="{
-                                open: false, menuX: 0, menuY: 0,
-                                toggle() {
-                                    if (this.open) { this.open = false; return; }
-                                    this.open = true;
-                                    this.$nextTick(() => {
-                                        const btn = this.$refs.button.getBoundingClientRect();
-                                        const menu = this.$refs.menu.getBoundingClientRect();
-                                        const spaceBelow = window.innerHeight - btn.bottom;
-                                        const spaceAbove = btn.top;
-                                        const dropUp = spaceBelow < menu.height && spaceAbove > menu.height;
-                                        this.menuX = btn.right - menu.width;
-                                        this.menuY = dropUp ? (btn.top - menu.height - 4) : (btn.bottom + 4);
-                                    });
-                                }
-                            }"
-                            @click.outside="open = false" @scroll.window="open = false" @resize.window="open = false"
-                            class="relative inline-block text-left">
-                            <button x-ref="button" type="button" @click="toggle()" title="Aksi"
-                                class="inline-flex items-center gap-2 h-9 px-3.5 rounded-lg border border-border bg-white text-secondary hover:bg-muted hover:text-foreground transition-all focus:outline-none cursor-pointer whitespace-nowrap">
-                                <span class="text-sm font-medium">Aksi</span>
-                                <i data-lucide="chevron-down" class="size-4 transition-transform duration-200" :class="{ 'rotate-180': open }"></i>
+                    </div>
+                </x-ui.table.td>
+
+                {{-- Ijazah: tahun (atas), nomor (tengah), status berkas (bawah) --}}
+                <x-ui.table.td>
+                    <div class="flex items-center gap-1.5 text-sm font-medium text-foreground min-w-0">
+                        <i data-lucide="calendar-check-2" class="size-3.5 shrink-0 text-secondary/50"></i>
+                        <span class="truncate" title="{{ $tglLulus }}">{{ $tglLulus }}</span>
+                    </div>
+                    <x-ui.table.text :text="'No. ' . ($edu->certificate_number ?? '-')" class="text-xs text-secondary mt-1 pl-5" />
+                    <div class="mt-1.5 pl-5 flex flex-col gap-0.5 text-[11px] min-w-0">
+                        <span class="flex items-center gap-1 min-w-0 {{ $ijazah ? 'text-emerald-600' : 'text-amber-600' }}">
+                            <i data-lucide="{{ $ijazah ? 'paperclip' : 'file-x' }}" class="size-3 shrink-0"></i>
+                            <span class="truncate">{{ $ijazah ? 'Ijazah tersedia' : 'Ijazah belum diunggah' }}</span>
+                        </span>
+                        <span class="flex items-center gap-1 min-w-0 {{ $transcript ? 'text-emerald-600' : 'text-amber-600' }}">
+                            <i data-lucide="{{ $transcript ? 'paperclip' : 'file-x' }}" class="size-3 shrink-0"></i>
+                            <span class="truncate">{{ $transcript ? 'Transkrip tersedia' : 'Transkrip belum diunggah' }}</span>
+                        </span>
+                    </div>
+                </x-ui.table.td>
+
+                {{-- Satuan Pendidikan --}}
+                <x-ui.table.td>
+                    <div class="flex items-center gap-1.5 text-sm font-medium text-foreground min-w-0">
+                        <i data-lucide="building-2" class="size-3.5 shrink-0 text-secondary/50"></i>
+                        <span class="truncate" title="{{ $edu->institution_name }}">{{ $edu->institution_name }}</span>
+                    </div>
+                    <x-ui.table.text :text="$edu->province ?? '-'" class="text-xs text-secondary mt-1 pl-5" />
+                </x-ui.table.td>
+
+                {{-- Aksi: ikon titik tiga di layar HD, tombol "Aksi" di 2xl --}}
+                <x-ui.table.td>
+                    <div x-data="{
+                            open: false, menuX: 0, menuY: 0,
+                            toggle() {
+                                if (this.open) { this.open = false; return; }
+                                this.open = true;
+                                this.$nextTick(() => {
+                                    const btn = this.$refs.button.getBoundingClientRect();
+                                    const menu = this.$refs.menu.getBoundingClientRect();
+                                    const spaceBelow = window.innerHeight - btn.bottom;
+                                    const spaceAbove = btn.top;
+                                    const dropUp = spaceBelow < menu.height && spaceAbove > menu.height;
+                                    this.menuX = btn.right - menu.width;
+                                    this.menuY = dropUp ? (btn.top - menu.height - 4) : (btn.bottom + 4);
+                                });
+                            }
+                        }"
+                        @click.outside="open = false" @scroll.window="open = false" @resize.window="open = false"
+                        class="relative inline-block text-left">
+                        <x-ui.table.actions x-ref="button" @click="toggle()" title="Aksi" />
+
+                        <div x-ref="menu" x-show="open" x-cloak
+                            x-transition:enter="transition ease-out duration-100" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
+                            x-transition:leave="transition ease-in duration-75" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
+                            :style="`top: ${menuY}px; left: ${menuX}px;`"
+                            class="fixed z-[9999] w-56 rounded-xl border border-border bg-white shadow-lg py-2 flex flex-col text-left origin-top-right">
+                            <p class="px-4 pt-1 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-secondary">Aksi Pendidikan</p>
+                            @foreach ($edu->documents as $doc)
+                            <a href="{{ route('admin.personnel.documents.preview', $doc->id) }}" target="_blank" rel="noopener" @click="open = false"
+                                class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer text-left">
+                                <i data-lucide="file-text" class="size-4 pointer-events-none shrink-0"></i> <span class="truncate">Lihat {{ $doc->category?->name ?? 'Berkas' }}</span>
+                            </a>
+                            @endforeach
+                            <button type="button" @click="open = false"
+                                hx-get="{{ route('admin.personnel.education.edit', [$staff->id, $edu->id]) }}"
+                                hx-target="#modal-container" hx-swap="innerHTML"
+                                class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors cursor-pointer text-left">
+                                <i data-lucide="file-pen-line" class="size-4 text-secondary pointer-events-none"></i> Edit Data
                             </button>
-                            <div x-ref="menu" x-show="open" x-cloak
-                                x-transition:enter="transition ease-out duration-100" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
-                                x-transition:leave="transition ease-in duration-75" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
-                                :style="`top: ${menuY}px; left: ${menuX}px;`"
-                                class="fixed z-[9999] w-56 rounded-xl border border-border bg-white shadow-lg py-2 flex flex-col text-left origin-top-right">
-                                <p class="px-4 pt-1 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-secondary">Aksi Pendidikan</p>
-                                @foreach ($edu->documents as $doc)
-                                <a href="{{ route('admin.personnel.documents.preview', $doc->id) }}" target="_blank" rel="noopener" @click="open = false"
-                                    class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer text-left">
-                                    <i data-lucide="file-text" class="size-4 pointer-events-none shrink-0"></i> <span class="truncate">Lihat {{ $doc->category?->name ?? 'Berkas' }}</span>
-                                </a>
-                                @endforeach
-                                <button type="button" @click="open = false"
-                                    hx-get="{{ route('admin.personnel.education.edit', [$staff->id, $edu->id]) }}"
-                                    hx-target="#modal-container" hx-swap="innerHTML"
-                                    class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors cursor-pointer text-left">
-                                    <i data-lucide="file-pen-line" class="size-4 text-secondary pointer-events-none"></i> Edit Data
-                                </button>
-                                <button type="button"
-                                    @click="
-                                        open = false;
-                                        ShowConfirm({
-                                            title: 'Hapus Riwayat Pendidikan?',
-                                            message: 'Yakin ingin menghapus riwayat pendidikan ini? Tindakan ini tidak dapat dibatalkan.',
-                                            confirmText: 'Ya, Hapus',
-                                            cancelText: 'Batal',
-                                        }, () => {
-                                            htmx.ajax('DELETE', '{{ route('admin.personnel.education.destroy', ['staff_id' => $staff->id, 'edu_id' => $edu->id]) }}', {
-                                                target: '#education-container',
-                                                swap: 'outerHTML',
-                                                headers: {
-                                                    'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content ?? '{{ csrf_token() }}'
-                                                }
-                                            });
-                                        })
-                                    "
-                                    class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-error hover:bg-error/10 transition-colors cursor-pointer text-left">
-                                    <i data-lucide="trash-2" class="size-4 pointer-events-none"></i> Hapus Data
-                                </button>
-                            </div>
+                            <button type="button"
+                                @click="
+                                    open = false;
+                                    ShowConfirm({
+                                        title: 'Hapus Riwayat Pendidikan?',
+                                        message: 'Yakin ingin menghapus riwayat pendidikan ini? Tindakan ini tidak dapat dibatalkan.',
+                                        confirmText: 'Ya, Hapus',
+                                        cancelText: 'Batal',
+                                    }, () => {
+                                        htmx.ajax('DELETE', '{{ route('admin.personnel.education.destroy', ['staff_id' => $staff->id, 'edu_id' => $edu->id]) }}', {
+                                            target: '#education-container',
+                                            swap: 'outerHTML',
+                                            headers: {
+                                                'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content ?? '{{ csrf_token() }}'
+                                            }
+                                        });
+                                    })
+                                "
+                                class="flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm text-error hover:bg-error/10 transition-colors cursor-pointer text-left">
+                                <i data-lucide="trash-2" class="size-4 pointer-events-none"></i> Hapus Data
+                            </button>
                         </div>
-                    </td>
-                </tr>
-                @empty
-                <tr>
-                    <td colspan="4" class="px-4 py-16 text-center text-secondary">
-                        <div class="flex flex-col items-center gap-3">
-                            <div class="flex items-center justify-center size-16 rounded-full bg-muted">
-                                <i data-lucide="graduation-cap" class="size-7 text-secondary/50"></i>
-                            </div>
-                            <p class="font-medium text-sm">Belum ada riwayat pendidikan untuk pegawai ini.</p>
+                    </div>
+                </x-ui.table.td>
+            </tr>
+            @empty
+            <tr>
+                <td colspan="4" class="px-4 py-16 text-center text-secondary">
+                    <div class="flex flex-col items-center gap-3">
+                        <div class="flex items-center justify-center size-16 rounded-full bg-muted">
+                            <i data-lucide="graduation-cap" class="size-7 text-secondary/50"></i>
                         </div>
-                    </td>
-                </tr>
-                @endforelse
-            </tbody>
-        </table>
-    </div>
+                        <p class="font-medium text-sm">Belum ada riwayat pendidikan untuk pegawai ini.</p>
+                    </div>
+                </td>
+            </tr>
+            @endforelse
+        </tbody>
+    </x-ui.table>
 
     {{-- ============ 2. MOBILE CARDS (di bawah lg) ============ --}}
     <div class="lg:hidden divide-y divide-border border-y border-border -mx-5 mt-2 mb-4">
@@ -195,7 +186,7 @@
         <div id="card-edu-{{ $edu->id }}" class="px-5 py-4 active:bg-muted/40 transition-colors">
             <div class="flex items-start gap-3">
                 <div class="shrink-0">
-                    {{-- Avatar squircle dengan gradient pastel (Original) --}}
+                    {{-- Avatar squircle dengan gradient pastel --}}
                     <div class="size-11 rounded-2xl bg-gradient-to-br {{ $color['from'] }} {{ $color['to'] }} text-white font-bold text-xs flex items-center justify-center ring-2 ring-white shadow-sm shadow-black/10 uppercase">
                         {{ $alias }}
                     </div>
@@ -211,7 +202,7 @@
                 </div>
             </div>
             <div class="mt-3 border-t border-border divide-y divide-border text-xs">
-                {{-- Baris Ijazah: Tahun (Atas) & Nomor (Bawah) (Original) --}}
+                {{-- Baris Ijazah: Tahun (Atas) & Nomor (Bawah) --}}
                 <div class="flex items-center justify-between gap-3 py-2.5">
                     <p class="text-secondary flex items-center gap-1.5 shrink-0">
                         <i data-lucide="calendar-check-2" class="size-3.5 text-secondary/50"></i>
@@ -228,7 +219,7 @@
                         <p class="text-[11px] {{ $transcript ? 'text-emerald-600' : 'text-amber-600' }}">{{ $transcript ? 'Transkrip tersedia' : 'Transkrip belum diunggah' }}</p>
                     </div>
                 </div>
-                {{-- Baris Institusi (Original) --}}
+                {{-- Baris Institusi --}}
                 <div class="flex items-center justify-between gap-3 py-2.5">
                     <p class="text-secondary flex items-center gap-1.5 shrink-0">
                         <i data-lucide="building-2" class="size-3.5 text-secondary/50"></i>
@@ -241,7 +232,7 @@
                 </div>
             </div>
 
-            {{-- Tombol Aksi Mobile menggunakan gaya dari file contoh --}}
+            {{-- Tombol Aksi Mobile --}}
             <div class="mt-3 flex flex-wrap items-center justify-end gap-2 border-t border-border pt-3">
                 @foreach ($edu->documents as $doc)
                 <a href="{{ route('admin.personnel.documents.preview', $doc->id) }}" target="_blank" rel="noopener"

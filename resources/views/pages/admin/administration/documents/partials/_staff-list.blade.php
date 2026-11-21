@@ -35,85 +35,75 @@
     $detailUrl = fn ($id) => route('admin.personnel.documents.staff', $id) . '?' . http_build_query($carryQuery);
     @endphp
 
-    {{-- ============ 1. DESKTOP TABLE ============ --}}
-    <div class="hidden lg:block overflow-x-auto">
-        <table class="w-full text-left">
-            <thead>
-                <tr class="border-b border-border">
-                    <th class="w-[40%] px-4 py-3 text-sm font-bold text-secondary tracking-wider">
-                        Data Pegawai
-                        <div class="text-[11px] font-normal normal-case">Nama Pegawai | NIK</div>
-                    </th>
-                    <th class="w-[40%] px-4 py-3 text-sm font-bold text-secondary tracking-wider">
-                        Ringkasan Dokumen
-                        <div class="text-[11px] font-normal normal-case">{{ $missing ? 'Kelengkapan berkas' : ($filtering ? 'Dokumen yang sesuai filter' : 'Total Berkas Terunggah') }}</div>
-                    </th>
-                    <th class="w-[20%] px-4 py-3 text-sm font-bold text-secondary tracking-wider text-right">
-                        Aksi / Detail
-                        <div class="text-[11px] font-normal normal-case">Kelola Dokumen Pegawai</div>
-                    </th>
-                </tr>
-            </thead>
-            <tbody>
-                @forelse ($staffList as $r)
-                @php
-                $nik = $r->vault?->nik ?? '-';
-                $docCount = $r->documents_count ?? 0;
-                @endphp
-                <tr id="row-staff-{{ $r->id }}" class="border-b border-border hover:bg-muted/50 transition-colors">
-                    <td class="px-5 py-4 min-w-[240px]">
-                        {{-- Tautan langsung ke route show pegawai (misal: route detail administrasi / profil / dokumen pegawai) --}}
-                        <a href="{{ $detailUrl($r->id) }}" class="flex items-center gap-3 group transition-all">
-                            <div class="shrink-0">
-                                <x-ui.avatar :name="$r->name" :gender="$r->gender ?? 'M'" :index="$loop->index" />
-                            </div>
-                            <div>
-                                <div class="font-semibold text-foreground text-sm group-hover:text-primary transition-colors whitespace-nowrap">
-                                    {{ $r->name }}
-                                </div>
-                                <div class="flex items-center gap-1.5 text-xs text-secondary mt-0.5 whitespace-nowrap">
-                                    <span class="inline-block size-1.5 rounded-full bg-emerald-500 shrink-0"></span>
-                                    {{ $nik }}
-                                </div>
-                            </div>
-                        </a>
-                    </td>
-
-                    <td class="px-5 py-4 min-w-[200px]">
-                        <div class="flex items-center gap-2">
-                            @if ($missing)
-                            <span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">Belum ada yang sesuai</span>
-                            <span class="text-xs text-secondary whitespace-nowrap">Total berkas: {{ $r->total_documents_count ?? 0 }}</span>
-                            @else
-                            <span class="px-2.5 py-1 rounded-full text-xs font-semibold {{ $docCount > 0 ? 'bg-primary/10 text-primary' : 'bg-slate-100 text-secondary' }}">
-                                {{ $docCount }} {{ $filtering ? 'Dokumen Cocok' : 'Dokumen Tersedia' }}
-                            </span>
-                            @endif
+    {{-- ============ 1. DESKTOP TABLE (lg ke atas) ============ --}}
+    {{-- 3 kolom: 30% + 30% + 40% (sisa 10% ditambahkan ke kolom terakhir) --}}
+    <x-ui.table>
+        <thead>
+            <tr class="border-b border-border">
+                <x-ui.table.th width="w-[30%]" sub="Nama Pegawai | NIK">Data Pegawai</x-ui.table.th>
+                <x-ui.table.th width="w-[30%]" :sub="$missing ? 'Kelengkapan berkas' : ($filtering ? 'Dokumen yang sesuai filter' : 'Total Berkas Terunggah')">Ringkasan Dokumen</x-ui.table.th>
+                <x-ui.table.th width="w-[40%]" sub="Kelola Dokumen Pegawai">Aksi / Detail</x-ui.table.th>
+            </tr>
+        </thead>
+        <tbody>
+            @forelse ($staffList as $r)
+            @php
+            $nik = $r->vault?->nik ?? '-';
+            $docCount = $r->documents_count ?? 0;
+            @endphp
+            <tr id="row-staff-{{ $r->id }}" class="border-b border-border hover:bg-muted/50 transition-colors">
+                {{-- Data Pegawai --}}
+                <x-ui.table.td>
+                    <a href="{{ $detailUrl($r->id) }}" class="flex items-center gap-3 group min-w-0">
+                        <div class="shrink-0">
+                            <x-ui.avatar :name="$r->name" :gender="$r->gender ?? 'M'" :index="$loop->index" />
                         </div>
-                    </td>
-
-                    <td class="px-5 py-4 min-w-[120px] text-right">
-                        <a href="{{ $detailUrl($r->id) }}"
-                            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-white text-xs font-semibold text-foreground hover:bg-muted transition-colors">
-                            <i data-lucide="eye" class="size-3.5 text-secondary"></i>
-                            <span>Buka Detail</span>
-                        </a>
-                    </td>
-                </tr>
-                @empty
-                <tr>
-                    <td colspan="3" class="px-4 py-16 text-center text-secondary">
-                        <div class="flex flex-col items-center gap-3">
-                            <i data-lucide="users" class="size-10 text-border"></i>
-                            <p class="font-medium text-sm">{{ $missing ? 'Semua pegawai sudah memiliki dokumen yang sesuai filter' : 'Pegawai tidak ditemukan' }}</p>
-                            <p class="text-xs text-secondary">Coba ubah kata kunci atau filter pencarian.</p>
+                        <div class="min-w-0 flex-1">
+                            <x-ui.table.text :text="$r->name" class="font-semibold text-foreground text-sm group-hover:text-primary transition-colors" />
+                            <div class="flex items-center gap-1.5 text-xs text-secondary mt-0.5 min-w-0">
+                                <span class="inline-block size-1.5 rounded-full bg-emerald-500 shrink-0"></span>
+                                <span class="truncate" title="{{ $nik }}">{{ $nik }}</span>
+                            </div>
                         </div>
-                    </td>
-                </tr>
-                @endforelse
-            </tbody>
-        </table>
-    </div>
+                    </a>
+                </x-ui.table.td>
+
+                {{-- Ringkasan Dokumen --}}
+                <x-ui.table.td>
+                    <div class="flex items-center gap-2 min-w-0">
+                        @if ($missing)
+                        <span class="shrink-0 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">Belum ada yang sesuai</span>
+                        <span class="min-w-0 truncate text-xs text-secondary">Total berkas: {{ $r->total_documents_count ?? 0 }}</span>
+                        @else
+                        <span class="truncate px-2.5 py-1 rounded-full text-xs font-semibold {{ $docCount > 0 ? 'bg-primary/10 text-primary' : 'bg-slate-100 text-secondary' }}">
+                            {{ $docCount }} {{ $filtering ? 'Dokumen Cocok' : 'Dokumen Tersedia' }}
+                        </span>
+                        @endif
+                    </div>
+                </x-ui.table.td>
+
+                {{-- Aksi / Detail --}}
+                <x-ui.table.td>
+                    <a href="{{ $detailUrl($r->id) }}"
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-white text-xs font-semibold text-foreground hover:bg-muted transition-colors whitespace-nowrap">
+                        <i data-lucide="eye" class="size-3.5 text-secondary"></i>
+                        <span>Buka Detail</span>
+                    </a>
+                </x-ui.table.td>
+            </tr>
+            @empty
+            <tr>
+                <td colspan="3" class="px-4 py-16 text-center text-secondary">
+                    <div class="flex flex-col items-center gap-3">
+                        <i data-lucide="users" class="size-10 text-border"></i>
+                        <p class="font-medium text-sm">{{ $missing ? 'Semua pegawai sudah memiliki dokumen yang sesuai filter' : 'Pegawai tidak ditemukan' }}</p>
+                        <p class="text-xs text-secondary">Coba ubah kata kunci atau filter pencarian.</p>
+                    </div>
+                </td>
+            </tr>
+            @endforelse
+        </tbody>
+    </x-ui.table>
 
     {{-- ============ 2. MOBILE CARDS ============ --}}
     <div class="lg:hidden divide-y divide-border border-y border-border bg-white -mx-5 mb-5 mt-2">

@@ -35,7 +35,13 @@ class PositionHistoryController extends Controller
     {
         $search = $request->input('search');
         $filterEmploymentStatus = $request->input('filter_employment_status');
-        $filterActiveOnly = $request->boolean('filter_active_only');
+
+        // '' = semua, 'has' = sudah punya jabatan aktif, 'none' = belum punya jabatan aktif
+        $filterPosition = $request->input('filter_position');
+        if (! in_array($filterPosition, ['has', 'none'], true)) {
+            // Kompatibel dengan tautan lama (?filter_active_only=1)
+            $filterPosition = $request->boolean('filter_active_only') ? 'has' : null;
+        }
 
         $query = Data::completed()
             ->active()
@@ -64,10 +70,12 @@ class PositionHistoryController extends Controller
             $query->where('staff_data.employment_id', $filterEmploymentStatus);
         }
 
-        // Catatan: ini filter "punya jabatan ASN yang aktif" (is_active di riwayat jabatan),
+        // Ini filter "punya jabatan ASN yang aktif" (is_active di riwayat jabatan),
         // BUKAN status pegawai. Tidak ada hubungannya dengan ->active() di atas.
-        if ($filterActiveOnly) {
+        if ($filterPosition === 'has') {
             $query->whereNotNull('active_history.id');
+        } elseif ($filterPosition === 'none') {
+            $query->whereNull('active_history.id');
         }
 
         $staffList = $query->orderBy('staff_data.name')->paginate(10)->withQueryString();
@@ -85,7 +93,7 @@ class PositionHistoryController extends Controller
             'staffList',
             'search',
             'filterEmploymentStatus',
-            'filterActiveOnly',
+            'filterPosition',
             'employmentOptions'
         ));
     }

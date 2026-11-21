@@ -5,14 +5,13 @@
     class="relative {{ $compact ? 'shrink-0' : 'inline-block text-left' }}">
 
     @if ($compact)
+    {{-- Mobile: ikon titik tiga polos --}}
     <button x-ref="button" type="button" @click="toggle()" title="Aksi" class="p-1 -mr-1 text-secondary">
         <i data-lucide="more-vertical" class="size-4 pointer-events-none"></i>
     </button>
     @else
-    <button x-ref="button" type="button" @click="toggle()" class="inline-flex items-center gap-2 h-9 px-3.5 rounded-lg border border-border bg-white text-secondary hover:bg-muted transition-all">
-        <span class="text-sm font-medium">Aksi</span>
-        <i data-lucide="chevron-down" class="size-4" :class="{ 'rotate-180': open }"></i>
-    </button>
+    {{-- Desktop: titik tiga di layar HD, tombol "Aksi" di layar 2xl ke atas --}}
+    <x-ui.table.actions x-ref="button" @click="toggle()" title="Aksi" />
     @endif
 
     <div x-ref="menu" x-show="open" x-cloak x-transition class="fixed z-[9999] w-48 rounded-xl border border-border bg-white shadow-lg py-3 flex flex-col text-left" :style="`top: ${menuY}px; left: ${menuX}px;`">
